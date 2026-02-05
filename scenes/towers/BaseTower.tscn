@@ -16,4 +16,4 @@ debug_color = Color(0.2, 0.8, 0.2, 0.15)
 
 [node name="AttackCooldown" type="Timer" parent="."]
 wait_time = 1.0
-one_shot = false
+one_shot = true

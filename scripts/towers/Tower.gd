@@ -33,7 +33,7 @@ func apply_tower_data() -> void:
 	collision.shape = shape
 	# Set attack cooldown
 	attack_cooldown.wait_time = 1.0 / tower_data.attack_speed
-	attack_cooldown.one_shot = false
+	attack_cooldown.one_shot = true
 	# Load tower sprite texture from name (e.g. "Flame Spire" -> "flame_spire")
 	var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
 	var texture_path: String = "res://assets/sprites/towers/%s.png" % texture_name
