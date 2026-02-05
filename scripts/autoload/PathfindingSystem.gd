@@ -11,7 +11,7 @@ var _astar: AStarGrid2D
 func _ready() -> void:
 	_astar = AStarGrid2D.new()
 	_astar.region = Rect2i(0, 0, GridManager.GRID_WIDTH, GridManager.GRID_HEIGHT)
-	_astar.cell_size = Vector2(GridManager.CELL_SIZE, GridManager.CELL_SIZE)
+	_astar.cell_size = Vector2(1, 1)
 	_astar.diagonal_mode = AStarGrid2D.DIAGONAL_MODE_NEVER
 	_astar.update()
 

@@ -10,7 +10,7 @@ signal wave_started(wave_number: int)
 signal wave_completed(wave_number: int)
 signal game_over(victory: bool)
 
-@export var max_waves: int = 30
+@export var max_waves: int = 10
 @export var starting_lives: int = 20
 @export var build_phase_duration: float = 30.0
 
@@ -19,6 +19,7 @@ var lives: int = 20
 var game_state: GameState = GameState.MENU
 
 var _build_timer: float = 0.0
+var _enemies_leaked_this_wave: int = 0
 
 
 func _ready() -> void:
@@ -55,20 +56,23 @@ func _transition_to(new_state: GameState) -> void:
 		GameState.BUILD_PHASE:
 			current_wave += 1
 			_build_timer = build_phase_duration
-			EconomyManager.add_gold(_calculate_wave_income())
 		GameState.COMBAT_PHASE:
+			_enemies_leaked_this_wave = 0
 			wave_started.emit(current_wave)
 			EnemySystem.spawn_wave(current_wave)
 		GameState.INCOME_PHASE:
 			EconomyManager.apply_interest()
 			_transition_to(GameState.BUILD_PHASE)
 		GameState.GAME_OVER:
-			var victory: bool = current_wave > max_waves
+			var victory: bool = current_wave >= max_waves
 			game_over.emit(victory)
 	phase_changed.emit(new_state)
 
 
 func _on_wave_cleared() -> void:
+	# Award wave clear bonus (with no-leak bonus if applicable)
+	var bonus: int = EconomyManager.calculate_wave_bonus(current_wave, _enemies_leaked_this_wave)
+	EconomyManager.add_gold(bonus)
 	wave_completed.emit(current_wave)
 	if current_wave >= max_waves:
 		_transition_to(GameState.GAME_OVER)
@@ -85,5 +89,5 @@ func lose_life(amount: int = 1) -> void:
 		_transition_to(GameState.GAME_OVER)
 
 
-func _calculate_wave_income() -> int:
-	return 10 + (current_wave * 3)
+func record_enemy_leak() -> void:
+	_enemies_leaked_this_wave += 1

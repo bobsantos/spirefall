@@ -1,28 +1,75 @@
 # Spirefall Agent Memory
 
 ## Architecture Overview
-- **Grid**: 20x15, 64px cells, managed by `GridManager` autoload (`scripts/autoload/GridManager.gd`)
-- **CellType enum**: PATH, BUILDABLE, UNBUILDABLE, TOWER, SPAWN, EXIT
-- **GridManager signals**: `tower_placed`, `tower_removed`, `grid_updated`
-- **Maps** (e.g. `ForestClearing.gd`) own tile visuals as child Sprite2D nodes
-- **Towers/Enemies** have `$Sprite2D` child nodes; textures loaded dynamically in setup methods
-
-## Asset Conventions
-- Tile sprites: `res://assets/sprites/tiles/{buildable,path,spawn,exit,unbuildable}.png` (64x64)
-- Tower sprites: `res://assets/sprites/towers/{snake_case_name}.png` -- name derived from `TowerData.tower_name`
-- Enemy sprites: `res://assets/sprites/enemies/{snake_case_name}.png` -- name derived from `EnemyData.enemy_name`
-- Name conversion: `"Flame Spire".to_lower().replace(" ", "_")` -> `"flame_spire"`
-
-## Data Resources
-- `TowerData` (Resource): tower_name, element, tier, cost, damage, attack_speed, range_cells, etc.
-- `EnemyData` (Resource): enemy_name, base_health, speed_multiplier, element, is_flying, is_boss, etc.
+- 8 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager
+- All autoloads use `class_name` suffix `Class` (e.g., `EnemySystemClass`)
+- Autoloads reference each other directly by name (e.g., `EnemySystem.spawn_wave()`)
 
 ## Key Patterns
-- Use `load()` (not `preload()`) for dynamically constructed texture paths
-- TOWER cells display BUILDABLE tile texture visually (tower node handles its own sprite)
-- Maps connect to `GridManager.grid_updated` to refresh tile visuals when grid changes
-- `GridManager.grid_to_world()` returns cell center in world coords
+- Enemy data: `.tres` Resource files in `resources/enemies/`, keyed by snake_case type name
+- Wave config: `resources/waves/wave_config.json` with `waves` array, each entry has `wave`, `enemies[]`, optional `is_boss_wave`, `is_income_wave`
+- Enemy .tres naming: filename matches wave_config type (e.g., `"boss_ember_titan"` -> `boss_ember_titan.tres`)
+- Boss enemy_name in .tres is "Ember Titan" (no "Boss" prefix) but file is `boss_ember_titan.tres`
+- Swarm enemies have `spawn_count = 3` -- multiply config count by spawn_count for actual units
+- Tower data: `.tres` in `resources/towers/`
 
-## Lessons Learned
-- Maps must explicitly create visual Sprite2D nodes for tiles -- GridManager only manages data
-- Tower and Enemy scripts must assign textures to their Sprite2D children -- scene files have empty sprites
+## Scaling Formulas (GDD)
+- HP: `base * (1 + 0.15 * wave)^2`
+- Speed: `base * min(1 + 0.02 * wave, 2.0)` (capped at 2x)
+- Gold: `base * (1 + 0.08 * wave)` (int truncated)
+
+## Implementation Status
+- [x] Task 1: Wave config wired up (EnemySystem.gd loads wave_config.json, spawns correct types/counts)
+- [x] Task 2: Limit to 10 waves (max_waves=10, fixed victory condition bug)
+- [x] Task 3: Status effect system (StatusEffect.gd + Enemy.gd integration)
+- [x] Task 4: Tower special abilities (burn/slow/aoe/freeze via TowerData.special_key)
+- [x] Task 5: Damage resistance (EnemyData.physical_resist + Enemy._apply_resistance())
+- [x] Task 6: Projectile visuals (Tower fires projectiles instead of instant damage)
+- [x] Task 7: Build menu filter (PHASE_1_ELEMENTS const filters to fire/water/earth tier-1 only)
+- [x] Task 8: Wave clear bonuses (leak tracking + no-leak bonus via EconomyManager.calculate_wave_bonus)
+- [x] Task 9: Ghost tower preview (semi-transparent sprite snapped to grid, green/red tint)
+- [x] Task 10: Game over screen (GameOverScreen.tscn + .gd, wired via GameManager.game_over signal)
+
+## File Locations
+- `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
+- `scripts/autoload/GameManager.gd` - game state machine, phase transitions
+- `scripts/autoload/EconomyManager.gd` - gold, interest, income
+- `scripts/enemies/Enemy.gd` - enemy movement, health, damage, status effects
+- `scripts/enemies/EnemyData.gd` - enemy data resource definition
+- `scripts/enemies/StatusEffect.gd` - RefCounted status effect (BURN, SLOW, FREEZE)
+- `resources/waves/wave_config.json` - 10-wave config for Phase 1
+- `scripts/projectiles/Projectile.gd` - projectile movement, hit logic, AoE, specials
+- `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
+- `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
+- `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan
+- `scripts/ui/BuildMenu.gd` - tower selection UI, filtered by PHASE_1_ELEMENTS const
+- `scripts/ui/GameOverScreen.gd` - game over overlay (victory/defeat), wired to GameManager.game_over
+- `scenes/ui/GameOverScreen.tscn` - fullscreen overlay with dimmer, centered panel, result label, waves label, play again button
+
+## Gotchas
+- StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
+- Burn stacks independently (multiple burns tick); Slow/Freeze replace each other (not additive)
+- Slow value is 0-1 fraction (0.3 = 30% slow), not percentage int
+- Burn ticks once per second via elapsed accumulator, not every frame
+- `apply_status()` is the public API; Projectile._try_apply_special() calls it on impact (moved from Tower in Task 6)
+- Tower specials are data-driven: TowerData has `special_key`, `special_value`, `special_duration`, `special_chance`, `aoe_radius_cells`
+- AoE damage is applied before status effects in Projectile._apply_aoe_hit(), uses `_calculate_damage()` per enemy for correct elemental multipliers
+- Gale Tower ("multi") and Thunder Pylon ("chain") specials are Phase 2 -- leave `special_key` empty
+- wave_config.json has no `spawn_interval` field per wave; EnemySystem defaults 0.5s normal, 1.5s boss
+- (FIXED) GameManager victory condition was `current_wave > max_waves` (strict), which meant clearing the final wave counted as defeat. Changed to `>=` to match the trigger in `_on_wave_cleared()`
+- Enemy.gd `_apply_enemy_data()` loads sprite by converting `enemy_name` to snake_case (spaces to underscores, lowercased)
+- `_wave_finished_spawning` is set true in two places: `_spawn_next_enemy()` when queue empties
+- Damage resistance is data-driven via `EnemyData.physical_resist` (0-1 float), checked in `Enemy._apply_resistance()`
+- Physical resist only applies to "earth" element attacks; burn DOT bypasses resistance (no element passed)
+- Projectile.gd has `class_name Projectile`; Tower.gd casts instantiated scene via `as Projectile`
+- Tower emits `projectile_spawned(projectile)` signal; Game.gd connects via `TowerSystem.tower_created`
+- Projectile carries all damage/special data so Tower is fire-and-forget (no back-reference)
+- If target dies mid-flight: single-target projectile despawns harmlessly; AoE hits at last known position
+- Projectile sprite loaded from `assets/sprites/projectiles/{element}.png` (fire, water, earth, etc.)
+- Elemental damage matrix duplicated in Projectile.gd for AoE per-enemy recalculation (same as Tower.gd)
+- (FIXED) Projectile class_name was missing from `.godot/global_script_class_cache.cfg` -- Godot doesn't always auto-detect new class_name scripts added outside the editor. Fix: manually add entry to cache, or delete `.godot/` and let Godot rebuild. Also add UID to ext_resource refs in .tscn files for proper linkage.
+- (FIXED) Tower AttackCooldown Timer had `one_shot = false` -- a repeating timer never stops, so `is_stopped()` is always `false` after first `.start()`, meaning the tower only ever fires ONE projectile. Fix: set `one_shot = true` in both Tower.gd `apply_tower_data()` and BaseTower.tscn so timer stops after each cooldown, allowing `is_stopped()` to gate the next attack.
+- (FIXED) Wave income was awarded in BUILD_PHASE transition (after current_wave++) meaning the bonus was calculated for the NEXT wave, not the one just cleared. Moved to `_on_wave_cleared()` where `current_wave` still reflects the cleared wave. Also means wave 1's first build phase no longer grants spurious income.
+- Wave clear bonus flow: `_on_wave_cleared()` -> `EconomyManager.calculate_wave_bonus(wave, leaks)` -> `add_gold()`. Leak counter reset at COMBAT_PHASE start, incremented via `GameManager.record_enemy_leak()` called from `EnemySystem.on_enemy_reached_exit()`.
+- GameOverScreen connects to GameManager.game_over signal in _ready(). Uses `get_tree().reload_current_scene()` for restart. Must call `EconomyManager.reset()` before reload since autoloads persist across scene reloads. GameManager.start_game() is called by Game._ready() on reload, which resets wave/lives state.
+- Ghost tower preview: Game.gd creates a bare Sprite2D (not a full Tower scene) added to game_board. Uses same texture path convention as Tower.gd (`tower_name.to_lower().replace(" ", "_")`). Ghost checks `GridManager.can_place_tower()` which combines `is_cell_buildable()` + `would_block_path()`. Also checks `EconomyManager.can_afford()` so ghost turns red when player can't afford. Right-click also cancels placement (in addition to Escape). Ghost hidden when cursor is outside grid bounds via `GridManager.is_in_bounds()`.

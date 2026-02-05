@@ -96,5 +96,18 @@ func world_to_grid(world_pos: Vector2) -> Vector2i:
 	return Vector2i(int(world_pos.x) / CELL_SIZE, int(world_pos.y) / CELL_SIZE)
 
 
+func can_place_tower(grid_pos: Vector2i) -> bool:
+	## Returns true if a tower can legally be placed at grid_pos (buildable + won't block path).
+	if not is_cell_buildable(grid_pos):
+		return false
+	if would_block_path(grid_pos):
+		return false
+	return true
+
+
+func is_in_bounds(grid_pos: Vector2i) -> bool:
+	return grid_pos.x >= 0 and grid_pos.x < GRID_WIDTH and grid_pos.y >= 0 and grid_pos.y < GRID_HEIGHT
+
+
 func _is_in_bounds(grid_pos: Vector2i) -> bool:
 	return grid_pos.x >= 0 and grid_pos.x < GRID_WIDTH and grid_pos.y >= 0 and grid_pos.y < GRID_HEIGHT

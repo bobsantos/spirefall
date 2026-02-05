@@ -1,2 +1,3 @@
 res://scripts/enemies/Enemy.gd
 res://scripts/towers/Tower.gd
+res://scripts/autoload/PathfindingSystem.gd

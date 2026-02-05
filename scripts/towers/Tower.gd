@@ -1,6 +1,8 @@
 extends Area2D
 
-## Base tower script. Handles targeting, attacking, and upgrades.
+## Base tower script. Handles targeting, attacking via projectiles, and upgrades.
+
+signal projectile_spawned(projectile: Node)
 
 enum TargetMode { FIRST, LAST, STRONGEST, WEAKEST, CLOSEST }
 
@@ -10,6 +12,8 @@ var target_mode: TargetMode = TargetMode.FIRST
 var _current_target: Node = null
 var _attack_timer: float = 0.0
 var _range_pixels: float = 0.0
+
+var _projectile_scene: PackedScene = preload("res://scenes/projectiles/BaseProjectile.tscn")
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
@@ -29,7 +33,7 @@ func apply_tower_data() -> void:
 	collision.shape = shape
 	# Set attack cooldown
 	attack_cooldown.wait_time = 1.0 / tower_data.attack_speed
-	attack_cooldown.one_shot = false
+	attack_cooldown.one_shot = true
 	# Load tower sprite texture from name (e.g. "Flame Spire" -> "flame_spire")
 	var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
 	var texture_path: String = "res://assets/sprites/towers/%s.png" % texture_name
@@ -76,8 +80,30 @@ func _find_target() -> Node:
 func _attack(target: Node) -> void:
 	if not is_instance_valid(target):
 		return
-	var dmg: int = _calculate_damage(target)
-	target.take_damage(dmg, tower_data.element)
+	_spawn_projectile(target)
+
+
+func _spawn_projectile(target: Node) -> void:
+	var proj: Projectile = _projectile_scene.instantiate() as Projectile
+	proj.target = target
+	proj.target_last_pos = target.global_position
+	proj.tower_data = tower_data
+	proj.damage = _calculate_damage(target)
+	proj.element = tower_data.element
+	proj.global_position = global_position
+
+	# Copy special effect data
+	proj.special_key = tower_data.special_key
+	proj.special_value = tower_data.special_value
+	proj.special_duration = tower_data.special_duration
+	proj.special_chance = tower_data.special_chance
+
+	# AoE setup
+	if tower_data.special_key == "aoe" and tower_data.aoe_radius_cells > 0.0:
+		proj.is_aoe = true
+		proj.aoe_radius_px = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
+
+	projectile_spawned.emit(proj)
 
 
 func _calculate_damage(target: Node) -> int:

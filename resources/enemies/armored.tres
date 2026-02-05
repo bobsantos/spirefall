@@ -10,6 +10,7 @@ speed_multiplier = 0.6
 gold_reward = 5
 element = "none"
 special = "50% physical resist"
+physical_resist = 0.5
 is_flying = false
 is_boss = false
 spawn_count = 1

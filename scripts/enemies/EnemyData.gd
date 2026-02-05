@@ -9,6 +9,7 @@ extends Resource
 @export var gold_reward: int = 3
 @export var element: String = "none"  # Elemental affinity for damage matrix
 @export var special: String = ""  # e.g. "50% physical resist", "ignores maze"
+@export var physical_resist: float = 0.0  # 0.0-1.0: fraction of earth/physical damage resisted
 @export var is_flying: bool = false
 @export var is_boss: bool = false
 @export var spawn_count: int = 1  # Swarm enemies spawn in groups
