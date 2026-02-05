@@ -61,3 +61,4 @@
 - If target dies mid-flight: single-target projectile despawns harmlessly; AoE hits at last known position
 - Projectile sprite loaded from `assets/sprites/projectiles/{element}.png` (fire, water, earth, etc.)
 - Elemental damage matrix duplicated in Projectile.gd for AoE per-enemy recalculation (same as Tower.gd)
+- (FIXED) Projectile class_name was missing from `.godot/global_script_class_cache.cfg` -- Godot doesn't always auto-detect new class_name scripts added outside the editor. Fix: manually add entry to cache, or delete `.godot/` and let Godot rebuild. Also add UID to ext_resource refs in .tscn files for proper linkage.
