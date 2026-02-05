@@ -25,7 +25,8 @@
 - [x] Task 4: Tower special abilities (burn/slow/aoe/freeze via TowerData.special_key)
 - [x] Task 5: Damage resistance (EnemyData.physical_resist + Enemy._apply_resistance())
 - [x] Task 6: Projectile visuals (Tower fires projectiles instead of instant damage)
-- [ ] Tasks 7-10: Not started
+- [x] Task 7: Build menu filter (PHASE_1_ELEMENTS const filters to fire/water/earth tier-1 only)
+- [ ] Tasks 8-10: Not started
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -39,6 +40,7 @@
 - `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
 - `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
 - `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan
+- `scripts/ui/BuildMenu.gd` - tower selection UI, filtered by PHASE_1_ELEMENTS const
 
 ## Gotchas
 - StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
