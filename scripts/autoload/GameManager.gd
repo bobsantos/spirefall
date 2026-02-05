@@ -10,7 +10,7 @@ signal wave_started(wave_number: int)
 signal wave_completed(wave_number: int)
 signal game_over(victory: bool)
 
-@export var max_waves: int = 30
+@export var max_waves: int = 10
 @export var starting_lives: int = 20
 @export var build_phase_duration: float = 30.0
 
@@ -63,7 +63,7 @@ func _transition_to(new_state: GameState) -> void:
 			EconomyManager.apply_interest()
 			_transition_to(GameState.BUILD_PHASE)
 		GameState.GAME_OVER:
-			var victory: bool = current_wave > max_waves
+			var victory: bool = current_wave >= max_waves
 			game_over.emit(victory)
 	phase_changed.emit(new_state)
 

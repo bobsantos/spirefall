@@ -20,7 +20,7 @@
 
 ## Implementation Status
 - [x] Task 1: Wave config wired up (EnemySystem.gd loads wave_config.json, spawns correct types/counts)
-- [ ] Task 2: Limit to 10 waves (GameManager.max_waves still 30)
+- [x] Task 2: Limit to 10 waves (max_waves=10, fixed victory condition bug)
 - [ ] Tasks 3-10: Not started
 
 ## File Locations
@@ -34,6 +34,6 @@
 
 ## Gotchas
 - wave_config.json has no `spawn_interval` field per wave; EnemySystem defaults 0.5s normal, 1.5s boss
-- GameManager checks `current_wave >= max_waves` for victory, and `current_wave > max_waves` for the game_over emit -- slight inconsistency
+- (FIXED) GameManager victory condition was `current_wave > max_waves` (strict), which meant clearing the final wave counted as defeat. Changed to `>=` to match the trigger in `_on_wave_cleared()`
 - Enemy.gd `_apply_enemy_data()` loads sprite by converting `enemy_name` to snake_case (spaces to underscores, lowercased)
 - `_wave_finished_spawning` is set true in two places: `_spawn_next_enemy()` when queue empties
