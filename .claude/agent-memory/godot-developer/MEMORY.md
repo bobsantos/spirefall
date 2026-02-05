@@ -24,7 +24,8 @@
 - [x] Task 3: Status effect system (StatusEffect.gd + Enemy.gd integration)
 - [x] Task 4: Tower special abilities (burn/slow/aoe/freeze via TowerData.special_key)
 - [x] Task 5: Damage resistance (EnemyData.physical_resist + Enemy._apply_resistance())
-- [ ] Tasks 6-10: Not started
+- [x] Task 6: Projectile visuals (Tower fires projectiles instead of instant damage)
+- [ ] Tasks 7-10: Not started
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -34,6 +35,9 @@
 - `scripts/enemies/EnemyData.gd` - enemy data resource definition
 - `scripts/enemies/StatusEffect.gd` - RefCounted status effect (BURN, SLOW, FREEZE)
 - `resources/waves/wave_config.json` - 10-wave config for Phase 1
+- `scripts/projectiles/Projectile.gd` - projectile movement, hit logic, AoE, specials
+- `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
+- `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
 - `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan
 
 ## Gotchas
@@ -41,9 +45,9 @@
 - Burn stacks independently (multiple burns tick); Slow/Freeze replace each other (not additive)
 - Slow value is 0-1 fraction (0.3 = 30% slow), not percentage int
 - Burn ticks once per second via elapsed accumulator, not every frame
-- `apply_status()` is the public API; Tower._attack() calls it via `_apply_special_effect()` (Task 4)
+- `apply_status()` is the public API; Projectile._try_apply_special() calls it on impact (moved from Tower in Task 6)
 - Tower specials are data-driven: TowerData has `special_key`, `special_value`, `special_duration`, `special_chance`, `aoe_radius_cells`
-- AoE damage is applied before status effects in `_attack()`, uses `_calculate_damage()` per enemy for correct elemental multipliers
+- AoE damage is applied before status effects in Projectile._apply_aoe_hit(), uses `_calculate_damage()` per enemy for correct elemental multipliers
 - Gale Tower ("multi") and Thunder Pylon ("chain") specials are Phase 2 -- leave `special_key` empty
 - wave_config.json has no `spawn_interval` field per wave; EnemySystem defaults 0.5s normal, 1.5s boss
 - (FIXED) GameManager victory condition was `current_wave > max_waves` (strict), which meant clearing the final wave counted as defeat. Changed to `>=` to match the trigger in `_on_wave_cleared()`
@@ -51,3 +55,9 @@
 - `_wave_finished_spawning` is set true in two places: `_spawn_next_enemy()` when queue empties
 - Damage resistance is data-driven via `EnemyData.physical_resist` (0-1 float), checked in `Enemy._apply_resistance()`
 - Physical resist only applies to "earth" element attacks; burn DOT bypasses resistance (no element passed)
+- Projectile.gd has `class_name Projectile`; Tower.gd casts instantiated scene via `as Projectile`
+- Tower emits `projectile_spawned(projectile)` signal; Game.gd connects via `TowerSystem.tower_created`
+- Projectile carries all damage/special data so Tower is fire-and-forget (no back-reference)
+- If target dies mid-flight: single-target projectile despawns harmlessly; AoE hits at last known position
+- Projectile sprite loaded from `assets/sprites/projectiles/{element}.png` (fire, water, earth, etc.)
+- Elemental damage matrix duplicated in Projectile.gd for AoE per-enemy recalculation (same as Tower.gd)

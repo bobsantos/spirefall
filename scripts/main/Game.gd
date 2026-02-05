@@ -13,6 +13,7 @@ var _ghost_tower: Sprite2D = null
 func _ready() -> void:
 	UIManager.build_requested.connect(_on_build_requested)
 	EnemySystem.enemy_spawned.connect(_on_enemy_spawned)
+	TowerSystem.tower_created.connect(_on_tower_created)
 	_load_map()
 	GameManager.start_game()
 
@@ -78,3 +79,12 @@ func _clear_ghost() -> void:
 	if _ghost_tower:
 		_ghost_tower.queue_free()
 		_ghost_tower = null
+
+
+func _on_tower_created(tower: Node) -> void:
+	if tower.has_signal("projectile_spawned"):
+		tower.projectile_spawned.connect(_on_projectile_spawned)
+
+
+func _on_projectile_spawned(projectile: Node) -> void:
+	game_board.add_child(projectile)

@@ -1,6 +1,8 @@
 extends Area2D
 
-## Base tower script. Handles targeting, attacking, and upgrades.
+## Base tower script. Handles targeting, attacking via projectiles, and upgrades.
+
+signal projectile_spawned(projectile: Node)
 
 enum TargetMode { FIRST, LAST, STRONGEST, WEAKEST, CLOSEST }
 
@@ -10,6 +12,8 @@ var target_mode: TargetMode = TargetMode.FIRST
 var _current_target: Node = null
 var _attack_timer: float = 0.0
 var _range_pixels: float = 0.0
+
+var _projectile_scene: PackedScene = preload("res://scenes/projectiles/BaseProjectile.tscn")
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var collision: CollisionShape2D = $CollisionShape2D
@@ -76,49 +80,30 @@ func _find_target() -> Node:
 func _attack(target: Node) -> void:
 	if not is_instance_valid(target):
 		return
-	var dmg: int = _calculate_damage(target)
-
-	match tower_data.special_key:
-		"aoe":
-			_apply_aoe_damage(target, dmg)
-		_:
-			target.take_damage(dmg, tower_data.element)
-
-	_apply_special_effect(target)
+	_spawn_projectile(target)
 
 
-func _apply_special_effect(target: Node) -> void:
-	## Apply the tower's on-hit status effect to the target (if any).
-	if tower_data.special_key == "" or tower_data.special_key == "aoe":
-		return
-	if not is_instance_valid(target) or target.current_health <= 0:
-		return
+func _spawn_projectile(target: Node) -> void:
+	var proj: Projectile = _projectile_scene.instantiate() as Projectile
+	proj.target = target
+	proj.target_last_pos = target.global_position
+	proj.tower_data = tower_data
+	proj.damage = _calculate_damage(target)
+	proj.element = tower_data.element
+	proj.global_position = global_position
 
-	# Roll proc chance (e.g. freeze is 20%)
-	if tower_data.special_chance < 1.0 and randf() > tower_data.special_chance:
-		return
+	# Copy special effect data
+	proj.special_key = tower_data.special_key
+	proj.special_value = tower_data.special_value
+	proj.special_duration = tower_data.special_duration
+	proj.special_chance = tower_data.special_chance
 
-	match tower_data.special_key:
-		"burn":
-			target.apply_status(StatusEffect.Type.BURN, tower_data.special_duration, tower_data.special_value)
-		"slow":
-			target.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
-		"freeze":
-			target.apply_status(StatusEffect.Type.FREEZE, tower_data.special_duration, 1.0)
+	# AoE setup
+	if tower_data.special_key == "aoe" and tower_data.aoe_radius_cells > 0.0:
+		proj.is_aoe = true
+		proj.aoe_radius_px = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
 
-
-func _apply_aoe_damage(center_target: Node, dmg: int) -> void:
-	## Deal damage to all enemies within AoE radius of the center target.
-	var aoe_radius_px: float = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
-	var center_pos: Vector2 = center_target.position
-	var enemies: Array[Node] = EnemySystem.get_active_enemies()
-
-	for enemy: Node in enemies:
-		if not is_instance_valid(enemy):
-			continue
-		if enemy.position.distance_to(center_pos) <= aoe_radius_px:
-			var enemy_dmg: int = _calculate_damage(enemy)
-			enemy.take_damage(enemy_dmg, tower_data.element)
+	projectile_spawned.emit(proj)
 
 
 func _calculate_damage(target: Node) -> int:
