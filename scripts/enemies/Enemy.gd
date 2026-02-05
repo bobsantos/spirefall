@@ -13,6 +13,10 @@ var path_progress: float = 0.0  # 0.0 to 1.0, how far along the path
 var _path_index: int = 0
 var _base_speed: float = 64.0
 
+# Status effect system
+var _status_effects: Array[StatusEffect] = []
+var _original_modulate: Color = Color.WHITE
+
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var health_bar: ProgressBar = $HealthBar
 
@@ -36,6 +40,7 @@ func _apply_enemy_data() -> void:
 
 
 func _process(delta: float) -> void:
+	_process_status_effects(delta)
 	if path_points.is_empty() or _path_index >= path_points.size():
 		return
 	_move_along_path(delta)
@@ -81,3 +86,116 @@ func _update_health_bar() -> void:
 		health_bar.max_value = max_health
 		health_bar.value = current_health
 		health_bar.visible = current_health < max_health
+
+
+# -- Status Effect System --------------------------------------------------
+
+func apply_status(effect_type: StatusEffect.Type, duration: float, value: float) -> void:
+	## Apply a status effect to this enemy.
+	## Burn stacks are independent (multiple burns tick simultaneously).
+	## Slow/Freeze replace existing slow/freeze if the new one is stronger or equal.
+	if effect_type == StatusEffect.Type.SLOW or effect_type == StatusEffect.Type.FREEZE:
+		# Replace existing slow/freeze rather than stacking
+		for i in range(_status_effects.size() - 1, -1, -1):
+			var existing: StatusEffect = _status_effects[i]
+			if existing.type == StatusEffect.Type.SLOW or existing.type == StatusEffect.Type.FREEZE:
+				_status_effects.remove_at(i)
+	var effect := StatusEffect.new(effect_type, duration, value)
+	_status_effects.append(effect)
+	_recalculate_speed()
+	_update_status_visuals()
+
+
+func _process_status_effects(delta: float) -> void:
+	if _status_effects.is_empty():
+		return
+
+	var burn_damage: float = 0.0
+	var any_expired: bool = false
+
+	for effect: StatusEffect in _status_effects:
+		burn_damage += effect.tick(delta)
+		if effect.is_expired():
+			any_expired = true
+
+	# Apply accumulated burn damage (as int, minimum 1 if there was any burn tick)
+	if burn_damage > 0.0:
+		var dmg: int = max(1, int(burn_damage))
+		current_health -= dmg
+		_update_health_bar()
+		if current_health <= 0:
+			_die()
+			return
+
+	# Purge expired effects
+	if any_expired:
+		for i in range(_status_effects.size() - 1, -1, -1):
+			if _status_effects[i].is_expired():
+				_status_effects.remove_at(i)
+		_recalculate_speed()
+		_update_status_visuals()
+
+
+func _recalculate_speed() -> void:
+	## Recalculate speed from base, applying the strongest active slow or freeze.
+	var base: float = _base_speed
+	if enemy_data:
+		base = _base_speed * enemy_data.speed_multiplier
+
+	var has_freeze: bool = false
+	var strongest_slow: float = 0.0  # 0-1 fraction
+
+	for effect: StatusEffect in _status_effects:
+		if effect.type == StatusEffect.Type.FREEZE:
+			has_freeze = true
+		elif effect.type == StatusEffect.Type.SLOW:
+			strongest_slow = max(strongest_slow, effect.value)
+
+	if has_freeze:
+		speed = 0.0
+	elif strongest_slow > 0.0:
+		speed = base * (1.0 - strongest_slow)
+	else:
+		speed = base
+
+
+func _update_status_visuals() -> void:
+	## Tint the sprite based on active status effects.
+	## Priority: Freeze (cyan) > Slow (blue) > Burn (red-orange) > None (white).
+	if not sprite:
+		return
+
+	var has_freeze: bool = false
+	var has_slow: bool = false
+	var has_burn: bool = false
+
+	for effect: StatusEffect in _status_effects:
+		match effect.type:
+			StatusEffect.Type.FREEZE:
+				has_freeze = true
+			StatusEffect.Type.SLOW:
+				has_slow = true
+			StatusEffect.Type.BURN:
+				has_burn = true
+
+	if has_freeze:
+		sprite.modulate = Color(0.5, 0.8, 1.0, 1.0)  # Cyan/ice tint
+	elif has_slow:
+		sprite.modulate = Color(0.6, 0.6, 1.0, 1.0)  # Blue tint
+	elif has_burn:
+		sprite.modulate = Color(1.0, 0.5, 0.3, 1.0)  # Red-orange tint
+	else:
+		sprite.modulate = _original_modulate
+
+
+func has_status(effect_type: StatusEffect.Type) -> bool:
+	for effect: StatusEffect in _status_effects:
+		if effect.type == effect_type:
+			return true
+	return false
+
+
+func clear_all_status_effects() -> void:
+	_status_effects.clear()
+	_recalculate_speed()
+	_update_status_visuals()
