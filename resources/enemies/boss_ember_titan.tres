@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/EnemyData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+enemy_name = "Ember Titan"
+base_health = 5000
+speed_multiplier = 0.5
+gold_reward = 100
+element = "fire"
+special = "Fire trail, fire immune"
+is_flying = false
+is_boss = true
+spawn_count = 1
+split_on_death = false
+stealth = false
+heal_per_second = 0.0

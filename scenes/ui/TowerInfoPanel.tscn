@@ -1,0 +1,45 @@
+[gd_scene format=3 uid="uid://towerinfo"]
+
+[node name="TowerInfoPanel" type="PanelContainer"]
+visible = false
+layout_mode = 3
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -300.0
+grow_horizontal = 0
+grow_vertical = 0
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Tower Name"
+
+[node name="ElementLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Element: Fire"
+
+[node name="DamageLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Damage: 15"
+
+[node name="SpeedLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Speed: 1.0/s"
+
+[node name="RangeLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+text = "Range: 4 cells"
+
+[node name="UpgradeButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Upgrade (U)"
+
+[node name="SellButton" type="Button" parent="VBoxContainer"]
+layout_mode = 2
+text = "Sell (S)"

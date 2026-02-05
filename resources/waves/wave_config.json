@@ -1,0 +1,81 @@
+{
+  "waves": [
+    {
+      "wave": 1,
+      "enemies": [
+        { "type": "normal", "count": 8 }
+      ]
+    },
+    {
+      "wave": 2,
+      "enemies": [
+        { "type": "normal", "count": 10 }
+      ]
+    },
+    {
+      "wave": 3,
+      "enemies": [
+        { "type": "normal", "count": 8 },
+        { "type": "fast", "count": 4 }
+      ]
+    },
+    {
+      "wave": 4,
+      "enemies": [
+        { "type": "normal", "count": 10 },
+        { "type": "fast", "count": 5 }
+      ]
+    },
+    {
+      "wave": 5,
+      "enemies": [
+        { "type": "normal", "count": 6 },
+        { "type": "fast", "count": 6 },
+        { "type": "armored", "count": 2 }
+      ],
+      "is_income_wave": true
+    },
+    {
+      "wave": 6,
+      "enemies": [
+        { "type": "normal", "count": 10 },
+        { "type": "armored", "count": 4 },
+        { "type": "swarm", "count": 3 }
+      ]
+    },
+    {
+      "wave": 7,
+      "enemies": [
+        { "type": "fast", "count": 8 },
+        { "type": "armored", "count": 4 }
+      ]
+    },
+    {
+      "wave": 8,
+      "enemies": [
+        { "type": "normal", "count": 8 },
+        { "type": "flying", "count": 4 },
+        { "type": "swarm", "count": 6 }
+      ]
+    },
+    {
+      "wave": 9,
+      "enemies": [
+        { "type": "normal", "count": 6 },
+        { "type": "fast", "count": 6 },
+        { "type": "armored", "count": 4 },
+        { "type": "flying", "count": 3 }
+      ]
+    },
+    {
+      "wave": 10,
+      "enemies": [
+        { "type": "normal", "count": 4 },
+        { "type": "armored", "count": 4 },
+        { "type": "boss_ember_titan", "count": 1 }
+      ],
+      "is_income_wave": true,
+      "is_boss_wave": true
+    }
+  ]
+}
