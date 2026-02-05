@@ -1,3 +1,7 @@
-res://scripts/enemies/Enemy.gd
+res://scenes/towers/BaseTower.tscn
 res://scripts/towers/Tower.gd
-res://scripts/autoload/PathfindingSystem.gd
+res://scripts/ui/BuildMenu.gd
+res://scripts/autoload/EnemySystem.gd
+res://scripts/autoload/GameManager.gd
+res://scripts/autoload/GridManager.gd
+res://scripts/main/Game.gd
