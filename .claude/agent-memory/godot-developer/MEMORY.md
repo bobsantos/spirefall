@@ -23,7 +23,8 @@
 - [x] Task 2: Limit to 10 waves (max_waves=10, fixed victory condition bug)
 - [x] Task 3: Status effect system (StatusEffect.gd + Enemy.gd integration)
 - [x] Task 4: Tower special abilities (burn/slow/aoe/freeze via TowerData.special_key)
-- [ ] Tasks 5-10: Not started
+- [x] Task 5: Damage resistance (EnemyData.physical_resist + Enemy._apply_resistance())
+- [ ] Tasks 6-10: Not started
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -48,3 +49,5 @@
 - (FIXED) GameManager victory condition was `current_wave > max_waves` (strict), which meant clearing the final wave counted as defeat. Changed to `>=` to match the trigger in `_on_wave_cleared()`
 - Enemy.gd `_apply_enemy_data()` loads sprite by converting `enemy_name` to snake_case (spaces to underscores, lowercased)
 - `_wave_finished_spawning` is set true in two places: `_spawn_next_enemy()` when queue empties
+- Damage resistance is data-driven via `EnemyData.physical_resist` (0-1 float), checked in `Enemy._apply_resistance()`
+- Physical resist only applies to "earth" element attacks; burn DOT bypasses resistance (no element passed)

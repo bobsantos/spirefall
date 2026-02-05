@@ -66,11 +66,20 @@ func _move_along_path(delta: float) -> void:
 		path_progress = float(_path_index) / float(path_points.size() - 1)
 
 
-func take_damage(amount: int, _element: String = "") -> void:
-	current_health -= amount
+func take_damage(amount: int, element: String = "") -> void:
+	var final_amount: int = _apply_resistance(amount, element)
+	current_health -= final_amount
 	_update_health_bar()
 	if current_health <= 0:
 		_die()
+
+
+func _apply_resistance(amount: int, element: String) -> int:
+	## Reduce damage based on enemy resistances.
+	## Physical resist applies to earth-element attacks.
+	if enemy_data and enemy_data.physical_resist > 0.0 and element == "earth":
+		return int(amount * (1.0 - enemy_data.physical_resist))
+	return amount
 
 
 func _die() -> void:
