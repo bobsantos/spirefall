@@ -28,7 +28,7 @@
 - [x] Task 7: Build menu filter (PHASE_1_ELEMENTS const filters to fire/water/earth tier-1 only)
 - [x] Task 8: Wave clear bonuses (leak tracking + no-leak bonus via EconomyManager.calculate_wave_bonus)
 - [x] Task 9: Ghost tower preview (semi-transparent sprite snapped to grid, green/red tint)
-- [ ] Task 10: Not started
+- [x] Task 10: Game over screen (GameOverScreen.tscn + .gd, wired via GameManager.game_over signal)
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -43,6 +43,8 @@
 - `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
 - `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan
 - `scripts/ui/BuildMenu.gd` - tower selection UI, filtered by PHASE_1_ELEMENTS const
+- `scripts/ui/GameOverScreen.gd` - game over overlay (victory/defeat), wired to GameManager.game_over
+- `scenes/ui/GameOverScreen.tscn` - fullscreen overlay with dimmer, centered panel, result label, waves label, play again button
 
 ## Gotchas
 - StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
@@ -69,4 +71,5 @@
 - (FIXED) Tower AttackCooldown Timer had `one_shot = false` -- a repeating timer never stops, so `is_stopped()` is always `false` after first `.start()`, meaning the tower only ever fires ONE projectile. Fix: set `one_shot = true` in both Tower.gd `apply_tower_data()` and BaseTower.tscn so timer stops after each cooldown, allowing `is_stopped()` to gate the next attack.
 - (FIXED) Wave income was awarded in BUILD_PHASE transition (after current_wave++) meaning the bonus was calculated for the NEXT wave, not the one just cleared. Moved to `_on_wave_cleared()` where `current_wave` still reflects the cleared wave. Also means wave 1's first build phase no longer grants spurious income.
 - Wave clear bonus flow: `_on_wave_cleared()` -> `EconomyManager.calculate_wave_bonus(wave, leaks)` -> `add_gold()`. Leak counter reset at COMBAT_PHASE start, incremented via `GameManager.record_enemy_leak()` called from `EnemySystem.on_enemy_reached_exit()`.
+- GameOverScreen connects to GameManager.game_over signal in _ready(). Uses `get_tree().reload_current_scene()` for restart. Must call `EconomyManager.reset()` before reload since autoloads persist across scene reloads. GameManager.start_game() is called by Game._ready() on reload, which resets wave/lives state.
 - Ghost tower preview: Game.gd creates a bare Sprite2D (not a full Tower scene) added to game_board. Uses same texture path convention as Tower.gd (`tower_name.to_lower().replace(" ", "_")`). Ghost checks `GridManager.can_place_tower()` which combines `is_cell_buildable()` + `would_block_path()`. Also checks `EconomyManager.can_afford()` so ghost turns red when player can't afford. Right-click also cancels placement (in addition to Escape). Ghost hidden when cursor is outside grid bounds via `GridManager.is_in_bounds()`.
