@@ -22,7 +22,8 @@
 - [x] Task 1: Wave config wired up (EnemySystem.gd loads wave_config.json, spawns correct types/counts)
 - [x] Task 2: Limit to 10 waves (max_waves=10, fixed victory condition bug)
 - [x] Task 3: Status effect system (StatusEffect.gd + Enemy.gd integration)
-- [ ] Tasks 4-10: Not started
+- [x] Task 4: Tower special abilities (burn/slow/aoe/freeze via TowerData.special_key)
+- [ ] Tasks 5-10: Not started
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -39,7 +40,10 @@
 - Burn stacks independently (multiple burns tick); Slow/Freeze replace each other (not additive)
 - Slow value is 0-1 fraction (0.3 = 30% slow), not percentage int
 - Burn ticks once per second via elapsed accumulator, not every frame
-- `apply_status()` is the public API; Tower._attack() will call it in Task 4
+- `apply_status()` is the public API; Tower._attack() calls it via `_apply_special_effect()` (Task 4)
+- Tower specials are data-driven: TowerData has `special_key`, `special_value`, `special_duration`, `special_chance`, `aoe_radius_cells`
+- AoE damage is applied before status effects in `_attack()`, uses `_calculate_damage()` per enemy for correct elemental multipliers
+- Gale Tower ("multi") and Thunder Pylon ("chain") specials are Phase 2 -- leave `special_key` empty
 - wave_config.json has no `spawn_interval` field per wave; EnemySystem defaults 0.5s normal, 1.5s boss
 - (FIXED) GameManager victory condition was `current_wave > max_waves` (strict), which meant clearing the final wave counted as defeat. Changed to `>=` to match the trigger in `_on_wave_cleared()`
 - Enemy.gd `_apply_enemy_data()` loads sprite by converting `enemy_name` to snake_case (spaces to underscores, lowercased)

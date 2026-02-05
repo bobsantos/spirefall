@@ -77,7 +77,48 @@ func _attack(target: Node) -> void:
 	if not is_instance_valid(target):
 		return
 	var dmg: int = _calculate_damage(target)
-	target.take_damage(dmg, tower_data.element)
+
+	match tower_data.special_key:
+		"aoe":
+			_apply_aoe_damage(target, dmg)
+		_:
+			target.take_damage(dmg, tower_data.element)
+
+	_apply_special_effect(target)
+
+
+func _apply_special_effect(target: Node) -> void:
+	## Apply the tower's on-hit status effect to the target (if any).
+	if tower_data.special_key == "" or tower_data.special_key == "aoe":
+		return
+	if not is_instance_valid(target) or target.current_health <= 0:
+		return
+
+	# Roll proc chance (e.g. freeze is 20%)
+	if tower_data.special_chance < 1.0 and randf() > tower_data.special_chance:
+		return
+
+	match tower_data.special_key:
+		"burn":
+			target.apply_status(StatusEffect.Type.BURN, tower_data.special_duration, tower_data.special_value)
+		"slow":
+			target.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
+		"freeze":
+			target.apply_status(StatusEffect.Type.FREEZE, tower_data.special_duration, 1.0)
+
+
+func _apply_aoe_damage(center_target: Node, dmg: int) -> void:
+	## Deal damage to all enemies within AoE radius of the center target.
+	var aoe_radius_px: float = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
+	var center_pos: Vector2 = center_target.position
+	var enemies: Array[Node] = EnemySystem.get_active_enemies()
+
+	for enemy: Node in enemies:
+		if not is_instance_valid(enemy):
+			continue
+		if enemy.position.distance_to(center_pos) <= aoe_radius_px:
+			var enemy_dmg: int = _calculate_damage(enemy)
+			enemy.take_damage(enemy_dmg, tower_data.element)
 
 
 func _calculate_damage(target: Node) -> int:
