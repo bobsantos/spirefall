@@ -26,7 +26,8 @@
 - [x] Task 5: Damage resistance (EnemyData.physical_resist + Enemy._apply_resistance())
 - [x] Task 6: Projectile visuals (Tower fires projectiles instead of instant damage)
 - [x] Task 7: Build menu filter (PHASE_1_ELEMENTS const filters to fire/water/earth tier-1 only)
-- [ ] Tasks 8-10: Not started
+- [x] Task 8: Wave clear bonuses (leak tracking + no-leak bonus via EconomyManager.calculate_wave_bonus)
+- [ ] Tasks 9-10: Not started
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -65,3 +66,5 @@
 - Elemental damage matrix duplicated in Projectile.gd for AoE per-enemy recalculation (same as Tower.gd)
 - (FIXED) Projectile class_name was missing from `.godot/global_script_class_cache.cfg` -- Godot doesn't always auto-detect new class_name scripts added outside the editor. Fix: manually add entry to cache, or delete `.godot/` and let Godot rebuild. Also add UID to ext_resource refs in .tscn files for proper linkage.
 - (FIXED) Tower AttackCooldown Timer had `one_shot = false` -- a repeating timer never stops, so `is_stopped()` is always `false` after first `.start()`, meaning the tower only ever fires ONE projectile. Fix: set `one_shot = true` in both Tower.gd `apply_tower_data()` and BaseTower.tscn so timer stops after each cooldown, allowing `is_stopped()` to gate the next attack.
+- (FIXED) Wave income was awarded in BUILD_PHASE transition (after current_wave++) meaning the bonus was calculated for the NEXT wave, not the one just cleared. Moved to `_on_wave_cleared()` where `current_wave` still reflects the cleared wave. Also means wave 1's first build phase no longer grants spurious income.
+- Wave clear bonus flow: `_on_wave_cleared()` -> `EconomyManager.calculate_wave_bonus(wave, leaks)` -> `add_gold()`. Leak counter reset at COMBAT_PHASE start, incremented via `GameManager.record_enemy_leak()` called from `EnemySystem.on_enemy_reached_exit()`.

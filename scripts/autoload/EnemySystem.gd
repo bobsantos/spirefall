@@ -122,6 +122,7 @@ func on_enemy_killed(enemy: Node) -> void:
 
 func on_enemy_reached_exit(enemy: Node) -> void:
 	GameManager.lose_life(1)
+	GameManager.record_enemy_leak()
 	enemy_reached_exit.emit(enemy)
 	_remove_enemy(enemy)
 	enemy.queue_free()
