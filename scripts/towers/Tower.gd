@@ -1,10 +1,14 @@
 extends Area2D
 
-## Base tower script. Handles targeting, attacking via projectiles, and upgrades.
+## Base tower script. Handles targeting, attacking via projectiles, upgrades,
+## aura effects, thorn damage, and freeze_burn alternation.
 
 signal projectile_spawned(projectile: Node)
 
 enum TargetMode { FIRST, LAST, STRONGEST, WEAKEST, CLOSEST }
+
+# Aura special keys that apply passive effects each tick instead of (only) via projectiles
+const AURA_KEYS: PackedStringArray = ["slow_aura", "wide_slow", "thorn"]
 
 @export var tower_data: TowerData
 var grid_position: Vector2i = Vector2i.ZERO
@@ -12,6 +16,13 @@ var target_mode: TargetMode = TargetMode.FIRST
 var _current_target: Node = null
 var _attack_timer: float = 0.0
 var _range_pixels: float = 0.0
+
+# Aura system: ticks every _aura_interval seconds
+var _aura_timer: float = 0.0
+var _aura_interval: float = 0.5
+
+# freeze_burn alternation: toggles each attack between freeze and burn
+var _attack_parity: bool = false  # false = freeze, true = burn
 
 var _projectile_scene: PackedScene = preload("res://scenes/projectiles/BaseProjectile.tscn")
 
@@ -47,9 +58,15 @@ func apply_tower_data() -> void:
 		sprite.texture = tex
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
 	if GameManager.game_state != GameManager.GameState.COMBAT_PHASE:
 		return
+
+	# Aura/thorn passive effects tick independently of attacks
+	if tower_data and tower_data.special_key in AURA_KEYS:
+		_tick_aura(delta)
+
+	# Normal projectile attack
 	_current_target = _find_target()
 	if _current_target and attack_cooldown.is_stopped():
 		_attack(_current_target)
@@ -124,6 +141,7 @@ func _spawn_projectile(target: Node) -> void:
 	proj.damage = _calculate_damage(target)
 	proj.element = tower_data.element
 	proj.global_position = global_position
+	proj.tower_position = global_position  # Used by cone_slow and pull_burn
 
 	# Copy special effect data
 	proj.special_key = tower_data.special_key
@@ -131,13 +149,33 @@ func _spawn_projectile(target: Node) -> void:
 	proj.special_duration = tower_data.special_duration
 	proj.special_chance = tower_data.special_chance
 
-	# AoE setup
-	if tower_data.special_key == "aoe" and tower_data.aoe_radius_cells > 0.0:
+	# freeze_burn alternation: override special_key to alternate freeze/burn each attack
+	if tower_data.special_key == "freeze_burn":
+		if _attack_parity:
+			proj.special_key = "burn"
+			# Use special_value as burn dmg/s, special_duration as duration
+		else:
+			proj.special_key = "freeze"
+			# Freeze uses value=1.0 (convention), duration from tower_data
+		_attack_parity = not _attack_parity
+
+	# Aura towers fire normal projectiles with a secondary effect:
+	# Glacier Keep ("slow_aura"): projectiles attempt freeze (chance from special_chance)
+	# Sandstorm Citadel ("wide_slow") and Permafrost Pillar ("thorn"): plain damage projectiles
+	if tower_data.special_key == "slow_aura":
+		proj.special_key = "freeze"
+		# special_chance is already copied (0.3 for Glacier Keep)
+	elif tower_data.special_key == "wide_slow" or tower_data.special_key == "thorn":
+		proj.special_key = ""
+
+	# AoE setup: trigger whenever aoe_radius_cells > 0 regardless of special_key.
+	# Exception: aura towers use aoe_radius_cells for the aura range, not projectile AoE.
+	if tower_data.aoe_radius_cells > 0.0 and tower_data.special_key not in AURA_KEYS:
 		proj.is_aoe = true
 		proj.aoe_radius_px = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
 
-	# Chain lightning setup
-	if tower_data.special_key == "chain":
+	# Chain lightning setup (standard "chain" and fusion chain variants)
+	if tower_data.special_key == "chain" or tower_data.special_key == "freeze_chain" or tower_data.special_key == "wet_chain":
 		proj.chain_count = int(tower_data.special_value)
 		proj.chain_damage_fraction = tower_data.chain_damage_fraction
 
@@ -214,3 +252,40 @@ func _get_closest_enemy(enemies: Array[Node]) -> Node:
 			best_dist = dist
 			best = enemy
 	return best
+
+
+func _tick_aura(delta: float) -> void:
+	## Passive aura effects applied every _aura_interval seconds to enemies in range.
+	_aura_timer += delta
+	if _aura_timer < _aura_interval:
+		return
+	_aura_timer -= _aura_interval
+
+	var aura_range_px: float = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
+	var enemies: Array[Node] = EnemySystem.get_active_enemies()
+
+	match tower_data.special_key:
+		"slow_aura":
+			# Glacier Keep: apply slow to all enemies in aura range
+			for enemy: Node in enemies:
+				if not is_instance_valid(enemy) or enemy.current_health <= 0:
+					continue
+				if position.distance_to(enemy.position) <= aura_range_px:
+					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
+		"wide_slow":
+			# Sandstorm Citadel: continuously slow all enemies in range
+			for enemy: Node in enemies:
+				if not is_instance_valid(enemy) or enemy.current_health <= 0:
+					continue
+				if position.distance_to(enemy.position) <= aura_range_px:
+					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
+		"thorn":
+			# Permafrost Pillar: deal damage per second to all enemies in range
+			# Damage per tick = special_value * _aura_interval (since value is dmg/s)
+			var thorn_range_px: float = tower_data.range_cells * GridManager.CELL_SIZE
+			var tick_damage: int = max(1, int(tower_data.special_value * _aura_interval))
+			for enemy: Node in enemies:
+				if not is_instance_valid(enemy) or enemy.current_health <= 0:
+					continue
+				if position.distance_to(enemy.position) <= thorn_range_px:
+					enemy.take_damage(tick_damage, tower_data.element)

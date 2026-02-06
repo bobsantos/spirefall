@@ -1,7 +1,7 @@
 # Spirefall Agent Memory
 
 ## Architecture Overview
-- 8 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager
+- 9 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager, FusionRegistry
 - All autoloads use `class_name` suffix `Class` (e.g., `EnemySystemClass`)
 - Autoloads reference each other directly by name (e.g., `EnemySystem.spawn_wave()`)
 
@@ -11,7 +11,7 @@
 - Enemy .tres naming: filename matches wave_config type (e.g., `"boss_ember_titan"` -> `boss_ember_titan.tres`)
 - Boss enemy_name in .tres is "Ember Titan" (no "Boss" prefix) but file is `boss_ember_titan.tres`
 - Swarm enemies have `spawn_count = 3` -- multiply config count by spawn_count for actual units
-- Tower data: `.tres` in `resources/towers/`
+- Tower data: `.tres` in `resources/towers/` (base/enhanced/superior), `resources/towers/fusions/` (dual-element tier 2)
 
 ## Scaling Formulas (GDD)
 - HP: `base * (1 + 0.15 * wave)^2`
@@ -35,19 +35,19 @@
 - [ ] P2-Task 18: Refactor element matrix (centralize duplicated 6x6 matrix)
 - [x] P2-Task 1: Wind/Lightning specials (multi-target + chain)
 - [ ] P2-Task 11: Build menu expansion (all 6 base elements)
-- [ ] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
+- [x] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
 - [ ] P2-Task 7: Flying enemy behavior (ignores maze)
 - [ ] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
 - [ ] P2-Task 14: Camera pan/zoom (WASD + mouse drag + scroll)
-- [ ] P2-Task 16: Ground effect system (lava pools, mud, fire trail)
+- [x] P2-Task 16: Ground effect system (lava pools, mud -- bundled into Task 4)
 - [ ] P2-Task 17: Tower disable mechanic (boss interaction)
-- [ ] P2-Task 3: Dual fusion system (15 Tier 2 towers + FusionRegistry)
-- [ ] P2-Task 4: Dual fusion abilities (15 unique specials)
+- [x] P2-Task 3: Dual fusion system (15 Tier 2 towers + FusionRegistry)
+- [x] P2-Task 4: Dual fusion abilities (15 unique specials)
 - [ ] P2-Task 5: Legendary fusion + abilities (6 Tier 3 towers)
 - [ ] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
 - [ ] P2-Task 9: 30-wave campaign config
 - [ ] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
-- [ ] P2-Task 12: Tower info panel (stats + upgrade + sell + fusion + targeting)
+- [x] P2-Task 12: Tower info panel (stats + upgrade + sell buttons)
 - [ ] P2-Task 13: Wave preview panel
 - [ ] P2-Task 15: Fusion UX flow in Game.gd
 
@@ -57,7 +57,9 @@
 - `scripts/autoload/EconomyManager.gd` - gold, interest, income
 - `scripts/enemies/Enemy.gd` - enemy movement, health, damage, status effects
 - `scripts/enemies/EnemyData.gd` - enemy data resource definition
-- `scripts/enemies/StatusEffect.gd` - RefCounted status effect (BURN, SLOW, FREEZE)
+- `scripts/enemies/StatusEffect.gd` - RefCounted status effect (BURN, SLOW, FREEZE, STUN, WET)
+- `scripts/effects/GroundEffect.gd` - persistent ground effects (lava_pool, slow_zone)
+- `scenes/effects/GroundEffect.tscn` - ground effect scene (Node2D with custom _draw)
 - `resources/waves/wave_config.json` - 10-wave config for Phase 1
 - `scripts/projectiles/Projectile.gd` - projectile movement, hit logic, AoE, specials
 - `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
@@ -66,6 +68,10 @@
 - `scripts/ui/BuildMenu.gd` - tower selection UI, filtered by PHASE_1_ELEMENTS const
 - `scripts/ui/GameOverScreen.gd` - game over overlay (victory/defeat), wired to GameManager.game_over
 - `scenes/ui/GameOverScreen.tscn` - fullscreen overlay with dimmer, centered panel, result label, waves label, play again button
+- `scripts/ui/TowerInfoPanel.gd` - tower info panel: stats display, upgrade/sell buttons, self-registers with UIManager
+- `scenes/ui/TowerInfoPanel.tscn` - anchored bottom-right, hidden by default, instanced in Game scene under UILayer
+- `scripts/autoload/FusionRegistry.gd` - fusion lookup table, can_fuse() validation, get_fusion_partners()
+- `resources/towers/fusions/*.tres` - 15 dual-element fusion tower data (tier 2)
 
 ## Gotchas
 - StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
@@ -96,3 +102,27 @@
 - Wave clear bonus flow: `_on_wave_cleared()` -> `EconomyManager.calculate_wave_bonus(wave, leaks)` -> `add_gold()`. Leak counter reset at COMBAT_PHASE start, incremented via `GameManager.record_enemy_leak()` called from `EnemySystem.on_enemy_reached_exit()`.
 - GameOverScreen connects to GameManager.game_over signal in _ready(). Uses `get_tree().reload_current_scene()` for restart. Must call `EconomyManager.reset()` before reload since autoloads persist across scene reloads. GameManager.start_game() is called by Game._ready() on reload, which resets wave/lives state.
 - Ghost tower preview: Game.gd creates a bare Sprite2D (not a full Tower scene) added to game_board. Uses same texture path convention as Tower.gd (`tower_name.to_lower().replace(" ", "_")`). Ghost checks `GridManager.can_place_tower()` which combines `is_cell_buildable()` + `would_block_path()`. Also checks `EconomyManager.can_afford()` so ghost turns red when player can't afford. Right-click also cancels placement (in addition to Escape). Ghost hidden when cursor is outside grid bounds via `GridManager.is_in_bounds()`.
+- Tower sprite fallback: Both Tower.gd `apply_tower_data()` and Game.gd ghost preview strip "_enhanced"/"_superior" suffixes to find base sprite if upgrade-specific sprite doesn't exist. Add dedicated sprites later for visual upgrade progression.
+- Upgrade chain: base.tres -> enhanced.tres -> superior.tres via `upgrade_to = ExtResource("2")`. TowerSystem.upgrade_tower() reads upgrade_to, charges cost difference (new - old), swaps tower_data, and calls apply_tower_data(). Game.gd binds `ui_upgrade` input action to TowerSystem.upgrade_tower().
+- Upgrade scaling: Enhanced = +40% dmg, +10% range, 1.5x cost. Superior = +100% dmg, +20% range, 2x cost (all over base). Superior also has enhanced specials (e.g., burn 8/4s, slow 40%/3s, aoe 3-cell, freeze 30%/2s, multi 3, chain 4/70%).
+- range_cells is int in TowerData: +10%/+20% on small ints (3-5) means some tiers share the same range. Rounded values: base 3->enhanced 3->superior 4; base 4->4->5; base 5->6->6.
+- FusionRegistry keys are alphabetically sorted element pairs: "earth+fire", "fire+water", etc. _make_key() handles sorting.
+- Fusion eligibility: both towers must be tier 1 with upgrade_to == null (i.e., Superior tier). Different elements required.
+- fuse_towers() flow: validate -> charge fusion_cost (result.cost) -> remove tower_b (no refund) -> swap tower_a data in-place -> emit tower_fused signal.
+- Fusion .tres files use tier=2, element = first element alphabetically from pair, fusion_elements = both elements.
+- All 15 fusion specials now implemented (Task 4 complete). Implementation patterns:
+  - "freeze_burn" (Thermal Shock): Tower alternates proj.special_key between "freeze"/"burn" via _attack_parity toggle
+  - "freeze_chain"/"wet_chain": Tower sets up chain_count/chain_damage_fraction; Projectile._try_apply_chain_special() applies freeze/WET to chain targets
+  - "cone_slow" (Blizzard): dedicated _apply_cone_aoe_hit() with 90-degree cone filter from tower_position
+  - "stun_pulse" (Seismic Coil): uses standard AoE + _try_apply_special() STUN handler (per-enemy chance roll)
+  - "pushback" (Tsunami Shrine): dedicated _apply_pushback_hit() with per-enemy chance roll + Enemy.push_back()
+  - "pull_burn" (Inferno Vortex): dedicated _apply_pull_burn_hit() with Enemy.pull_toward() + burn
+  - "lava_pool"/"slow_zone": AoE damage on impact + _spawn_ground_effect() emits signal -> Game.gd adds to scene
+  - "slow_aura"/"wide_slow"/"thorn": Tower._tick_aura() passive every 0.5s; projectiles get overridden special_key ("freeze" for slow_aura, "" for others)
+- Aura tower AoE exclusion: aoe_radius_cells on aura towers (AURA_KEYS) is for aura range only, NOT projectile AoE. Tower._spawn_projectile() skips AoE setup for AURA_KEYS.
+- STUN: like FREEZE (speed=0) but separate type. Yellow tint. Shares movement-impairing slot with SLOW/FREEZE.
+- WET: no speed effect. Enemies with WET take 1.5x lightning damage (checked in Enemy.take_damage). Teal tint. Separate replacement slot from movement effects.
+- Enemy.push_back(cells): decrements _path_index, teleports to path point. Simple discrete step-back.
+- Enemy.pull_toward(pos, px): moves toward pos, snaps to nearest path point. Searches all path points for closest.
+- GroundEffect uses custom _draw() for visuals (draw_circle), fades in last 0.5s, ticks every 0.5s.
+- Projectile.ground_effect_spawned signal connected in Game._on_projectile_spawned() for scene tree addition.

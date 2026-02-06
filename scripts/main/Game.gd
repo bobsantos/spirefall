@@ -144,7 +144,14 @@ func _on_tower_created(tower: Node) -> void:
 
 
 func _on_projectile_spawned(projectile: Node) -> void:
+	# Connect ground effect signal if the projectile can spawn ground effects
+	if projectile.has_signal("ground_effect_spawned"):
+		projectile.ground_effect_spawned.connect(_on_ground_effect_spawned)
 	game_board.add_child(projectile)
+
+
+func _on_ground_effect_spawned(effect: Node) -> void:
+	game_board.add_child(effect)
 
 
 func _on_enemy_killed(enemy: Node) -> void:

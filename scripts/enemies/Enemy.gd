@@ -68,6 +68,9 @@ func _move_along_path(delta: float) -> void:
 
 func take_damage(amount: int, element: String = "") -> void:
 	var final_amount: int = _apply_resistance(amount, element)
+	# WET enemies take 1.5x damage from lightning
+	if element == "lightning" and has_status(StatusEffect.Type.WET):
+		final_amount = int(final_amount * 1.5)
 	current_health -= final_amount
 	_update_health_bar()
 	if current_health <= 0:
@@ -102,12 +105,18 @@ func _update_health_bar() -> void:
 func apply_status(effect_type: StatusEffect.Type, duration: float, value: float) -> void:
 	## Apply a status effect to this enemy.
 	## Burn stacks are independent (multiple burns tick simultaneously).
-	## Slow/Freeze replace existing slow/freeze if the new one is stronger or equal.
-	if effect_type == StatusEffect.Type.SLOW or effect_type == StatusEffect.Type.FREEZE:
-		# Replace existing slow/freeze rather than stacking
+	## Slow/Freeze/Stun replace existing slow/freeze/stun (they share the movement slot).
+	## WET replaces existing WET (separate slot from movement effects).
+	if effect_type == StatusEffect.Type.SLOW or effect_type == StatusEffect.Type.FREEZE or effect_type == StatusEffect.Type.STUN:
+		# Replace existing movement-impairing effects rather than stacking
 		for i in range(_status_effects.size() - 1, -1, -1):
 			var existing: StatusEffect = _status_effects[i]
-			if existing.type == StatusEffect.Type.SLOW or existing.type == StatusEffect.Type.FREEZE:
+			if existing.type == StatusEffect.Type.SLOW or existing.type == StatusEffect.Type.FREEZE or existing.type == StatusEffect.Type.STUN:
+				_status_effects.remove_at(i)
+	elif effect_type == StatusEffect.Type.WET:
+		# Replace existing WET
+		for i in range(_status_effects.size() - 1, -1, -1):
+			if _status_effects[i].type == StatusEffect.Type.WET:
 				_status_effects.remove_at(i)
 	var effect := StatusEffect.new(effect_type, duration, value)
 	_status_effects.append(effect)
@@ -146,21 +155,24 @@ func _process_status_effects(delta: float) -> void:
 
 
 func _recalculate_speed() -> void:
-	## Recalculate speed from base, applying the strongest active slow or freeze.
+	## Recalculate speed from base, applying the strongest active slow, freeze, or stun.
 	var base: float = _base_speed
 	if enemy_data:
 		base = _base_speed * enemy_data.speed_multiplier
 
 	var has_freeze: bool = false
+	var has_stun: bool = false
 	var strongest_slow: float = 0.0  # 0-1 fraction
 
 	for effect: StatusEffect in _status_effects:
 		if effect.type == StatusEffect.Type.FREEZE:
 			has_freeze = true
+		elif effect.type == StatusEffect.Type.STUN:
+			has_stun = true
 		elif effect.type == StatusEffect.Type.SLOW:
 			strongest_slow = max(strongest_slow, effect.value)
 
-	if has_freeze:
+	if has_freeze or has_stun:
 		speed = 0.0
 	elif strongest_slow > 0.0:
 		speed = base * (1.0 - strongest_slow)
@@ -170,27 +182,37 @@ func _recalculate_speed() -> void:
 
 func _update_status_visuals() -> void:
 	## Tint the sprite based on active status effects.
-	## Priority: Freeze (cyan) > Slow (blue) > Burn (red-orange) > None (white).
+	## Priority: Stun (yellow) > Freeze (cyan) > Slow (blue) > Wet (teal) > Burn (red-orange) > None (white).
 	if not sprite:
 		return
 
+	var has_stun: bool = false
 	var has_freeze: bool = false
 	var has_slow: bool = false
+	var has_wet: bool = false
 	var has_burn: bool = false
 
 	for effect: StatusEffect in _status_effects:
 		match effect.type:
+			StatusEffect.Type.STUN:
+				has_stun = true
 			StatusEffect.Type.FREEZE:
 				has_freeze = true
 			StatusEffect.Type.SLOW:
 				has_slow = true
+			StatusEffect.Type.WET:
+				has_wet = true
 			StatusEffect.Type.BURN:
 				has_burn = true
 
-	if has_freeze:
+	if has_stun:
+		sprite.modulate = Color(1.0, 1.0, 0.3, 1.0)  # Yellow tint
+	elif has_freeze:
 		sprite.modulate = Color(0.5, 0.8, 1.0, 1.0)  # Cyan/ice tint
 	elif has_slow:
 		sprite.modulate = Color(0.6, 0.6, 1.0, 1.0)  # Blue tint
+	elif has_wet:
+		sprite.modulate = Color(0.4, 0.7, 0.9, 1.0)  # Teal/blue-green tint
 	elif has_burn:
 		sprite.modulate = Color(1.0, 0.5, 0.3, 1.0)  # Red-orange tint
 	else:
@@ -208,3 +230,43 @@ func clear_all_status_effects() -> void:
 	_status_effects.clear()
 	_recalculate_speed()
 	_update_status_visuals()
+
+
+func is_wet() -> bool:
+	return has_status(StatusEffect.Type.WET)
+
+
+func push_back(cells: int) -> void:
+	## Push the enemy back along its path by the given number of cells.
+	## Each cell is approximately one path point step.
+	if path_points.is_empty() or _path_index <= 0:
+		return
+	# Each cell roughly corresponds to one path_index step (64px per cell)
+	var steps_back: int = cells
+	_path_index = max(0, _path_index - steps_back)
+	position = path_points[_path_index]
+	# Update progress
+	if path_points.size() > 1:
+		path_progress = float(_path_index) / float(path_points.size() - 1)
+
+
+func pull_toward(target_pos: Vector2, max_distance_px: float) -> void:
+	## Pull the enemy toward target_pos by up to max_distance_px pixels.
+	## Snaps to the closest path point after pulling.
+	if path_points.is_empty():
+		return
+	var direction: Vector2 = (target_pos - position).normalized()
+	var pull_dist: float = min(position.distance_to(target_pos), max_distance_px)
+	var new_pos: Vector2 = position + direction * pull_dist
+	# Find the closest path point to the new position and snap to it
+	var best_index: int = _path_index
+	var best_dist: float = INF
+	for i: int in range(path_points.size()):
+		var dist: float = new_pos.distance_to(path_points[i])
+		if dist < best_dist:
+			best_dist = dist
+			best_index = i
+	_path_index = best_index
+	position = path_points[_path_index]
+	if path_points.size() > 1:
+		path_progress = float(_path_index) / float(path_points.size() - 1)
