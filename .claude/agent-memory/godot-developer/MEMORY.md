@@ -18,17 +18,38 @@
 - Speed: `base * min(1 + 0.02 * wave, 2.0)` (capped at 2x)
 - Gold: `base * (1 + 0.08 * wave)` (int truncated)
 
-## Implementation Status
-- [x] Task 1: Wave config wired up (EnemySystem.gd loads wave_config.json, spawns correct types/counts)
-- [x] Task 2: Limit to 10 waves (max_waves=10, fixed victory condition bug)
-- [x] Task 3: Status effect system (StatusEffect.gd + Enemy.gd integration)
-- [x] Task 4: Tower special abilities (burn/slow/aoe/freeze via TowerData.special_key)
-- [x] Task 5: Damage resistance (EnemyData.physical_resist + Enemy._apply_resistance())
-- [x] Task 6: Projectile visuals (Tower fires projectiles instead of instant damage)
-- [x] Task 7: Build menu filter (PHASE_1_ELEMENTS const filters to fire/water/earth tier-1 only)
-- [x] Task 8: Wave clear bonuses (leak tracking + no-leak bonus via EconomyManager.calculate_wave_bonus)
-- [x] Task 9: Ghost tower preview (semi-transparent sprite snapped to grid, green/red tint)
-- [x] Task 10: Game over screen (GameOverScreen.tscn + .gd, wired via GameManager.game_over signal)
+## Phase 1 Implementation Status (COMPLETE)
+- [x] P1-Task 1: Wave config wired up (EnemySystem.gd loads wave_config.json)
+- [x] P1-Task 2: Limit to 10 waves (max_waves=10)
+- [x] P1-Task 3: Status effect system (StatusEffect.gd + Enemy.gd)
+- [x] P1-Task 4: Tower special abilities (burn/slow/aoe/freeze)
+- [x] P1-Task 5: Damage resistance (EnemyData.physical_resist)
+- [x] P1-Task 6: Projectile visuals (fire-and-forget projectiles)
+- [x] P1-Task 7: Build menu filter (fire/water/earth tier-1 only)
+- [x] P1-Task 8: Wave clear bonuses (leak tracking + no-leak bonus)
+- [x] P1-Task 9: Ghost tower preview (green/red tint)
+- [x] P1-Task 10: Game over screen (victory/defeat + play again)
+
+## Phase 2 Implementation Status (IN PROGRESS)
+- Plan: `docs/work/plan.md` -- 18 tasks, ~4 weeks estimated
+- [ ] P2-Task 18: Refactor element matrix (centralize duplicated 6x6 matrix)
+- [x] P2-Task 1: Wind/Lightning specials (multi-target + chain)
+- [ ] P2-Task 11: Build menu expansion (all 6 base elements)
+- [ ] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
+- [ ] P2-Task 7: Flying enemy behavior (ignores maze)
+- [ ] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
+- [ ] P2-Task 14: Camera pan/zoom (WASD + mouse drag + scroll)
+- [ ] P2-Task 16: Ground effect system (lava pools, mud, fire trail)
+- [ ] P2-Task 17: Tower disable mechanic (boss interaction)
+- [ ] P2-Task 3: Dual fusion system (15 Tier 2 towers + FusionRegistry)
+- [ ] P2-Task 4: Dual fusion abilities (15 unique specials)
+- [ ] P2-Task 5: Legendary fusion + abilities (6 Tier 3 towers)
+- [ ] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
+- [ ] P2-Task 9: 30-wave campaign config
+- [ ] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
+- [ ] P2-Task 12: Tower info panel (stats + upgrade + sell + fusion + targeting)
+- [ ] P2-Task 13: Wave preview panel
+- [ ] P2-Task 15: Fusion UX flow in Game.gd
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -54,7 +75,9 @@
 - `apply_status()` is the public API; Projectile._try_apply_special() calls it on impact (moved from Tower in Task 6)
 - Tower specials are data-driven: TowerData has `special_key`, `special_value`, `special_duration`, `special_chance`, `aoe_radius_cells`
 - AoE damage is applied before status effects in Projectile._apply_aoe_hit(), uses `_calculate_damage()` per enemy for correct elemental multipliers
-- Gale Tower ("multi") and Thunder Pylon ("chain") specials are Phase 2 -- leave `special_key` empty
+- Gale Tower ("multi") special: Tower._attack() spawns N projectiles via _find_multiple_targets(). Each projectile is independent full-damage. Tower._find_multiple_targets() reuses _get_in_range_enemies() + _sort_by_target_mode().
+- Thunder Pylon ("chain") special: Projectile._apply_chain_hits() deals fractional damage to nearby enemies after primary hit. Chain radius = 2 cells (128px). TowerData.chain_damage_fraction controls fraction (0.6 = 60%). Chain hits use per-target elemental multipliers.
+- "multi" and "chain" are skipped in _try_apply_special() (same as "aoe") since they are handled structurally, not as status effects
 - wave_config.json has no `spawn_interval` field per wave; EnemySystem defaults 0.5s normal, 1.5s boss
 - (FIXED) GameManager victory condition was `current_wave > max_waves` (strict), which meant clearing the final wave counted as defeat. Changed to `>=` to match the trigger in `_on_wave_cleared()`
 - Enemy.gd `_apply_enemy_data()` loads sprite by converting `enemy_name` to snake_case (spaces to underscores, lowercased)

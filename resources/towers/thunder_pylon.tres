@@ -13,4 +13,7 @@ attack_speed = 0.9
 range_cells = 4
 damage_type = "lightning"
 special_description = "Chains to 3 targets at 60% dmg"
+special_key = "chain"
+special_value = 3.0
+chain_damage_fraction = 0.6
 fusion_elements = []

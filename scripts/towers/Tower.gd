@@ -49,36 +49,62 @@ func _process(_delta: float) -> void:
 		attack_cooldown.start()
 
 
-func _find_target() -> Node:
+func _get_in_range_enemies() -> Array[Node]:
+	## Returns all valid enemies within this tower's range.
 	var enemies: Array[Node] = EnemySystem.get_active_enemies()
 	var in_range: Array[Node] = []
-
 	for enemy: Node in enemies:
 		if not is_instance_valid(enemy):
 			continue
 		var dist: float = position.distance_to(enemy.position)
 		if dist <= _range_pixels:
 			in_range.append(enemy)
+	return in_range
 
-	if in_range.is_empty():
-		return null
 
+func _sort_by_target_mode(enemies: Array[Node]) -> Array[Node]:
+	## Returns enemies sorted by current targeting priority (best first).
+	var sorted: Array[Node] = enemies.duplicate()
 	match target_mode:
 		TargetMode.FIRST:
-			return _get_first_enemy(in_range)
+			sorted.sort_custom(func(a: Node, b: Node) -> bool: return a.path_progress > b.path_progress)
 		TargetMode.LAST:
-			return _get_last_enemy(in_range)
+			sorted.sort_custom(func(a: Node, b: Node) -> bool: return a.path_progress < b.path_progress)
 		TargetMode.STRONGEST:
-			return _get_strongest_enemy(in_range)
+			sorted.sort_custom(func(a: Node, b: Node) -> bool: return a.current_health > b.current_health)
 		TargetMode.WEAKEST:
-			return _get_weakest_enemy(in_range)
+			sorted.sort_custom(func(a: Node, b: Node) -> bool: return a.current_health < b.current_health)
 		TargetMode.CLOSEST:
-			return _get_closest_enemy(in_range)
-	return in_range[0]
+			sorted.sort_custom(func(a: Node, b: Node) -> bool:
+				return position.distance_to(a.position) < position.distance_to(b.position))
+	return sorted
+
+
+func _find_target() -> Node:
+	var in_range: Array[Node] = _get_in_range_enemies()
+	if in_range.is_empty():
+		return null
+	var sorted: Array[Node] = _sort_by_target_mode(in_range)
+	return sorted[0]
+
+
+func _find_multiple_targets(count: int) -> Array[Node]:
+	## Returns up to `count` enemies in range, sorted by targeting priority.
+	var in_range: Array[Node] = _get_in_range_enemies()
+	if in_range.is_empty():
+		return []
+	var sorted: Array[Node] = _sort_by_target_mode(in_range)
+	return sorted.slice(0, count)
 
 
 func _attack(target: Node) -> void:
 	if not is_instance_valid(target):
+		return
+	# Multi-target: spawn one projectile per target (e.g. Gale Tower)
+	if tower_data.special_key == "multi" and tower_data.special_value > 1.0:
+		var targets: Array[Node] = _find_multiple_targets(int(tower_data.special_value))
+		for t: Node in targets:
+			_spawn_projectile(t)
 		return
 	_spawn_projectile(target)
 
@@ -102,6 +128,11 @@ func _spawn_projectile(target: Node) -> void:
 	if tower_data.special_key == "aoe" and tower_data.aoe_radius_cells > 0.0:
 		proj.is_aoe = true
 		proj.aoe_radius_px = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
+
+	# Chain lightning setup
+	if tower_data.special_key == "chain":
+		proj.chain_count = int(tower_data.special_value)
+		proj.chain_damage_fraction = tower_data.chain_damage_fraction
 
 	projectile_spawned.emit(proj)
 

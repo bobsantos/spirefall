@@ -25,6 +25,10 @@ var special_value: float = 0.0
 var special_duration: float = 0.0
 var special_chance: float = 1.0
 
+# Chain lightning data (Thunder Pylon)
+var chain_count: int = 0
+var chain_damage_fraction: float = 0.0
+
 @onready var sprite: Sprite2D = $Sprite2D
 
 
@@ -53,6 +57,8 @@ func _hit() -> void:
 		_apply_aoe_hit()
 	else:
 		_apply_single_hit()
+		if chain_count > 0:
+			_apply_chain_hits()
 	queue_free()
 
 
@@ -83,8 +89,44 @@ func _apply_aoe_hit() -> void:
 			_try_apply_special(enemy)
 
 
+func _apply_chain_hits() -> void:
+	## Chain lightning: deal fractional damage to nearby enemies around the impact point.
+	var chain_radius_px: float = 2.0 * GridManager.CELL_SIZE  # 128px (2 cells)
+	var impact_pos: Vector2 = global_position
+	var enemies: Array[Node] = EnemySystem.get_active_enemies()
+	var chain_targets: Array[Node] = []
+
+	for enemy: Node in enemies:
+		if not is_instance_valid(enemy) or enemy.current_health <= 0:
+			continue
+		# Exclude the primary target
+		if enemy == target:
+			continue
+		if enemy.global_position.distance_to(impact_pos) <= chain_radius_px:
+			chain_targets.append(enemy)
+
+	# Limit to chain_count secondary targets
+	var count: int = mini(chain_count, chain_targets.size())
+	for i: int in range(count):
+		var chain_enemy: Node = chain_targets[i]
+		if not is_instance_valid(chain_enemy) or chain_enemy.current_health <= 0:
+			continue
+		# Per-target elemental multiplier, then apply chain fraction
+		var chain_dmg: int = int(_calculate_damage(chain_enemy) * chain_damage_fraction)
+		if chain_dmg < 1:
+			chain_dmg = 1
+		chain_enemy.take_damage(chain_dmg, element)
+
+	# Apply special effects to chain targets that are still alive
+	for i: int in range(count):
+		var chain_enemy: Node = chain_targets[i]
+		if not is_instance_valid(chain_enemy) or chain_enemy.current_health <= 0:
+			continue
+		_try_apply_special(chain_enemy)
+
+
 func _try_apply_special(target_enemy: Node) -> void:
-	if special_key == "" or special_key == "aoe":
+	if special_key == "" or special_key == "aoe" or special_key == "multi" or special_key == "chain":
 		return
 	if not is_instance_valid(target_enemy) or target_enemy.current_health <= 0:
 		return

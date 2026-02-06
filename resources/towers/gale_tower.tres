@@ -13,4 +13,6 @@ attack_speed = 2.0
 range_cells = 5
 damage_type = "wind"
 special_description = "Hits 2 targets"
+special_key = "multi"
+special_value = 2.0
 fusion_elements = []
