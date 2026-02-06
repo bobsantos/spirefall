@@ -9,8 +9,8 @@ signal tower_build_selected(tower_data: TowerData)
 var _tower_buttons: Array[Button] = []
 var _available_towers: Array[TowerData] = []
 
-# Phase 1 elements -- expand this list when unlocking wind/lightning/ice towers
-const PHASE_1_ELEMENTS: Array[String] = ["fire", "water", "earth"]
+# Canonical element order for build menu button layout
+const ELEMENT_ORDER: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
 
 
 func _ready() -> void:
@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 func _load_available_towers() -> void:
-	# Load tier-1 towers for Phase 1 elements only
+	# Load all tier-1 base towers
 	var tower_dir := "res://resources/towers/"
 	var dir := DirAccess.open(tower_dir)
 	if dir == null:
@@ -30,12 +30,12 @@ func _load_available_towers() -> void:
 	while file_name != "":
 		if file_name.ends_with(".tres"):
 			var tower: TowerData = load(tower_dir + file_name)
-			if tower and tower.tier == 1 and tower.element in PHASE_1_ELEMENTS:
+			if tower and tower.tier == 1:
 				_available_towers.append(tower)
 		file_name = dir.get_next()
-	# Sort by element order (fire, water, earth) for consistent button layout
+	# Sort by canonical element order for consistent button layout
 	_available_towers.sort_custom(func(a: TowerData, b: TowerData) -> bool:
-		return PHASE_1_ELEMENTS.find(a.element) < PHASE_1_ELEMENTS.find(b.element)
+		return ELEMENT_ORDER.find(a.element) < ELEMENT_ORDER.find(b.element)
 	)
 
 
