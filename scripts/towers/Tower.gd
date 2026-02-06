@@ -1,14 +1,17 @@
 extends Area2D
 
 ## Base tower script. Handles targeting, attacking via projectiles, upgrades,
-## aura effects, thorn damage, and freeze_burn alternation.
+## aura effects, thorn damage, freeze_burn alternation, and legendary periodic abilities.
 
 signal projectile_spawned(projectile: Node)
 
 enum TargetMode { FIRST, LAST, STRONGEST, WEAKEST, CLOSEST }
 
 # Aura special keys that apply passive effects each tick instead of (only) via projectiles
-const AURA_KEYS: PackedStringArray = ["slow_aura", "wide_slow", "thorn"]
+const AURA_KEYS: PackedStringArray = ["slow_aura", "wide_slow", "thorn", "blizzard_aura"]
+
+# Legendary tower special keys that trigger a periodic AoE ability on a separate timer
+const PERIODIC_KEYS: PackedStringArray = ["geyser", "stun_amplify"]
 
 @export var tower_data: TowerData
 var grid_position: Vector2i = Vector2i.ZERO
@@ -20,6 +23,10 @@ var _range_pixels: float = 0.0
 # Aura system: ticks every _aura_interval seconds
 var _aura_timer: float = 0.0
 var _aura_interval: float = 0.5
+
+# Periodic ability system (geyser, stun_amplify): fires on a separate interval
+var _ability_timer: float = 0.0
+var _ability_interval: float = 0.0
 
 # freeze_burn alternation: toggles each attack between freeze and burn
 var _attack_parity: bool = false  # false = freeze, true = burn
@@ -42,9 +49,18 @@ func apply_tower_data() -> void:
 	var shape := CircleShape2D.new()
 	shape.radius = _range_pixels
 	collision.shape = shape
-	# Set attack cooldown
-	attack_cooldown.wait_time = 1.0 / tower_data.attack_speed
-	attack_cooldown.one_shot = true
+	# Set attack cooldown (guard against zero attack_speed for pure-aura towers)
+	if tower_data.attack_speed > 0.0:
+		attack_cooldown.wait_time = 1.0 / tower_data.attack_speed
+		attack_cooldown.one_shot = true
+	# Configure periodic ability interval for legendary towers
+	_ability_timer = 0.0
+	if tower_data.special_key == "geyser":
+		_ability_interval = tower_data.special_duration  # 10s interval
+	elif tower_data.special_key == "stun_amplify":
+		_ability_interval = 8.0  # Fixed 8s interval for stun amplify pulse
+	else:
+		_ability_interval = 0.0
 	# Load tower sprite texture from name (e.g. "Flame Spire" -> "flame_spire")
 	var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
 	var texture_path: String = "res://assets/sprites/towers/%s.png" % texture_name
@@ -62,9 +78,17 @@ func _process(delta: float) -> void:
 	if GameManager.game_state != GameManager.GameState.COMBAT_PHASE:
 		return
 
-	# Aura/thorn passive effects tick independently of attacks
+	# Aura passive effects tick independently of attacks
 	if tower_data and tower_data.special_key in AURA_KEYS:
 		_tick_aura(delta)
+
+	# Periodic legendary abilities tick independently of attacks
+	if tower_data and tower_data.special_key in PERIODIC_KEYS:
+		_tick_periodic_ability(delta)
+
+	# Skip normal projectile attack for pure-aura towers (attack_speed == 0.0)
+	if tower_data and tower_data.attack_speed <= 0.0:
+		return
 
 	# Normal projectile attack
 	_current_target = _find_target()
@@ -168,9 +192,15 @@ func _spawn_projectile(target: Node) -> void:
 	elif tower_data.special_key == "wide_slow" or tower_data.special_key == "thorn":
 		proj.special_key = ""
 
+	# Periodic ability towers (geyser, stun_amplify) fire normal projectiles;
+	# their periodic effect is handled by _tick_periodic_ability(), not projectiles
+	if tower_data.special_key in PERIODIC_KEYS:
+		proj.special_key = ""
+
 	# AoE setup: trigger whenever aoe_radius_cells > 0 regardless of special_key.
 	# Exception: aura towers use aoe_radius_cells for the aura range, not projectile AoE.
-	if tower_data.aoe_radius_cells > 0.0 and tower_data.special_key not in AURA_KEYS:
+	# Exception: periodic ability towers use aoe_radius_cells for the ability range, not projectile AoE.
+	if tower_data.aoe_radius_cells > 0.0 and tower_data.special_key not in AURA_KEYS and tower_data.special_key not in PERIODIC_KEYS:
 		proj.is_aoe = true
 		proj.aoe_radius_px = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
 
@@ -185,7 +215,11 @@ func _spawn_projectile(target: Node) -> void:
 func _calculate_damage(target: Node) -> int:
 	var base_dmg: int = tower_data.damage
 	var multiplier: float = _get_element_multiplier(tower_data.element, target.enemy_data.element)
-	return int(base_dmg * multiplier)
+	var final_dmg: int = int(base_dmg * multiplier)
+	# Storm AoE wave scaling: damage increases by special_value% per wave
+	if tower_data.special_key == "storm_aoe":
+		final_dmg = int(final_dmg * (1.0 + tower_data.special_value * GameManager.current_wave))
+	return final_dmg
 
 
 func _get_element_multiplier(attacker_element: String, target_element: String) -> float:
@@ -289,3 +323,50 @@ func _tick_aura(delta: float) -> void:
 					continue
 				if position.distance_to(enemy.position) <= thorn_range_px:
 					enemy.take_damage(tick_damage, tower_data.element)
+		"blizzard_aura":
+			# Arctic Maelstrom: permanent blizzard -- 50% slow + 15% freeze chance per tick
+			for enemy: Node in enemies:
+				if not is_instance_valid(enemy) or enemy.current_health <= 0:
+					continue
+				if position.distance_to(enemy.position) <= aura_range_px:
+					# Always apply slow
+					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
+					# Roll freeze chance each tick
+					if randf() <= tower_data.special_chance:
+						enemy.apply_status(StatusEffect.Type.FREEZE, tower_data.special_duration, 1.0)
+
+
+func _tick_periodic_ability(delta: float) -> void:
+	## Legendary periodic abilities fire on a separate timer, dealing effects directly
+	## to enemies in range (not via projectiles). Tower still fires normal projectiles.
+	if _ability_interval <= 0.0:
+		return
+	_ability_timer += delta
+	if _ability_timer < _ability_interval:
+		return
+	_ability_timer -= _ability_interval
+
+	var ability_range_px: float = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
+	var enemies: Array[Node] = EnemySystem.get_active_enemies()
+
+	match tower_data.special_key:
+		"geyser":
+			# Primordial Nexus: massive AoE burst dealing special_value damage + slow
+			for enemy: Node in enemies:
+				if not is_instance_valid(enemy) or enemy.current_health <= 0:
+					continue
+				if position.distance_to(enemy.position) <= ability_range_px:
+					enemy.take_damage(int(tower_data.special_value), tower_data.element)
+			# Apply slow to survivors (3s slow at 40%)
+			for enemy: Node in enemies:
+				if not is_instance_valid(enemy) or enemy.current_health <= 0:
+					continue
+				if position.distance_to(enemy.position) <= ability_range_px:
+					enemy.apply_status(StatusEffect.Type.SLOW, 3.0, 0.4)
+		"stun_amplify":
+			# Crystalline Monolith: stun all enemies in range for special_duration seconds
+			for enemy: Node in enemies:
+				if not is_instance_valid(enemy) or enemy.current_health <= 0:
+					continue
+				if position.distance_to(enemy.position) <= ability_range_px:
+					enemy.apply_status(StatusEffect.Type.STUN, tower_data.special_duration, 1.0)

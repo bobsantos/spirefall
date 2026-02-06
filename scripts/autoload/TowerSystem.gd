@@ -86,5 +86,31 @@ func fuse_towers(tower_a: Node, tower_b: Node) -> bool:
 	return true
 
 
+func fuse_legendary(tower_tier2: Node, tower_superior: Node) -> bool:
+	## Fuse a tier-2 dual fusion tower with a Superior tier-1 tower into a legendary tier-3.
+	## tower_tier2 is kept in place and becomes the legendary; tower_superior is consumed.
+	if not FusionRegistry.can_fuse_legendary(tower_tier2, tower_superior):
+		return false
+	var result: TowerData = FusionRegistry.get_legendary_result(
+		tower_tier2.tower_data.fusion_elements, tower_superior.tower_data.element
+	)
+	if result == null:
+		return false
+	var fusion_cost: int = result.cost
+	if not EconomyManager.can_afford(fusion_cost):
+		return false
+	EconomyManager.spend_gold(fusion_cost)
+	# Remove the superior tower from grid (no refund)
+	var grid_pos_b: Vector2i = tower_superior.grid_position
+	GridManager.remove_tower(grid_pos_b)
+	_active_towers.erase(tower_superior)
+	tower_superior.queue_free()
+	# Replace tier2 tower in-place with legendary result
+	tower_tier2.tower_data = result
+	tower_tier2.apply_tower_data()
+	tower_fused.emit(tower_tier2)
+	return true
+
+
 func get_active_towers() -> Array[Node]:
 	return _active_towers

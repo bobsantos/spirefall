@@ -67,6 +67,8 @@ func _hit() -> void:
 		_apply_pull_burn_hit()
 	elif special_key == "pushback":
 		_apply_pushback_hit()
+	elif special_key == "earthquake":
+		_apply_earthquake_hit()
 	elif is_aoe:
 		_apply_aoe_hit()
 	else:
@@ -75,7 +77,7 @@ func _hit() -> void:
 			_apply_chain_hits()
 
 	# Spawn ground effects after dealing damage
-	if special_key == "lava_pool" or special_key == "slow_zone":
+	if special_key == "lava_pool" or special_key == "slow_zone" or special_key == "burning_ground":
 		_spawn_ground_effect()
 
 	queue_free()
@@ -166,8 +168,8 @@ func _try_apply_special(target_enemy: Node) -> void:
 	# Skip keys that are handled structurally (not as status effects on individual targets)
 	if special_key == "" or special_key == "aoe" or special_key == "multi" or special_key == "chain":
 		return
-	# These are handled by dedicated _hit() paths or Tower aura, not per-target specials
-	if special_key in ["cone_slow", "pushback", "pull_burn", "lava_pool", "slow_zone", "slow_aura", "wide_slow", "thorn"]:
+	# These are handled by dedicated _hit() paths, Tower aura, or Tower periodic abilities
+	if special_key in ["cone_slow", "pushback", "pull_burn", "lava_pool", "slow_zone", "burning_ground", "earthquake", "slow_aura", "wide_slow", "thorn", "blizzard_aura", "geyser", "stun_amplify", "storm_aoe"]:
 		return
 	if not is_instance_valid(target_enemy) or target_enemy.current_health <= 0:
 		return
@@ -200,7 +202,11 @@ func _calculate_damage(target_enemy: Node) -> int:
 		return damage
 	var base_dmg: int = tower_data.damage
 	var multiplier: float = _get_element_multiplier(element, target_enemy.enemy_data.element)
-	return int(base_dmg * multiplier)
+	var final_dmg: int = int(base_dmg * multiplier)
+	# Storm AoE wave scaling (Supercell Obelisk): damage increases per wave
+	if tower_data.special_key == "storm_aoe":
+		final_dmg = int(final_dmg * (1.0 + tower_data.special_value * GameManager.current_wave))
+	return final_dmg
 
 
 func _get_element_multiplier(attacker_element: String, target_element: String) -> float:
@@ -304,6 +310,30 @@ func _apply_pushback_hit() -> void:
 				enemy.push_back(int(special_value))
 
 
+func _apply_earthquake_hit() -> void:
+	## Tectonic Dynamo: AoE damage + slow + stun chance per enemy.
+	var impact_pos: Vector2 = global_position
+	var enemies: Array[Node] = EnemySystem.get_active_enemies()
+
+	# Deal AoE damage
+	for enemy: Node in enemies:
+		if not is_instance_valid(enemy) or enemy.current_health <= 0:
+			continue
+		if enemy.global_position.distance_to(impact_pos) <= aoe_radius_px:
+			var enemy_dmg: int = _calculate_damage(enemy)
+			enemy.take_damage(enemy_dmg, element)
+
+	# Apply slow + roll stun chance per enemy on survivors
+	for enemy: Node in enemies:
+		if not is_instance_valid(enemy) or enemy.current_health <= 0:
+			continue
+		if enemy.global_position.distance_to(impact_pos) <= aoe_radius_px:
+			enemy.apply_status(StatusEffect.Type.SLOW, special_duration, special_value)
+			# Roll stun chance per enemy
+			if special_chance >= 1.0 or randf() <= special_chance:
+				enemy.apply_status(StatusEffect.Type.STUN, 1.0, 1.0)
+
+
 func _spawn_ground_effect() -> void:
 	## Spawn a persistent ground effect (lava pool or slow zone) at the impact point.
 	if _ground_effect_scene == null:
@@ -324,6 +354,9 @@ func _spawn_ground_effect() -> void:
 	elif special_key == "slow_zone":
 		effect.effect_type = "slow_zone"
 		effect.slow_fraction = special_value
+	elif special_key == "burning_ground":
+		effect.effect_type = "burning_ground"
+		effect.damage_per_second = special_value
 
 	ground_effect_spawned.emit(effect)
 

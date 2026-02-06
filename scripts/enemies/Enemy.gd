@@ -71,6 +71,9 @@ func take_damage(amount: int, element: String = "") -> void:
 	# WET enemies take 1.5x damage from lightning
 	if element == "lightning" and has_status(StatusEffect.Type.WET):
 		final_amount = int(final_amount * 1.5)
+	# Stunned enemies take 2x damage from all sources (Crystalline Monolith synergy)
+	if has_status(StatusEffect.Type.STUN):
+		final_amount = int(final_amount * 2.0)
 	current_health -= final_amount
 	_update_health_bar()
 	if current_health <= 0:

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Arctic Maelstrom"
+element = "ice"
+tier = 3
+cost = 300
+damage = 15
+attack_speed = 0.0
+range_cells = 5
+damage_type = "ice"
+special_description = "Permanent blizzard aura: 50% slow + 15% freeze chance per tick"
+special_key = "blizzard_aura"
+special_value = 0.5
+special_duration = 1.0
+special_chance = 0.15
+aoe_radius_cells = 3.0
+fusion_elements = ["ice", "water", "wind"]

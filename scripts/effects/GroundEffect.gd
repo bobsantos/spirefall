@@ -2,15 +2,15 @@ class_name GroundEffect
 extends Node2D
 
 ## Persistent ground effect that damages or slows enemies within a radius.
-## Spawned by projectiles on impact (lava_pool, slow_zone).
+## Spawned by projectiles on impact (lava_pool, slow_zone, burning_ground).
 ## Auto-frees when duration expires.
 
-var effect_type: String = ""  # "lava_pool" or "slow_zone"
+var effect_type: String = ""  # "lava_pool", "slow_zone", or "burning_ground"
 var effect_radius_px: float = 96.0
 var effect_duration: float = 3.0
 var element: String = ""
 
-# lava_pool specific
+# lava_pool / burning_ground specific
 var damage_per_second: float = 0.0
 
 # slow_zone specific
@@ -53,7 +53,7 @@ func _apply_effect() -> void:
 			continue
 
 		match effect_type:
-			"lava_pool":
+			"lava_pool", "burning_ground":
 				# Deal burn damage per tick (scaled by tick interval)
 				var tick_damage: int = max(1, int(damage_per_second * _tick_interval))
 				enemy.take_damage(tick_damage, element)
@@ -72,6 +72,8 @@ func _draw() -> void:
 	match effect_type:
 		"lava_pool":
 			color = Color(1.0, 0.3, 0.1, 0.3)  # Semi-transparent orange-red
+		"burning_ground":
+			color = Color(1.0, 0.5, 0.0, 0.3)  # Semi-transparent orange (distinct from lava)
 		"slow_zone":
 			color = Color(0.4, 0.3, 0.2, 0.3)  # Semi-transparent brown
 		_:
