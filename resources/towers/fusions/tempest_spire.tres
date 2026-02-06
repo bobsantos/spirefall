@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Tempest Spire"
+element = "lightning"
+tier = 2
+cost = 110
+damage = 12
+attack_speed = 3.0
+range_cells = 5
+damage_type = "lightning"
+special_description = "Hits 5 targets simultaneously"
+special_key = "multi"
+special_value = 5.0
+fusion_elements = ["lightning", "wind"]

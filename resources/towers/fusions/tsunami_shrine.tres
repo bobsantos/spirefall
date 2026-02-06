@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Tsunami Shrine"
+element = "water"
+tier = 2
+cost = 120
+damage = 30
+attack_speed = 0.5
+range_cells = 5
+damage_type = "water"
+special_description = "Pushes enemies back along their path"
+special_key = "pushback"
+special_value = 2.0
+special_duration = 0.0
+special_chance = 0.5
+aoe_radius_cells = 2.5
+fusion_elements = ["water", "wind"]

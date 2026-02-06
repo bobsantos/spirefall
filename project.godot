@@ -28,6 +28,7 @@ EnemySystem="*res://scripts/autoload/EnemySystem.gd"
 EconomyManager="*res://scripts/autoload/EconomyManager.gd"
 UIManager="*res://scripts/autoload/UIManager.gd"
 AudioManager="*res://scripts/autoload/AudioManager.gd"
+FusionRegistry="*res://scripts/autoload/FusionRegistry.gd"
 
 [display]
 

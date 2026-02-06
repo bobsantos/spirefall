@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Blizzard Tower"
+element = "ice"
+tier = 2
+cost = 120
+damage = 28
+attack_speed = 0.7
+range_cells = 5
+damage_type = "ice"
+special_description = "Cone AoE that slows all targets by 35%"
+special_key = "cone_slow"
+special_value = 0.35
+special_duration = 2.5
+special_chance = 1.0
+aoe_radius_cells = 2.5
+fusion_elements = ["ice", "wind"]
