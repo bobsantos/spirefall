@@ -29,6 +29,11 @@ func _load_available_towers() -> void:
 	var file_name: String = dir.get_next()
 	while file_name != "":
 		if file_name.ends_with(".tres"):
+			# Skip enhanced/superior upgrades -- only show base towers
+			var lower_name := file_name.to_lower()
+			if lower_name.contains("enhanced") or lower_name.contains("superior"):
+				file_name = dir.get_next()
+				continue
 			var tower: TowerData = load(tower_dir + file_name)
 			if tower and tower.tier == 1:
 				_available_towers.append(tower)

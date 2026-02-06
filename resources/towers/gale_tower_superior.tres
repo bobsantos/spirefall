@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Gale Tower Superior"
+element = "wind"
+tier = 1
+cost = 50
+damage = 16
+attack_speed = 2.0
+range_cells = 6
+damage_type = "wind"
+special_description = "Hits 3 targets"
+special_key = "multi"
+special_value = 3.0
+fusion_elements = []

@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="TowerData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
-[ext_resource type="Resource" path="res://resources/towers/flame_spire_enhanced.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/towers/flame_spire_superior.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
-tower_name = "Flame Spire"
+tower_name = "Flame Spire Enhanced"
 element = "fire"
 tier = 1
-cost = 30
-damage = 15
+cost = 45
+damage = 21
 attack_speed = 1.0
 range_cells = 4
 damage_type = "fire"

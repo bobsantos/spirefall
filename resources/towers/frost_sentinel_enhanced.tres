@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="TowerData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
-[ext_resource type="Resource" path="res://resources/towers/frost_sentinel_enhanced.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/towers/frost_sentinel_superior.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
-tower_name = "Frost Sentinel"
+tower_name = "Frost Sentinel Enhanced"
 element = "ice"
 tier = 1
-cost = 35
-damage = 10
+cost = 53
+damage = 14
 attack_speed = 0.7
 range_cells = 3
 damage_type = "ice"

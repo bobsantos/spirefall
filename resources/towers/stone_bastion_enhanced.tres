@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="TowerData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
-[ext_resource type="Resource" path="res://resources/towers/stone_bastion_enhanced.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/towers/stone_bastion_superior.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
-tower_name = "Stone Bastion"
+tower_name = "Stone Bastion Enhanced"
 element = "earth"
 tier = 1
-cost = 35
-damage = 20
+cost = 53
+damage = 28
 attack_speed = 0.6
 range_cells = 3
 damage_type = "earth"

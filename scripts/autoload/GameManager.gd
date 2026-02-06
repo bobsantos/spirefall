@@ -9,6 +9,7 @@ signal phase_changed(new_phase: GameState)
 signal wave_started(wave_number: int)
 signal wave_completed(wave_number: int)
 signal game_over(victory: bool)
+signal early_wave_bonus(amount: int)
 
 @export var max_waves: int = 10
 @export var starting_lives: int = 20
@@ -34,9 +35,11 @@ func start_game() -> void:
 
 func start_wave_early() -> void:
 	if game_state == GameState.BUILD_PHASE:
-		var time_saved: float = _build_timer
+		var bonus: int = int(_build_timer) * 10
 		_transition_to(GameState.COMBAT_PHASE)
-		EconomyManager.add_gold(int(time_saved) * 10)
+		EconomyManager.add_gold(bonus)
+		if bonus > 0:
+			early_wave_bonus.emit(bonus)
 
 
 func _process(delta: float) -> void:

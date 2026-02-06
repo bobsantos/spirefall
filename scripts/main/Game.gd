@@ -95,8 +95,14 @@ func _create_ghost(tower_data: TowerData) -> void:
 	var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
 	var texture_path: String = "res://assets/sprites/towers/%s.png" % texture_name
 	var tex: Texture2D = load(texture_path)
+	if tex == null:
+		# Fallback: strip "_enhanced" or "_superior" suffix to find base sprite
+		texture_name = texture_name.replace("_enhanced", "").replace("_superior", "")
+		texture_path = "res://assets/sprites/towers/%s.png" % texture_name
+		tex = load(texture_path)
 	if tex:
 		_ghost_tower.texture = tex
+	_ghost_tower.scale = Vector2(1.5, 1.5)
 	_ghost_tower.modulate = GHOST_COLOR_VALID
 	_ghost_tower.z_index = 100  # Render above towers and enemies
 	_ghost_tower.visible = false  # Hidden until first _update_ghost positions it

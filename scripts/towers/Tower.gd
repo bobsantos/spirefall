@@ -37,7 +37,14 @@ func apply_tower_data() -> void:
 	# Load tower sprite texture from name (e.g. "Flame Spire" -> "flame_spire")
 	var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
 	var texture_path: String = "res://assets/sprites/towers/%s.png" % texture_name
-	sprite.texture = load(texture_path)
+	var tex: Texture2D = load(texture_path)
+	if tex == null:
+		# Fallback: strip "_enhanced" or "_superior" suffix to find base sprite
+		texture_name = texture_name.replace("_enhanced", "").replace("_superior", "")
+		texture_path = "res://assets/sprites/towers/%s.png" % texture_name
+		tex = load(texture_path)
+	if tex:
+		sprite.texture = tex
 
 
 func _process(_delta: float) -> void:

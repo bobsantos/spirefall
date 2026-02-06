@@ -16,6 +16,7 @@ func _ready() -> void:
 	GameManager.phase_changed.connect(_on_phase_changed)
 	GameManager.wave_started.connect(_on_wave_started)
 	GameManager.wave_completed.connect(_on_wave_completed)
+	GameManager.early_wave_bonus.connect(_on_early_wave_bonus)
 	start_wave_button.pressed.connect(_on_start_wave_pressed)
 	update_display()
 
@@ -68,6 +69,10 @@ func _show_bonus_notification(text: String) -> void:
 	tween.tween_property(bonus_label, "modulate:a", 0.0, 2.0).set_delay(1.0)
 	tween.tween_property(bonus_label, "position:y", start_y - 40.0, 3.0)
 	tween.chain().tween_callback(func() -> void: bonus_label.visible = false)
+
+
+func _on_early_wave_bonus(amount: int) -> void:
+	_show_bonus_notification("+%dg Early Start!" % amount)
 
 
 func _on_start_wave_pressed() -> void:

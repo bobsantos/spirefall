@@ -1,15 +1,15 @@
 [gd_resource type="Resource" script_class="TowerData" load_steps=3 format=3]
 
 [ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
-[ext_resource type="Resource" path="res://resources/towers/tidal_obelisk_enhanced.tres" id="2"]
+[ext_resource type="Resource" path="res://resources/towers/tidal_obelisk_superior.tres" id="2"]
 
 [resource]
 script = ExtResource("1")
-tower_name = "Tidal Obelisk"
+tower_name = "Tidal Obelisk Enhanced"
 element = "water"
 tier = 1
-cost = 30
-damage = 12
+cost = 45
+damage = 17
 attack_speed = 0.8
 range_cells = 4
 damage_type = "water"
