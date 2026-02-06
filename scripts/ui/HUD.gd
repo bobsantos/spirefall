@@ -7,6 +7,7 @@ extends Control
 @onready var gold_label: Label = $TopBar/GoldLabel
 @onready var timer_label: Label = $TopBar/TimerLabel
 @onready var start_wave_button: Button = $TopBar/StartWaveButton
+@onready var bonus_label: Label = $BonusLabel
 
 
 func _ready() -> void:
@@ -14,6 +15,7 @@ func _ready() -> void:
 	EconomyManager.gold_changed.connect(_on_gold_changed)
 	GameManager.phase_changed.connect(_on_phase_changed)
 	GameManager.wave_started.connect(_on_wave_started)
+	GameManager.wave_completed.connect(_on_wave_completed)
 	start_wave_button.pressed.connect(_on_start_wave_pressed)
 	update_display()
 
@@ -43,6 +45,29 @@ func _on_phase_changed(_new_phase: GameManager.GameState) -> void:
 
 func _on_wave_started(_wave: int) -> void:
 	update_display()
+
+
+func _on_wave_completed(wave_number: int) -> void:
+	var bonus: int = EconomyManager.calculate_wave_bonus(
+		wave_number, GameManager._enemies_leaked_this_wave
+	)
+	var no_leak: bool = GameManager._enemies_leaked_this_wave == 0
+	var text: String = "+%dg Wave Bonus!" % bonus
+	if no_leak:
+		text += "\nNo Leaks!"
+	_show_bonus_notification(text)
+
+
+func _show_bonus_notification(text: String) -> void:
+	bonus_label.text = text
+	bonus_label.visible = true
+	bonus_label.modulate = Color(1, 1, 1, 1)
+	var start_y: float = bonus_label.get_parent_area_size().y * 0.5 - 30
+	bonus_label.position.y = start_y
+	var tween: Tween = create_tween().set_parallel(true)
+	tween.tween_property(bonus_label, "modulate:a", 0.0, 2.0).set_delay(1.0)
+	tween.tween_property(bonus_label, "position:y", start_y - 40.0, 3.0)
+	tween.chain().tween_callback(func() -> void: bonus_label.visible = false)
 
 
 func _on_start_wave_pressed() -> void:

@@ -17,6 +17,7 @@ const GHOST_COLOR_INVALID := Color(1.0, 0.2, 0.2, 0.5)
 func _ready() -> void:
 	UIManager.build_requested.connect(_on_build_requested)
 	EnemySystem.enemy_spawned.connect(_on_enemy_spawned)
+	EnemySystem.enemy_killed.connect(_on_enemy_killed)
 	TowerSystem.tower_created.connect(_on_tower_created)
 	_load_map()
 	GameManager.start_game()
@@ -138,3 +139,23 @@ func _on_tower_created(tower: Node) -> void:
 
 func _on_projectile_spawned(projectile: Node) -> void:
 	game_board.add_child(projectile)
+
+
+func _on_enemy_killed(enemy: Node) -> void:
+	var gold: int = enemy.enemy_data.gold_reward
+	_spawn_gold_text(enemy.global_position, gold)
+
+
+func _spawn_gold_text(pos: Vector2, amount: int) -> void:
+	var label := Label.new()
+	label.text = "+%dg" % amount
+	label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2, 1.0))
+	label.add_theme_font_size_override("font_size", 16)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.position = pos - Vector2(20, 10)
+	label.z_index = 50
+	game_board.add_child(label)
+	var tween: Tween = label.create_tween().set_parallel(true)
+	tween.tween_property(label, "position:y", label.position.y - 30.0, 1.0)
+	tween.tween_property(label, "modulate:a", 0.0, 1.0).set_delay(0.3)
+	tween.chain().tween_callback(label.queue_free)
