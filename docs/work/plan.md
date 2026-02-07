@@ -233,14 +233,15 @@ This is the simplest autoload to test and establishes the testing pattern for al
 
 ---
 
-### Task 4: GameManager Tests
+### Task 4: GameManager Tests ✅ COMPLETE
 
 **File:** `tests/unit/autoload/test_game_manager.gd`
 **Source:** `scripts/autoload/GameManager.gd` (98 lines)
 **Effort:** Medium
 **Priority:** P0 -- state machine, but depends on EconomyManager and EnemySystem
+**Status:** Complete - 20/20 tests implemented
 
-GameManager is tightly coupled to EnemySystem (for wave finished checks) and EconomyManager (for interest/bonuses). Tests either use the real autoloads with careful reset, or mock the dependencies.
+GameManager is tightly coupled to EnemySystem (for wave finished checks) and EconomyManager (for interest/bonuses). Tests use the real autoloads with careful reset in before_test().
 
 **Test cases:**
 
