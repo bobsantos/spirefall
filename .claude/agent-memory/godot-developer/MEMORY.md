@@ -36,7 +36,7 @@
 - [x] P2-Task 1: Wind/Lightning specials (multi-target + chain)
 - [ ] P2-Task 11: Build menu expansion (all 6 base elements)
 - [x] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
-- [ ] P2-Task 7: Flying enemy behavior (ignores maze)
+- [x] P2-Task 7: Flying enemy behavior (ignores maze)
 - [x] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
 - [ ] P2-Task 14: Camera pan/zoom (WASD + mouse drag + scroll)
 - [x] P2-Task 16: Ground effect system (lava pools, mud -- bundled into Task 4)
@@ -153,3 +153,15 @@
 - "burning_ground" (Volcanic Tempest): AoE on impact + spawns GroundEffect with effect_type="burning_ground" (orange color, same tick damage as lava_pool)
 - Stunned enemies take 2x damage from ALL sources (Enemy.take_damage checks STUN status) -- synergizes with Crystalline Monolith's stun_amplify
 - GroundEffect now supports "burning_ground" as alias for lava_pool damage behavior with distinct orange color
+
+## Flying Enemy Behavior (P2-Task 7)
+- PathfindingSystem.get_flying_path() returns 2-point PackedVector2Array (spawn->exit world coords). Straight line, ignores maze.
+- EnemySystem._spawn_next_enemy() checks enemy_data.is_flying to pick flying vs ground path
+- Enemy._apply_enemy_data() sets z_index=1 and _is_flying=true for flying enemies (render above ground)
+- Bobbing effect: sine wave on sprite.position.y and health_bar.position.y (BOB_AMPLITUDE=6px, BOB_FREQUENCY=2.5Hz)
+- Bobbing applies to child nodes only, NOT to Enemy.position -- keeps targeting/collision on the actual path
+- HealthBar uses offset_top=-40 in .tscn for baseline positioning; bobbing adds to position.y (separate from offsets)
+- Flying path is only 2 points, so _move_along_path() lerps in a straight line from spawn to exit
+- push_back/pull_toward still work on flying enemies (they snap to path points, which are just start/end)
+- Towers already target flying enemies (no is_flying filter in Tower._get_in_range_enemies()) -- anti-air is Phase 3
+- flying.tres: 80 HP, 1.2x speed, 4 gold, element="none", is_flying=true. Used in waves 8 and 9.

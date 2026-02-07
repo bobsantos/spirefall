@@ -103,7 +103,10 @@ func _spawn_next_enemy() -> void:
 	var enemy_data: EnemyData = _enemies_to_spawn.pop_front()
 	var enemy: Node = _enemy_scene.instantiate()
 	enemy.enemy_data = enemy_data
-	enemy.path_points = PathfindingSystem.get_enemy_path()
+	if enemy_data.is_flying:
+		enemy.path_points = PathfindingSystem.get_flying_path()
+	else:
+		enemy.path_points = PathfindingSystem.get_enemy_path()
 
 	_active_enemies.append(enemy)
 	enemy.tree_exiting.connect(_on_enemy_removed.bind(enemy))

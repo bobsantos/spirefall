@@ -25,6 +25,12 @@ var _is_revealed: bool = false
 var _heal_flash_timer: float = 0.0
 const HEAL_FLASH_DURATION: float = 0.15
 
+# Flying bobbing effect
+var _is_flying: bool = false
+var _bob_time: float = 0.0
+const BOB_AMPLITUDE: float = 6.0   # Pixels up/down
+const BOB_FREQUENCY: float = 2.5   # Cycles per second
+
 # Element color mapping for elemental enemy tinting
 const ELEMENT_COLORS: Dictionary = {
 	"fire": Color(1.0, 0.4, 0.2),
@@ -65,6 +71,11 @@ func _apply_enemy_data() -> void:
 	var texture_name: String = enemy_data.enemy_name.to_lower().replace(" ", "_")
 	var texture_path: String = "res://assets/sprites/enemies/%s.png" % texture_name
 	sprite.texture = load(texture_path)
+
+	# Flying: render above ground enemies and enable bobbing
+	if enemy_data.is_flying:
+		_is_flying = true
+		z_index = 1
 
 	# Stealth: start nearly invisible
 	if enemy_data.stealth:
@@ -122,6 +133,14 @@ func _process(delta: float) -> void:
 		_check_stealth_reveal()
 
 	_move_along_path(delta)
+
+	# Flying bob: offset sprite and health bar vertically with a sine wave.
+	# Applied to child nodes, not to position, so targeting/collision stay accurate.
+	if _is_flying:
+		_bob_time += delta
+		var bob_offset: float = sin(_bob_time * BOB_FREQUENCY * TAU) * BOB_AMPLITUDE
+		sprite.position.y = bob_offset
+		health_bar.position.y = bob_offset
 
 
 func _move_along_path(delta: float) -> void:
