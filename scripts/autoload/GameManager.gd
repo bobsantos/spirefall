@@ -11,7 +11,7 @@ signal wave_completed(wave_number: int)
 signal game_over(victory: bool)
 signal early_wave_bonus(amount: int)
 
-@export var max_waves: int = 10
+@export var max_waves: int = 30
 @export var starting_lives: int = 20
 @export var build_phase_duration: float = 30.0
 

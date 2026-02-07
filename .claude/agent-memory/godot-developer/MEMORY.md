@@ -45,7 +45,7 @@
 - [x] P2-Task 4: Dual fusion abilities (15 unique specials)
 - [x] P2-Task 5: Legendary fusion + abilities (6 Tier 3 towers)
 - [ ] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
-- [ ] P2-Task 9: 30-wave campaign config
+- [x] P2-Task 9: 30-wave campaign config
 - [x] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
 - [x] P2-Task 12: Tower info panel (stats + upgrade + sell buttons)
 - [ ] P2-Task 13: Wave preview panel
@@ -60,7 +60,7 @@
 - `scripts/enemies/StatusEffect.gd` - RefCounted status effect (BURN, SLOW, FREEZE, STUN, WET)
 - `scripts/effects/GroundEffect.gd` - persistent ground effects (lava_pool, slow_zone)
 - `scenes/effects/GroundEffect.tscn` - ground effect scene (Node2D with custom _draw)
-- `resources/waves/wave_config.json` - 10-wave config for Phase 1
+- `resources/waves/wave_config.json` - 30-wave campaign config (bosses at 10/20/30, income every 5)
 - `scripts/projectiles/Projectile.gd` - projectile movement, hit logic, AoE, specials
 - `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
 - `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
@@ -198,4 +198,3 @@
 - Each cycle: sets immune_element to new element, weak_element from ELEMENT_COUNTERS
 - Soft enrage: speed *= (1.0 + 0.1 * cycle_count) -- 10% faster each cycle
 - Visual: sprite tint changes to ELEMENT_COLORS[immune_element] each cycle
-- _chaos_element_index tracks position in cycle, _chaos_cycle_count tracks total cycles for enrage
