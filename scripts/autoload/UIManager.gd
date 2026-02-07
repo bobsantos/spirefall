@@ -11,6 +11,7 @@ var selected_tower: Node = null
 var hud: Control = null
 var build_menu: Control = null
 var tower_info_panel: Control = null
+var wave_preview_panel: Control = null
 
 
 func register_hud(hud_node: Control) -> void:
@@ -23,6 +24,10 @@ func register_build_menu(menu_node: Control) -> void:
 
 func register_tower_info_panel(panel_node: Control) -> void:
 	tower_info_panel = panel_node
+
+
+func register_wave_preview(panel_node: Control) -> void:
+	wave_preview_panel = panel_node
 
 
 func select_tower(tower: Node) -> void:
@@ -49,5 +54,6 @@ func update_hud() -> void:
 		hud.update_display()
 
 
-func show_wave_preview(_wave_data: Dictionary) -> void:
-	pass  # Will show upcoming enemy types
+func show_wave_preview(wave_number: int) -> void:
+	if wave_preview_panel:
+		wave_preview_panel.display_wave(wave_number)

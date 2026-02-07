@@ -80,6 +80,19 @@ func get_active_enemies() -> Array[Node]:
 	return _active_enemies
 
 
+func get_wave_config(wave_number: int) -> Dictionary:
+	## Returns the raw wave_config.json entry for the given wave number.
+	## Empty dictionary if wave_number not found.
+	if _wave_config.has(wave_number):
+		return _wave_config[wave_number]
+	return {}
+
+
+func get_enemy_template(enemy_type: String) -> EnemyData:
+	## Public accessor for enemy template data. Loads and caches on first access.
+	return _load_enemy_template(enemy_type)
+
+
 func spawn_wave(wave_number: int) -> void:
 	_wave_finished_spawning = false
 	_enemies_to_spawn = _build_wave_queue(wave_number)

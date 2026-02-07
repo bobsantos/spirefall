@@ -48,7 +48,7 @@
 - [x] P2-Task 9: 30-wave campaign config
 - [x] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
 - [x] P2-Task 12: Tower info panel (full stats, tier, synergy, fuse/target mode, element styling)
-- [ ] P2-Task 13: Wave preview panel
+- [x] P2-Task 13: Wave preview panel (enemy composition display during build phase)
 - [x] P2-Task 15: Fusion UX flow in Game.gd (fuse_requested signal, partner highlighting, fusion click handler)
 
 ## File Locations
@@ -74,6 +74,8 @@
 - `scripts/systems/ElementSynergy.gd` - element synergy autoload: tracks tower counts, provides damage/speed/range/chain/freeze/slow bonuses per element
 - `resources/towers/fusions/*.tres` - 15 dual-element fusion tower data (tier 2)
 - `resources/towers/legendaries/*.tres` - 6 triple-element legendary tower data (tier 3)
+- `scripts/ui/WavePreviewPanel.gd` - wave preview panel: enemy composition, traits, boss banners
+- `scenes/ui/WavePreviewPanel.tscn` - anchored top-right (220px wide, below HUD at y=48), hidden by default, mouse_filter=IGNORE
 
 ## Gotchas
 - StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
@@ -199,18 +201,7 @@
 - Visual: subtle element-colored tint via Color.WHITE.lerp(element_color, 0.15 * tier) on tower sprite
 - Synergy tint replaces disabled-state WHITE restore (re-enables to synergy color, not WHITE)
 
-## Tower Info Panel (P2-Task 12)
-- TowerInfoPanel.gd emits `fuse_requested(tower)` signal, Game.gd connects once via `_connect_tower_info_fuse_signal()`
-- Tier text derived from: tier==1 + upgrade_to!=null + upgrade_to.upgrade_to!=null => "Tier 1"; upgrade_to.upgrade_to==null => "Enhanced"; upgrade_to==null => "Superior". tier==2 => "Fusion". tier==3 => "Legendary"
-- TargetMode dropdown indices match Tower.TargetMode enum (0-4). Tower.gd has NO class_name, so cannot reference Tower.TargetMode externally; just set int directly
-- Fuse button visible when: Superior (tier 1, no upgrade_to) with dual partners OR legendary partners; OR tier 2 with legendary partners
-- Panel dynamically updates on: gold_changed (upgrade affordability), phase_changed (sell value %), tower_upgraded, tower_fused
-- Element-colored StyleBoxFlat applied to PanelContainer via add_theme_stylebox_override("panel", style)
-
-## Fusion UX Flow (P2-Task 15)
-- Game.gd fusion state: `_fusing_tower` holds the initiating tower, `_fuse_signal_connected` prevents duplicate connections
-- Flow: Fuse button -> fuse_requested signal -> Game._on_fuse_requested() -> deselect tower, highlight partners -> player clicks partner -> _handle_fusion_click() -> TowerSystem.fuse_towers()/fuse_legendary() -> clear highlights, select result
-- Partner highlighting: pulsing yellow tween on Sprite2D.modulate, stored as meta "_fuse_tween"/"_pre_fuse_modulate" for cleanup
-- Right-click or Escape cancels fusion selection (same as tower placement cancel)
-- Handles bidirectional legendary fusion: tries _fusing_tower as tier2 first, then target as tier2
-- If _fusing_tower was consumed (reversed legendary), uses target as result_tower for post-fuse selection
+## UI Panel Details -> see `ui-panels.md`
+- Tower Info Panel (P2-Task 12): fuse_requested signal, element-colored styling, upgrade/sell/fuse buttons
+- Wave Preview Panel (P2-Task 13): self-contained via phase_changed, shows enemy rows with icons + traits
+- Fusion UX Flow (P2-Task 15): partner highlighting, bidirectional legendary fusion click handling
