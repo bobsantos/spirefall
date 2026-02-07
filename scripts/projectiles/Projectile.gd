@@ -211,7 +211,7 @@ func _calculate_damage(target_enemy: Node) -> int:
 	if not tower_data:
 		return damage
 	var base_dmg: int = tower_data.damage
-	var multiplier: float = _get_element_multiplier(element, target_enemy.enemy_data.element)
+	var multiplier: float = ElementMatrix.get_multiplier(element, target_enemy.enemy_data.element)
 	# Apply element synergy damage bonus
 	multiplier *= synergy_damage_mult
 	var final_dmg: int = int(base_dmg * multiplier)
@@ -219,20 +219,6 @@ func _calculate_damage(target_enemy: Node) -> int:
 	if tower_data.special_key == "storm_aoe":
 		final_dmg = int(final_dmg * (1.0 + tower_data.special_value * GameManager.current_wave))
 	return final_dmg
-
-
-func _get_element_multiplier(attacker_element: String, target_element: String) -> float:
-	var matrix: Dictionary = {
-		"fire":      {"fire": 1.0, "water": 0.5, "earth": 1.5, "wind": 1.0, "lightning": 1.0, "ice": 1.5},
-		"water":     {"fire": 1.5, "water": 1.0, "earth": 0.5, "wind": 1.0, "lightning": 0.75, "ice": 1.0},
-		"earth":     {"fire": 0.5, "water": 1.5, "earth": 1.0, "wind": 0.75, "lightning": 1.5, "ice": 1.0},
-		"wind":      {"fire": 1.0, "water": 1.0, "earth": 1.25, "wind": 1.0, "lightning": 0.5, "ice": 1.5},
-		"lightning": {"fire": 1.0, "water": 1.25, "earth": 0.5, "wind": 1.5, "lightning": 1.0, "ice": 1.0},
-		"ice":       {"fire": 0.5, "water": 1.0, "earth": 1.0, "wind": 0.5, "lightning": 1.0, "ice": 1.0},
-	}
-	if attacker_element in matrix and target_element in matrix[attacker_element]:
-		return matrix[attacker_element][target_element]
-	return 1.0
 
 
 func _apply_cone_aoe_hit() -> void:

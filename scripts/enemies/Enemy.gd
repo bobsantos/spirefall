@@ -41,30 +41,10 @@ var _minion_spawn_timer: float = 0.0
 # Chaos Elemental cycling state
 var _chaos_element_index: int = 0
 var _chaos_cycle_count: int = 0
-const CHAOS_ELEMENTS: PackedStringArray = ["fire", "water", "earth", "wind", "lightning", "ice"]
 
 # Ground effect scene (lazy-loaded for boss fire trail)
 static var _ground_effect_scene: PackedScene = null
 
-# Element color mapping for elemental enemy tinting
-const ELEMENT_COLORS: Dictionary = {
-	"fire": Color(1.0, 0.4, 0.2),
-	"water": Color(0.3, 0.5, 1.0),
-	"earth": Color(0.6, 0.4, 0.2),
-	"wind": Color(0.6, 1.0, 0.6),
-	"lightning": Color(1.0, 1.0, 0.3),
-	"ice": Color(0.7, 0.9, 1.0),
-}
-
-# Element weakness matrix: immune_element -> weak_element (counter from GDD matrix)
-const ELEMENT_COUNTERS: Dictionary = {
-	"fire": "water",
-	"water": "earth",
-	"earth": "wind",
-	"wind": "lightning",
-	"lightning": "fire",
-	"ice": "fire",
-}
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var health_bar: ProgressBar = $HealthBar
@@ -107,22 +87,23 @@ func _assign_elemental_affinity() -> void:
 	## Assign random immune and weak elements for Elemental enemy type.
 	## Seeded by wave number for deterministic results within a wave,
 	## but each instance gets a unique offset from its instance ID.
-	var elements: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
+	var elements: Array[String] = ElementMatrix.get_elements()
 	var seed_value: int = GameManager.current_wave * 1000 + get_instance_id()
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value
 	var immune_idx: int = rng.randi_range(0, elements.size() - 1)
 	enemy_data.immune_element = elements[immune_idx]
 	# Weak element is the counter from the element matrix
-	if ELEMENT_COUNTERS.has(enemy_data.immune_element):
-		enemy_data.weak_element = ELEMENT_COUNTERS[enemy_data.immune_element]
+	var counter: String = ElementMatrix.get_counter(enemy_data.immune_element)
+	if counter != "":
+		enemy_data.weak_element = counter
 	else:
 		# Fallback: pick a different random element
 		var weak_idx: int = (immune_idx + 1) % elements.size()
 		enemy_data.weak_element = elements[weak_idx]
 	# Tint sprite to immune element color
-	if ELEMENT_COLORS.has(enemy_data.immune_element):
-		var tint: Color = ELEMENT_COLORS[enemy_data.immune_element]
+	var tint: Color = ElementMatrix.get_color(enemy_data.immune_element)
+	if tint != Color.WHITE:
 		sprite.modulate = tint
 		_original_modulate = tint
 
@@ -519,21 +500,18 @@ func _boss_tower_freeze() -> void:
 func _boss_element_cycle() -> void:
 	## Chaos Elemental: cycle to the next element. Becomes immune to the new element
 	## and weak to its counter. Gains 10% speed per cycle (soft enrage).
-	_chaos_element_index = (_chaos_element_index + 1) % CHAOS_ELEMENTS.size()
+	_chaos_element_index = (_chaos_element_index + 1) % ElementMatrix.ELEMENTS.size()
 	_chaos_cycle_count += 1
 
-	var new_element: String = CHAOS_ELEMENTS[_chaos_element_index]
+	var new_element: String = ElementMatrix.ELEMENTS[_chaos_element_index]
 	enemy_data.immune_element = new_element
-	if ELEMENT_COUNTERS.has(new_element):
-		enemy_data.weak_element = ELEMENT_COUNTERS[new_element]
-	else:
-		enemy_data.weak_element = ""
+	enemy_data.weak_element = ElementMatrix.get_counter(new_element)
 
 	# Soft enrage: 10% speed per cycle (handled by _recalculate_speed)
 	_recalculate_speed()
 
 	# Visual: tint sprite to match current immune element
-	if ELEMENT_COLORS.has(new_element) and sprite:
-		var tint: Color = ELEMENT_COLORS[new_element]
+	if sprite:
+		var tint: Color = ElementMatrix.get_color(new_element)
 		sprite.modulate = tint
 		_original_modulate = tint
