@@ -17,3 +17,5 @@ extends Resource
 @export var split_data: EnemyData = null  # What to split into
 @export var stealth: bool = false
 @export var heal_per_second: float = 0.0  # For Healer type aura
+@export var immune_element: String = ""  # Elemental type: immune to this element (damage = 0)
+@export var weak_element: String = ""  # Elemental type: takes 2x damage from this element

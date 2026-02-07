@@ -128,6 +128,48 @@ func on_enemy_reached_exit(enemy: Node) -> void:
 	enemy.queue_free()
 
 
+func spawn_split_enemies(parent: Node) -> void:
+	## Spawn 2 child enemies at the parent's position, continuing from the parent's path index.
+	## Called when a split enemy dies. Children are added to _active_enemies BEFORE the parent
+	## is removed, so wave_cleared is not triggered prematurely.
+	var split_data: EnemyData = parent.enemy_data.split_data
+	if split_data == null:
+		# No split data -- just do normal kill
+		on_enemy_killed(parent)
+		return
+
+	var parent_path: PackedVector2Array = parent.path_points
+	var parent_path_index: int = parent._path_index
+	var parent_position: Vector2 = parent.position
+
+	# Award gold for killing the parent
+	EconomyManager.add_gold(parent.enemy_data.gold_reward)
+	enemy_killed.emit(parent)
+
+	# Spawn 2 children FIRST (add to _active_enemies before removing parent)
+	for i: int in range(2):
+		var child_data: EnemyData = _create_scaled_enemy(split_data, GameManager.current_wave)
+		var child: Node = _enemy_scene.instantiate()
+		child.enemy_data = child_data
+		child.path_points = parent_path
+		# Set path index and position so the child continues from where the parent died
+		child._path_index = parent_path_index
+		child.position = parent_position
+		# Slight offset so children don't overlap perfectly
+		if i == 0:
+			child.position += Vector2(-8, 0)
+		else:
+			child.position += Vector2(8, 0)
+
+		_active_enemies.append(child)
+		child.tree_exiting.connect(_on_enemy_removed.bind(child))
+		enemy_spawned.emit(child)
+
+	# Now remove and free the parent (children are already in _active_enemies)
+	_remove_enemy(parent)
+	parent.queue_free()
+
+
 func _remove_enemy(enemy: Node) -> void:
 	_active_enemies.erase(enemy)
 	if _active_enemies.is_empty() and _wave_finished_spawning:
@@ -188,6 +230,8 @@ func _create_scaled_enemy(template: EnemyData, wave_number: int) -> EnemyData:
 	data.split_data = template.split_data
 	data.stealth = template.stealth
 	data.heal_per_second = template.heal_per_second
+	data.immune_element = template.immune_element
+	data.weak_element = template.weak_element
 
 	# Apply GDD scaling formulas
 	# HP = Base HP * (1 + 0.15 * wave)^2

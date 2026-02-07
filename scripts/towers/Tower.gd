@@ -99,10 +99,14 @@ func _process(delta: float) -> void:
 
 func _get_in_range_enemies() -> Array[Node]:
 	## Returns all valid enemies within this tower's range.
+	## Stealth enemies that have not been revealed are excluded (untargetable).
 	var enemies: Array[Node] = EnemySystem.get_active_enemies()
 	var in_range: Array[Node] = []
 	for enemy: Node in enemies:
 		if not is_instance_valid(enemy):
+			continue
+		# Stealth enemies are untargetable until revealed
+		if enemy.enemy_data and enemy.enemy_data.stealth and not enemy._is_revealed:
 			continue
 		var dist: float = position.distance_to(enemy.position)
 		if dist <= _range_pixels:

@@ -11,7 +11,7 @@
 - Enemy .tres naming: filename matches wave_config type (e.g., `"boss_ember_titan"` -> `boss_ember_titan.tres`)
 - Boss enemy_name in .tres is "Ember Titan" (no "Boss" prefix) but file is `boss_ember_titan.tres`
 - Swarm enemies have `spawn_count = 3` -- multiply config count by spawn_count for actual units
-- Tower data: `.tres` in `resources/towers/` (base/enhanced/superior), `resources/towers/fusions/` (dual-element tier 2)
+- Tower data: `.tres` in `resources/towers/` (base/enhanced/superior), `resources/towers/fusions/` (dual-element tier 2), `resources/towers/legendaries/` (triple-element tier 3)
 
 ## Scaling Formulas (GDD)
 - HP: `base * (1 + 0.15 * wave)^2`
@@ -37,13 +37,13 @@
 - [ ] P2-Task 11: Build menu expansion (all 6 base elements)
 - [x] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
 - [ ] P2-Task 7: Flying enemy behavior (ignores maze)
-- [ ] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
+- [x] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
 - [ ] P2-Task 14: Camera pan/zoom (WASD + mouse drag + scroll)
 - [x] P2-Task 16: Ground effect system (lava pools, mud -- bundled into Task 4)
 - [ ] P2-Task 17: Tower disable mechanic (boss interaction)
 - [x] P2-Task 3: Dual fusion system (15 Tier 2 towers + FusionRegistry)
 - [x] P2-Task 4: Dual fusion abilities (15 unique specials)
-- [ ] P2-Task 5: Legendary fusion + abilities (6 Tier 3 towers)
+- [x] P2-Task 5: Legendary fusion + abilities (6 Tier 3 towers)
 - [ ] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
 - [ ] P2-Task 9: 30-wave campaign config
 - [ ] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
@@ -64,14 +64,15 @@
 - `scripts/projectiles/Projectile.gd` - projectile movement, hit logic, AoE, specials
 - `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
 - `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
-- `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan
+- `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan, healer, split, split_child, stealth, elemental
 - `scripts/ui/BuildMenu.gd` - tower selection UI, filtered by PHASE_1_ELEMENTS const
 - `scripts/ui/GameOverScreen.gd` - game over overlay (victory/defeat), wired to GameManager.game_over
 - `scenes/ui/GameOverScreen.tscn` - fullscreen overlay with dimmer, centered panel, result label, waves label, play again button
 - `scripts/ui/TowerInfoPanel.gd` - tower info panel: stats display, upgrade/sell buttons, self-registers with UIManager
 - `scenes/ui/TowerInfoPanel.tscn` - anchored bottom-right, hidden by default, instanced in Game scene under UILayer
-- `scripts/autoload/FusionRegistry.gd` - fusion lookup table, can_fuse() validation, get_fusion_partners()
+- `scripts/autoload/FusionRegistry.gd` - fusion lookup table, can_fuse()/can_fuse_legendary() validation, get_fusion_partners()/get_legendary_partners()
 - `resources/towers/fusions/*.tres` - 15 dual-element fusion tower data (tier 2)
+- `resources/towers/legendaries/*.tres` - 6 triple-element legendary tower data (tier 3)
 
 ## Gotchas
 - StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
@@ -126,3 +127,29 @@
 - Enemy.pull_toward(pos, px): moves toward pos, snaps to nearest path point. Searches all path points for closest.
 - GroundEffect uses custom _draw() for visuals (draw_circle), fades in last 0.5s, ticks every 0.5s.
 - Projectile.ground_effect_spawned signal connected in Game._on_projectile_spawned() for scene tree addition.
+
+## New Enemy Types (P2-Task 6)
+- Healer: heal_per_second > 0 triggers _heal_nearby(delta) in _process(). Heals allies within 2 cells (128px), NOT self. Green flash (0.15s) on healed allies via _heal_flash_timer.
+- Split: split_on_death=true + split_data points to split_child.tres. _die() calls EnemySystem.spawn_split_enemies() which spawns 2 children at parent position, continuing from parent's _path_index. Children added to _active_enemies BEFORE parent removed to prevent premature wave_cleared.
+- Stealth: stealth=true in EnemyData. Enemy starts at 0.15 alpha, _is_revealed=false. Untargetable by towers (filtered in Tower._get_in_range_enemies()). Revealed permanently when any tower is within 2 cells. _original_modulate tracks alpha for status visual resets.
+- Elemental: immune_element/weak_element assigned randomly in _apply_enemy_data() when enemy_name=="Elemental". Seeded RNG per instance (wave*1000 + instance_id). Immune element -> 0 damage. Weak element -> 2x damage. Checked in _apply_resistance() before physical_resist. Sprite tinted to immune element color.
+- EnemyData.gd has immune_element/weak_element fields. _create_scaled_enemy() copies them. Elemental assignment happens in Enemy.gd after scaling.
+- ELEMENT_COUNTERS maps immune->weak: fire->water, water->earth, earth->wind, wind->lightning, lightning->fire, ice->fire.
+- split.tres uses ext_resource to reference split_child.tres (Option B). load_steps=3 for the extra resource.
+
+## Legendary Fusion System (P2-Task 5)
+- 6 triple-element legendaries: Primordial Nexus, Supercell Obelisk, Arctic Maelstrom, Crystalline Monolith, Volcanic Tempest, Tectonic Dynamo
+- FusionRegistry._legendary_fusions: keys are 3 sorted elements joined with "+". _make_legendary_key() handles sorting.
+- Legendary eligibility: tier-2 tower + tier-1 Superior (upgrade_to==null), third element NOT in tier2's fusion_elements
+- fuse_legendary() flow: same pattern as fuse_towers() -- validate, charge cost, remove superior, swap tier2 data in-place
+- get_legendary_partners() works bidirectionally: finds partners whether given tower is tier2 or superior
+- Tower.gd AURA_KEYS now includes "blizzard_aura" (Arctic Maelstrom pure aura tower, attack_speed=0.0)
+- Tower.gd PERIODIC_KEYS: ["geyser", "stun_amplify"] -- periodic AoE abilities on separate timer, tower still fires normal projectiles
+- Pure-aura towers (attack_speed==0.0): skip normal projectile attack in _process(), only run aura tick
+- PERIODIC_KEYS towers: aoe_radius_cells is for ability range, NOT projectile AoE (excluded like AURA_KEYS)
+- Periodic ability projectiles have special_key cleared to "" so they fire plain damage projectiles
+- "storm_aoe" (Supercell Obelisk): wave-scaling damage bonus in BOTH Tower._calculate_damage() and Projectile._calculate_damage()
+- "earthquake" (Tectonic Dynamo): dedicated Projectile._apply_earthquake_hit() -- AoE dmg + slow + stun chance per enemy
+- "burning_ground" (Volcanic Tempest): AoE on impact + spawns GroundEffect with effect_type="burning_ground" (orange color, same tick damage as lava_pool)
+- Stunned enemies take 2x damage from ALL sources (Enemy.take_damage checks STUN status) -- synergizes with Crystalline Monolith's stun_amplify
+- GroundEffect now supports "burning_ground" as alias for lava_pool damage behavior with distinct orange color

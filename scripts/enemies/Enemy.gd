@@ -1,6 +1,7 @@
 extends Node2D
 
 ## Base enemy script. Follows path, takes damage, triggers death/exit.
+## Supports behaviors: healer aura, split on death, stealth, elemental immunity/weakness.
 
 @export var enemy_data: EnemyData
 
@@ -16,6 +17,33 @@ var _base_speed: float = 64.0
 # Status effect system
 var _status_effects: Array[StatusEffect] = []
 var _original_modulate: Color = Color.WHITE
+
+# Stealth system
+var _is_revealed: bool = false
+
+# Healer visual feedback
+var _heal_flash_timer: float = 0.0
+const HEAL_FLASH_DURATION: float = 0.15
+
+# Element color mapping for elemental enemy tinting
+const ELEMENT_COLORS: Dictionary = {
+	"fire": Color(1.0, 0.4, 0.2),
+	"water": Color(0.3, 0.5, 1.0),
+	"earth": Color(0.6, 0.4, 0.2),
+	"wind": Color(0.6, 1.0, 0.6),
+	"lightning": Color(1.0, 1.0, 0.3),
+	"ice": Color(0.7, 0.9, 1.0),
+}
+
+# Element weakness matrix: immune_element -> weak_element (counter from GDD matrix)
+const ELEMENT_COUNTERS: Dictionary = {
+	"fire": "water",
+	"water": "earth",
+	"earth": "wind",
+	"wind": "lightning",
+	"lightning": "fire",
+	"ice": "fire",
+}
 
 @onready var sprite: Sprite2D = $Sprite2D
 @onready var health_bar: ProgressBar = $HealthBar
@@ -38,11 +66,61 @@ func _apply_enemy_data() -> void:
 	var texture_path: String = "res://assets/sprites/enemies/%s.png" % texture_name
 	sprite.texture = load(texture_path)
 
+	# Stealth: start nearly invisible
+	if enemy_data.stealth:
+		_is_revealed = false
+		sprite.modulate = Color(1, 1, 1, 0.15)
+		_original_modulate = Color(1, 1, 1, 0.15)
+
+	# Elemental: assign random immune/weak elements per instance
+	if enemy_data.enemy_name == "Elemental" and enemy_data.immune_element == "":
+		_assign_elemental_affinity()
+
+
+func _assign_elemental_affinity() -> void:
+	## Assign random immune and weak elements for Elemental enemy type.
+	## Seeded by wave number for deterministic results within a wave,
+	## but each instance gets a unique offset from its instance ID.
+	var elements: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
+	var seed_value: int = GameManager.current_wave * 1000 + get_instance_id()
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	var immune_idx: int = rng.randi_range(0, elements.size() - 1)
+	enemy_data.immune_element = elements[immune_idx]
+	# Weak element is the counter from the element matrix
+	if ELEMENT_COUNTERS.has(enemy_data.immune_element):
+		enemy_data.weak_element = ELEMENT_COUNTERS[enemy_data.immune_element]
+	else:
+		# Fallback: pick a different random element
+		var weak_idx: int = (immune_idx + 1) % elements.size()
+		enemy_data.weak_element = elements[weak_idx]
+	# Tint sprite to immune element color
+	if ELEMENT_COLORS.has(enemy_data.immune_element):
+		var tint: Color = ELEMENT_COLORS[enemy_data.immune_element]
+		sprite.modulate = tint
+		_original_modulate = tint
+
 
 func _process(delta: float) -> void:
 	_process_status_effects(delta)
 	if path_points.is_empty() or _path_index >= path_points.size():
 		return
+
+	# Healer aura: heal nearby allies each frame
+	if enemy_data and enemy_data.heal_per_second > 0.0:
+		_heal_nearby(delta)
+
+	# Heal flash fade
+	if _heal_flash_timer > 0.0:
+		_heal_flash_timer -= delta
+		if _heal_flash_timer <= 0.0:
+			# Restore to whatever the current status visual should be
+			_update_status_visuals()
+
+	# Stealth reveal check
+	if enemy_data and enemy_data.stealth and not _is_revealed:
+		_check_stealth_reveal()
+
 	_move_along_path(delta)
 
 
@@ -82,13 +160,29 @@ func take_damage(amount: int, element: String = "") -> void:
 
 func _apply_resistance(amount: int, element: String) -> int:
 	## Reduce damage based on enemy resistances.
+	## Elemental immunity: damage from immune element is reduced to 0.
+	## Elemental weakness: damage from weak element is doubled.
 	## Physical resist applies to earth-element attacks.
-	if enemy_data and enemy_data.physical_resist > 0.0 and element == "earth":
-		return int(amount * (1.0 - enemy_data.physical_resist))
+	if enemy_data:
+		# Elemental immunity check (takes priority)
+		if enemy_data.immune_element != "" and element == enemy_data.immune_element:
+			return 0
+		# Elemental weakness check
+		if enemy_data.weak_element != "" and element == enemy_data.weak_element:
+			return int(amount * 2.0)
+		# Physical resist for earth attacks
+		if enemy_data.physical_resist > 0.0 and element == "earth":
+			return int(amount * (1.0 - enemy_data.physical_resist))
 	return amount
 
 
 func _die() -> void:
+	# Split enemies spawn children instead of just dying.
+	# Must spawn children BEFORE removing parent from active list to prevent
+	# premature wave_cleared (children must be in _active_enemies first).
+	if enemy_data and enemy_data.split_on_death and enemy_data.split_data != null:
+		EnemySystem.spawn_split_enemies(self)
+		return
 	EnemySystem.on_enemy_killed(self)
 
 
@@ -101,6 +195,56 @@ func _update_health_bar() -> void:
 		health_bar.max_value = max_health
 		health_bar.value = current_health
 		health_bar.visible = current_health < max_health
+
+
+# -- Healer Behavior --------------------------------------------------------
+
+func _heal_nearby(delta: float) -> void:
+	## Heal all ally enemies within 2-cell radius (128px). Does NOT heal self.
+	var heal_radius_px: float = 2.0 * GridManager.CELL_SIZE  # 128px
+	var heal_amount: float = enemy_data.heal_per_second * delta
+	var enemies: Array[Node] = EnemySystem.get_active_enemies()
+
+	for ally: Node in enemies:
+		if ally == self:
+			continue
+		if not is_instance_valid(ally) or ally.current_health <= 0:
+			continue
+		if position.distance_to(ally.position) > heal_radius_px:
+			continue
+		# Only heal if ally is actually damaged
+		if ally.current_health >= ally.max_health:
+			continue
+		ally.current_health = mini(ally.current_health + int(ceil(heal_amount)), ally.max_health)
+		ally._update_health_bar()
+		# Brief green flash on healed ally (don't override if already flashing)
+		if ally._heal_flash_timer <= 0.0 and ally.sprite:
+			ally.sprite.modulate = Color(0.5, 1.0, 0.5)
+			ally._heal_flash_timer = HEAL_FLASH_DURATION
+
+
+func heal(amount: int) -> void:
+	## Public method to heal this enemy by a flat amount (capped at max_health).
+	current_health = mini(current_health + amount, max_health)
+	_update_health_bar()
+
+
+# -- Stealth Behavior -------------------------------------------------------
+
+func _check_stealth_reveal() -> void:
+	## Check if any tower is within 2 cells (128px) of this enemy. If so, reveal permanently.
+	var reveal_radius_px: float = 2.0 * GridManager.CELL_SIZE  # 128px
+	var towers: Array[Node] = TowerSystem.get_active_towers()
+
+	for tower: Node in towers:
+		if not is_instance_valid(tower):
+			continue
+		if position.distance_to(tower.position) <= reveal_radius_px:
+			_is_revealed = true
+			sprite.modulate.a = 1.0
+			_original_modulate = Color.WHITE
+			_update_status_visuals()
+			return
 
 
 # -- Status Effect System --------------------------------------------------
@@ -185,7 +329,7 @@ func _recalculate_speed() -> void:
 
 func _update_status_visuals() -> void:
 	## Tint the sprite based on active status effects.
-	## Priority: Stun (yellow) > Freeze (cyan) > Slow (blue) > Wet (teal) > Burn (red-orange) > None (white).
+	## Priority: Stun (yellow) > Freeze (cyan) > Slow (blue) > Wet (teal) > Burn (red-orange) > None (original).
 	if not sprite:
 		return
 
@@ -209,15 +353,15 @@ func _update_status_visuals() -> void:
 				has_burn = true
 
 	if has_stun:
-		sprite.modulate = Color(1.0, 1.0, 0.3, 1.0)  # Yellow tint
+		sprite.modulate = Color(1.0, 1.0, 0.3, _original_modulate.a)  # Yellow tint
 	elif has_freeze:
-		sprite.modulate = Color(0.5, 0.8, 1.0, 1.0)  # Cyan/ice tint
+		sprite.modulate = Color(0.5, 0.8, 1.0, _original_modulate.a)  # Cyan/ice tint
 	elif has_slow:
-		sprite.modulate = Color(0.6, 0.6, 1.0, 1.0)  # Blue tint
+		sprite.modulate = Color(0.6, 0.6, 1.0, _original_modulate.a)  # Blue tint
 	elif has_wet:
-		sprite.modulate = Color(0.4, 0.7, 0.9, 1.0)  # Teal/blue-green tint
+		sprite.modulate = Color(0.4, 0.7, 0.9, _original_modulate.a)  # Teal/blue-green tint
 	elif has_burn:
-		sprite.modulate = Color(1.0, 0.5, 0.3, 1.0)  # Red-orange tint
+		sprite.modulate = Color(1.0, 0.5, 0.3, _original_modulate.a)  # Red-orange tint
 	else:
 		sprite.modulate = _original_modulate
 
