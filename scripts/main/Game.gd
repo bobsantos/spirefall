@@ -19,6 +19,18 @@ const GHOST_COLOR_INVALID := Color(1.0, 0.2, 0.2, 0.5)
 # Fusion partner highlight color (pulsing yellow)
 const FUSION_HIGHLIGHT_COLOR := Color(1.0, 0.9, 0.2, 1.0)
 
+# --- Camera pan/zoom constants ---
+const PAN_SPEED: float = 400.0  # px/s at 1x zoom
+const ZOOM_MIN: Vector2 = Vector2(0.5, 0.5)
+const ZOOM_MAX: Vector2 = Vector2(2.0, 2.0)
+const ZOOM_STEP: float = 0.1
+# Map bounds for camera clamping (with padding so edges are visible when zoomed in)
+const MAP_MIN: Vector2 = Vector2(0.0, 0.0)
+const MAP_MAX: Vector2 = Vector2(1280.0, 960.0)
+
+# Camera drag state
+var _is_dragging: bool = false
+
 
 func _ready() -> void:
 	UIManager.build_requested.connect(_on_build_requested)
@@ -36,12 +48,38 @@ func _load_map() -> void:
 	game_board.add_child(map_instance)
 
 
-func _process(_delta: float) -> void:
+func _process(delta: float) -> void:
+	_handle_camera_pan(delta)
 	if _placing_tower:
 		_update_ghost()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# --- Camera: middle mouse drag ---
+	if event is InputEventMouseButton:
+		if event.button_index == MOUSE_BUTTON_MIDDLE:
+			_is_dragging = event.pressed
+			get_viewport().set_input_as_handled()
+			return
+		# --- Camera: scroll wheel zoom ---
+		if event.pressed:
+			if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+				_zoom_camera(ZOOM_STEP, event.position)
+				get_viewport().set_input_as_handled()
+				return
+			elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+				_zoom_camera(-ZOOM_STEP, event.position)
+				get_viewport().set_input_as_handled()
+				return
+
+	if event is InputEventMouseMotion and _is_dragging:
+		# Invert relative motion and scale by zoom for natural drag feel
+		camera.position -= event.relative / camera.zoom
+		_clamp_camera()
+		get_viewport().set_input_as_handled()
+		return
+
+	# --- Non-camera input below ---
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_handle_click(event.position)
@@ -66,6 +104,69 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("ui_upgrade") and UIManager.selected_tower:
 		TowerSystem.upgrade_tower(UIManager.selected_tower)
+
+
+# --- Camera helper methods ---
+
+func _handle_camera_pan(delta: float) -> void:
+	var pan_dir := Vector2.ZERO
+	if Input.is_action_pressed("ui_pan_left"):
+		pan_dir.x -= 1.0
+	if Input.is_action_pressed("ui_pan_right"):
+		pan_dir.x += 1.0
+	if Input.is_action_pressed("ui_pan_up"):
+		pan_dir.y -= 1.0
+	if Input.is_action_pressed("ui_pan_down"):
+		pan_dir.y += 1.0
+
+	if pan_dir != Vector2.ZERO:
+		# Scale pan speed inversely with zoom so it feels consistent
+		var effective_speed: float = PAN_SPEED / camera.zoom.x
+		camera.position += pan_dir.normalized() * effective_speed * delta
+		_clamp_camera()
+
+
+func _zoom_camera(step: float, screen_pos: Vector2) -> void:
+	# Zoom toward/away from mouse position (keeps world point under cursor fixed)
+	var old_zoom: Vector2 = camera.zoom
+	var new_zoom_val: float = clampf(old_zoom.x + step, ZOOM_MIN.x, ZOOM_MAX.x)
+	var new_zoom := Vector2(new_zoom_val, new_zoom_val)
+
+	if new_zoom == old_zoom:
+		return
+
+	# World position under mouse before zoom change
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var mouse_offset: Vector2 = screen_pos - viewport_size * 0.5
+	var world_mouse_before: Vector2 = camera.position + mouse_offset / old_zoom
+
+	# Apply new zoom
+	camera.zoom = new_zoom
+
+	# Adjust position so the same world point stays under the cursor
+	var world_mouse_after: Vector2 = camera.position + mouse_offset / new_zoom
+	camera.position += world_mouse_before - world_mouse_after
+	_clamp_camera()
+
+
+func _clamp_camera() -> void:
+	# Clamp camera so the visible area doesn't go too far beyond the map edges.
+	# The visible half-size depends on zoom level.
+	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
+	var half_view: Vector2 = viewport_size * 0.5 / camera.zoom
+	# Allow the camera center to range so the map edge is at screen edge, with a small margin
+	var margin: float = 64.0
+	var min_pos: Vector2 = MAP_MIN + half_view - Vector2(margin, margin)
+	var max_pos: Vector2 = MAP_MAX - half_view + Vector2(margin, margin)
+	# If the view is larger than the map (zoomed out far), center the camera
+	if min_pos.x > max_pos.x:
+		camera.position.x = (MAP_MIN.x + MAP_MAX.x) * 0.5
+	else:
+		camera.position.x = clampf(camera.position.x, min_pos.x, max_pos.x)
+	if min_pos.y > max_pos.y:
+		camera.position.y = (MAP_MIN.y + MAP_MAX.y) * 0.5
+	else:
+		camera.position.y = clampf(camera.position.y, min_pos.y, max_pos.y)
 
 
 func _handle_click(screen_pos: Vector2) -> void:

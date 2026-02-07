@@ -38,7 +38,7 @@
 - [x] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
 - [x] P2-Task 7: Flying enemy behavior (ignores maze)
 - [x] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
-- [ ] P2-Task 14: Camera pan/zoom (WASD + mouse drag + scroll)
+- [x] P2-Task 14: Camera pan/zoom (WASD + mouse drag + scroll)
 - [x] P2-Task 16: Ground effect system (lava pools, mud -- bundled into Task 4)
 - [x] P2-Task 17: Tower disable mechanic (boss interaction)
 - [x] P2-Task 3: Dual fusion system (15 Tier 2 towers + FusionRegistry)
@@ -77,59 +77,15 @@
 - `scripts/ui/WavePreviewPanel.gd` - wave preview panel: enemy composition, traits, boss banners
 - `scenes/ui/WavePreviewPanel.tscn` - anchored top-right (220px wide, below HUD at y=48), hidden by default, mouse_filter=IGNORE
 
-## Gotchas
-- StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
-- Burn stacks independently (multiple burns tick); Slow/Freeze replace each other (not additive)
-- Slow value is 0-1 fraction (0.3 = 30% slow), not percentage int
-- Burn ticks once per second via elapsed accumulator, not every frame
-- `apply_status()` is the public API; Projectile._try_apply_special() calls it on impact (moved from Tower in Task 6)
-- Tower specials are data-driven: TowerData has `special_key`, `special_value`, `special_duration`, `special_chance`, `aoe_radius_cells`
-- AoE damage is applied before status effects in Projectile._apply_aoe_hit(), uses `_calculate_damage()` per enemy for correct elemental multipliers
-- Gale Tower ("multi") special: Tower._attack() spawns N projectiles via _find_multiple_targets(). Each projectile is independent full-damage. Tower._find_multiple_targets() reuses _get_in_range_enemies() + _sort_by_target_mode().
-- Thunder Pylon ("chain") special: Projectile._apply_chain_hits() deals fractional damage to nearby enemies after primary hit. Chain radius = 2 cells (128px). TowerData.chain_damage_fraction controls fraction (0.6 = 60%). Chain hits use per-target elemental multipliers.
-- "multi" and "chain" are skipped in _try_apply_special() (same as "aoe") since they are handled structurally, not as status effects
-- wave_config.json has no `spawn_interval` field per wave; EnemySystem defaults 0.5s normal, 1.5s boss
-- (FIXED) GameManager victory condition was `current_wave > max_waves` (strict), which meant clearing the final wave counted as defeat. Changed to `>=` to match the trigger in `_on_wave_cleared()`
-- Enemy.gd `_apply_enemy_data()` loads sprite by converting `enemy_name` to snake_case (spaces to underscores, lowercased)
-- `_wave_finished_spawning` is set true in two places: `_spawn_next_enemy()` when queue empties
-- Damage resistance is data-driven via `EnemyData.physical_resist` (0-1 float), checked in `Enemy._apply_resistance()`
-- Physical resist only applies to "earth" element attacks; burn DOT bypasses resistance (no element passed)
-- Projectile.gd has `class_name Projectile`; Tower.gd casts instantiated scene via `as Projectile`
-- Tower emits `projectile_spawned(projectile)` signal; Game.gd connects via `TowerSystem.tower_created`
-- Projectile carries all damage/special data so Tower is fire-and-forget (no back-reference)
-- If target dies mid-flight: single-target projectile despawns harmlessly; AoE hits at last known position
-- Projectile sprite loaded from `assets/sprites/projectiles/{element}.png` (fire, water, earth, etc.)
-- Elemental damage matrix duplicated in Projectile.gd for AoE per-enemy recalculation (same as Tower.gd)
-- (FIXED) Projectile class_name was missing from `.godot/global_script_class_cache.cfg` -- Godot doesn't always auto-detect new class_name scripts added outside the editor. Fix: manually add entry to cache, or delete `.godot/` and let Godot rebuild. Also add UID to ext_resource refs in .tscn files for proper linkage.
-- (FIXED) Tower AttackCooldown Timer had `one_shot = false` -- a repeating timer never stops, so `is_stopped()` is always `false` after first `.start()`, meaning the tower only ever fires ONE projectile. Fix: set `one_shot = true` in both Tower.gd `apply_tower_data()` and BaseTower.tscn so timer stops after each cooldown, allowing `is_stopped()` to gate the next attack.
-- (FIXED) Wave income was awarded in BUILD_PHASE transition (after current_wave++) meaning the bonus was calculated for the NEXT wave, not the one just cleared. Moved to `_on_wave_cleared()` where `current_wave` still reflects the cleared wave. Also means wave 1's first build phase no longer grants spurious income.
-- Wave clear bonus flow: `_on_wave_cleared()` -> `EconomyManager.calculate_wave_bonus(wave, leaks)` -> `add_gold()`. Leak counter reset at COMBAT_PHASE start, incremented via `GameManager.record_enemy_leak()` called from `EnemySystem.on_enemy_reached_exit()`.
-- GameOverScreen connects to GameManager.game_over signal in _ready(). Uses `get_tree().reload_current_scene()` for restart. Must call `EconomyManager.reset()` before reload since autoloads persist across scene reloads. GameManager.start_game() is called by Game._ready() on reload, which resets wave/lives state.
-- Ghost tower preview: Game.gd creates a bare Sprite2D (not a full Tower scene) added to game_board. Uses same texture path convention as Tower.gd (`tower_name.to_lower().replace(" ", "_")`). Ghost checks `GridManager.can_place_tower()` which combines `is_cell_buildable()` + `would_block_path()`. Also checks `EconomyManager.can_afford()` so ghost turns red when player can't afford. Right-click also cancels placement (in addition to Escape). Ghost hidden when cursor is outside grid bounds via `GridManager.is_in_bounds()`.
-- Tower sprite fallback: Both Tower.gd `apply_tower_data()` and Game.gd ghost preview strip "_enhanced"/"_superior" suffixes to find base sprite if upgrade-specific sprite doesn't exist. Add dedicated sprites later for visual upgrade progression.
-- Upgrade chain: base.tres -> enhanced.tres -> superior.tres via `upgrade_to = ExtResource("2")`. TowerSystem.upgrade_tower() reads upgrade_to, charges cost difference (new - old), swaps tower_data, and calls apply_tower_data(). Game.gd binds `ui_upgrade` input action to TowerSystem.upgrade_tower().
-- Upgrade scaling: Enhanced = +40% dmg, +10% range, 1.5x cost. Superior = +100% dmg, +20% range, 2x cost (all over base). Superior also has enhanced specials (e.g., burn 8/4s, slow 40%/3s, aoe 3-cell, freeze 30%/2s, multi 3, chain 4/70%).
-- range_cells is int in TowerData: +10%/+20% on small ints (3-5) means some tiers share the same range. Rounded values: base 3->enhanced 3->superior 4; base 4->4->5; base 5->6->6.
-- FusionRegistry keys are alphabetically sorted element pairs: "earth+fire", "fire+water", etc. _make_key() handles sorting.
-- Fusion eligibility: both towers must be tier 1 with upgrade_to == null (i.e., Superior tier). Different elements required.
-- fuse_towers() flow: validate -> charge fusion_cost (result.cost) -> remove tower_b (no refund) -> swap tower_a data in-place -> emit tower_fused signal.
-- Fusion .tres files use tier=2, element = first element alphabetically from pair, fusion_elements = both elements.
-- All 15 fusion specials now implemented (Task 4 complete). Implementation patterns:
-  - "freeze_burn" (Thermal Shock): Tower alternates proj.special_key between "freeze"/"burn" via _attack_parity toggle
-  - "freeze_chain"/"wet_chain": Tower sets up chain_count/chain_damage_fraction; Projectile._try_apply_chain_special() applies freeze/WET to chain targets
-  - "cone_slow" (Blizzard): dedicated _apply_cone_aoe_hit() with 90-degree cone filter from tower_position
-  - "stun_pulse" (Seismic Coil): uses standard AoE + _try_apply_special() STUN handler (per-enemy chance roll)
-  - "pushback" (Tsunami Shrine): dedicated _apply_pushback_hit() with per-enemy chance roll + Enemy.push_back()
-  - "pull_burn" (Inferno Vortex): dedicated _apply_pull_burn_hit() with Enemy.pull_toward() + burn
-  - "lava_pool"/"slow_zone": AoE damage on impact + _spawn_ground_effect() emits signal -> Game.gd adds to scene
-  - "slow_aura"/"wide_slow"/"thorn": Tower._tick_aura() passive every 0.5s; projectiles get overridden special_key ("freeze" for slow_aura, "" for others)
-- Aura tower AoE exclusion: aoe_radius_cells on aura towers (AURA_KEYS) is for aura range only, NOT projectile AoE. Tower._spawn_projectile() skips AoE setup for AURA_KEYS.
-- STUN: like FREEZE (speed=0) but separate type. Yellow tint. Shares movement-impairing slot with SLOW/FREEZE.
-- WET: no speed effect. Enemies with WET take 1.5x lightning damage (checked in Enemy.take_damage). Teal tint. Separate replacement slot from movement effects.
-- Enemy.push_back(cells): decrements _path_index, teleports to path point. Simple discrete step-back.
-- Enemy.pull_toward(pos, px): moves toward pos, snaps to nearest path point. Searches all path points for closest.
-- GroundEffect uses custom _draw() for visuals (draw_circle), fades in last 0.5s, ticks every 0.5s.
-- Projectile.ground_effect_spawned signal connected in Game._on_projectile_spawned() for scene tree addition.
+## Gotchas -> see `gotchas.md` for full list
+- StatusEffect is RefCounted (not Node). Burn stacks; Slow/Freeze/STUN share movement-impairing slot; WET is separate.
+- Tower specials data-driven: TowerData.special_key/value/duration/chance/aoe_radius_cells
+- "multi"/"chain" handled structurally (not via _try_apply_special). "multi" = N projectiles from Tower._attack(); "chain" = fractional hits in Projectile._apply_chain_hits()
+- Projectile is fire-and-forget: carries all damage/special data, no back-reference to Tower
+- Ghost tower preview: bare Sprite2D on game_board, uses camera.get_global_mouse_position(), hidden outside grid bounds
+- FusionRegistry keys: alphabetically sorted element pairs. Fusion eligibility = both Superior (upgrade_to==null), different elements.
+- Fusion specials (15 dual, 6 legendary): see MEMORY sections below or `gotchas.md`
+- Autoloads persist across scene reloads -- must call EconomyManager.reset() before reload_current_scene()
 
 ## New Enemy Types (P2-Task 6)
 - Healer: heal_per_second > 0 triggers _heal_nearby(delta) in _process(). Heals allies within 2 cells (128px), NOT self. Green flash (0.15s) on healed allies via _heal_flash_timer.
@@ -200,6 +156,15 @@
 - Projectile carries synergy_damage_mult, synergy_freeze_chance_bonus, synergy_slow_bonus from Tower at spawn time
 - Visual: subtle element-colored tint via Color.WHITE.lerp(element_color, 0.15 * tier) on tower sprite
 - Synergy tint replaces disabled-state WHITE restore (re-enables to synergy color, not WHITE)
+
+## Camera Pan/Zoom (P2-Task 14)
+- All camera logic in Game.gd: WASD pan (_handle_camera_pan), middle-mouse drag, scroll zoom (_zoom_camera)
+- Input actions: ui_pan_up/down/left/right (WASD) defined in project.godot. ui_sell (S) and ui_pan_down (S) share keycode -- acceptable tradeoff
+- PAN_SPEED=400 px/s at 1x zoom, scaled inversely (PAN_SPEED / camera.zoom.x)
+- Zoom: 0.5x-2.0x, step 0.1, zooms toward mouse position (preserves world point under cursor)
+- _clamp_camera() keeps visible area within MAP bounds (0,0 to 1280,960) + 64px margin; centers axis if view > map
+- Camera2D in Game.tscn: position=(640,480), position_smoothing_enabled=true, speed=12.0
+- Ghost preview + click-to-place use camera.get_global_mouse_position() -- already camera-aware, no changes needed
 
 ## UI Panel Details -> see `ui-panels.md`
 - Tower Info Panel (P2-Task 12): fuse_requested signal, element-colored styling, upgrade/sell/fuse buttons
