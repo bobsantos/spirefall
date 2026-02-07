@@ -1,6 +1,7 @@
 extends Node2D
 
 ## Main game scene. Orchestrates the game board, camera, input, and UI.
+## Handles tower placement, fusion target selection, and scene-tree wiring.
 
 @onready var game_board: Node2D = $GameBoard
 @onready var ui_layer: CanvasLayer = $UILayer
@@ -9,9 +10,14 @@ extends Node2D
 var _placing_tower: TowerData = null
 var _ghost_tower: Sprite2D = null
 
+# Fusion target selection state
+var _fusing_tower: Node = null  # The tower that initiated fusion (stays in place)
+
 # Ghost tint colors: green = valid placement, red = invalid
 const GHOST_COLOR_VALID := Color(0.2, 1.0, 0.2, 0.5)
 const GHOST_COLOR_INVALID := Color(1.0, 0.2, 0.2, 0.5)
+# Fusion partner highlight color (pulsing yellow)
+const FUSION_HIGHLIGHT_COLOR := Color(1.0, 0.9, 0.2, 1.0)
 
 
 func _ready() -> void:
@@ -19,6 +25,7 @@ func _ready() -> void:
 	EnemySystem.enemy_spawned.connect(_on_enemy_spawned)
 	EnemySystem.enemy_killed.connect(_on_enemy_killed)
 	TowerSystem.tower_created.connect(_on_tower_created)
+	TowerSystem.tower_sold.connect(_on_tower_sold)
 	_load_map()
 	GameManager.start_game()
 
@@ -39,10 +46,16 @@ func _unhandled_input(event: InputEvent) -> void:
 		if event.button_index == MOUSE_BUTTON_LEFT:
 			_handle_click(event.position)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
-			_cancel_placement()
+			if _fusing_tower:
+				_cancel_fusion_selection()
+			else:
+				_cancel_placement()
 
 	if event.is_action_pressed("ui_cancel"):
-		_cancel_placement()
+		if _fusing_tower:
+			_cancel_fusion_selection()
+		else:
+			_cancel_placement()
 
 	if event.is_action_pressed("ui_start_wave"):
 		GameManager.start_wave_early()
@@ -58,6 +71,11 @@ func _unhandled_input(event: InputEvent) -> void:
 func _handle_click(screen_pos: Vector2) -> void:
 	var world_pos: Vector2 = camera.get_global_mouse_position() if camera else get_global_mouse_position()
 	var grid_pos: Vector2i = GridManager.world_to_grid(world_pos)
+
+	# Fusion target selection mode: clicking a tower tries to fuse
+	if _fusing_tower:
+		_handle_fusion_click(grid_pos)
+		return
 
 	if _placing_tower:
 		var tower: Node = TowerSystem.create_tower(_placing_tower, grid_pos)
@@ -75,6 +93,7 @@ func _handle_click(screen_pos: Vector2) -> void:
 
 
 func _on_build_requested(tower_data: TowerData) -> void:
+	_cancel_fusion_selection()
 	_placing_tower = tower_data
 	_create_ghost(tower_data)
 
@@ -144,6 +163,14 @@ func _clear_ghost() -> void:
 func _on_tower_created(tower: Node) -> void:
 	if tower.has_signal("projectile_spawned"):
 		tower.projectile_spawned.connect(_on_projectile_spawned)
+	# Connect fuse_requested from the info panel once the panel exists
+	_connect_tower_info_fuse_signal()
+
+
+func _on_tower_sold(tower: Node, _refund: int) -> void:
+	# If the sold tower was the fusion source, cancel fusion selection
+	if _fusing_tower == tower:
+		_cancel_fusion_selection()
 
 
 func _on_projectile_spawned(projectile: Node) -> void:
@@ -175,3 +202,104 @@ func _spawn_gold_text(pos: Vector2, amount: int) -> void:
 	tween.tween_property(label, "position:y", label.position.y - 30.0, 1.0)
 	tween.tween_property(label, "modulate:a", 0.0, 1.0).set_delay(0.3)
 	tween.chain().tween_callback(label.queue_free)
+
+
+# --- Fusion target selection flow ---
+
+var _fuse_signal_connected: bool = false
+
+
+func _connect_tower_info_fuse_signal() -> void:
+	## Connect the TowerInfoPanel's fuse_requested signal exactly once.
+	if _fuse_signal_connected:
+		return
+	if UIManager.tower_info_panel and UIManager.tower_info_panel.has_signal("fuse_requested"):
+		UIManager.tower_info_panel.fuse_requested.connect(_on_fuse_requested)
+		_fuse_signal_connected = true
+
+
+func _on_fuse_requested(tower: Node) -> void:
+	## Enter fusion target selection mode. Player must click a valid partner tower.
+	_cancel_placement()
+	_fusing_tower = tower
+	UIManager.deselect_tower()
+	_highlight_fusion_partners(tower)
+
+
+func _handle_fusion_click(grid_pos: Vector2i) -> void:
+	## During fusion selection, clicking a tower attempts to fuse it with _fusing_tower.
+	var target: Node = GridManager.get_tower_at(grid_pos)
+	if not target or target == _fusing_tower:
+		_cancel_fusion_selection()
+		return
+
+	var fused: bool = false
+	# Try dual fusion (both tier 1 Superior)
+	if FusionRegistry.can_fuse(_fusing_tower, target):
+		fused = TowerSystem.fuse_towers(_fusing_tower, target)
+	# Try legendary: _fusing_tower as tier2 + target as superior
+	elif FusionRegistry.can_fuse_legendary(_fusing_tower, target):
+		fused = TowerSystem.fuse_legendary(_fusing_tower, target)
+	# Try legendary: target as tier2 + _fusing_tower as superior
+	elif FusionRegistry.can_fuse_legendary(target, _fusing_tower):
+		fused = TowerSystem.fuse_legendary(target, _fusing_tower)
+
+	_clear_fusion_highlights()
+	if fused:
+		# Select the resulting fused tower to show its new stats
+		var result_tower: Node = _fusing_tower
+		# For the reversed legendary case, the result is `target` since it was tier2
+		if not is_instance_valid(_fusing_tower) and is_instance_valid(target):
+			result_tower = target
+		_fusing_tower = null
+		if is_instance_valid(result_tower):
+			UIManager.select_tower(result_tower)
+	else:
+		_fusing_tower = null
+
+
+func _cancel_fusion_selection() -> void:
+	_fusing_tower = null
+	_clear_fusion_highlights()
+
+
+func _highlight_fusion_partners(tower: Node) -> void:
+	## Visually highlight all valid fusion partner towers with a pulsing tint.
+	var partners: Array[Node] = []
+	# Collect dual fusion partners
+	var dual: Array[Node] = FusionRegistry.get_fusion_partners(tower)
+	for p: Node in dual:
+		if p not in partners:
+			partners.append(p)
+	# Collect legendary fusion partners
+	var legendary: Array[Node] = FusionRegistry.get_legendary_partners(tower)
+	for p: Node in legendary:
+		if p not in partners:
+			partners.append(p)
+
+	for partner: Node in partners:
+		if is_instance_valid(partner) and partner.has_node("Sprite2D"):
+			var spr: Sprite2D = partner.get_node("Sprite2D")
+			# Store original modulate so we can restore it
+			spr.set_meta("_pre_fuse_modulate", spr.modulate)
+			# Pulse the highlight using a looping tween
+			var tw: Tween = partner.create_tween().set_loops()
+			tw.tween_property(spr, "modulate", FUSION_HIGHLIGHT_COLOR, 0.4)
+			tw.tween_property(spr, "modulate", Color.WHITE, 0.4)
+			spr.set_meta("_fuse_tween", tw)
+
+
+func _clear_fusion_highlights() -> void:
+	## Remove all fusion partner highlights and restore original modulates.
+	for tower: Node in TowerSystem.get_active_towers():
+		if not is_instance_valid(tower) or not tower.has_node("Sprite2D"):
+			continue
+		var spr: Sprite2D = tower.get_node("Sprite2D")
+		if spr.has_meta("_fuse_tween"):
+			var tw: Tween = spr.get_meta("_fuse_tween")
+			if tw and tw.is_valid():
+				tw.kill()
+			spr.remove_meta("_fuse_tween")
+		if spr.has_meta("_pre_fuse_modulate"):
+			spr.modulate = spr.get_meta("_pre_fuse_modulate")
+			spr.remove_meta("_pre_fuse_modulate")

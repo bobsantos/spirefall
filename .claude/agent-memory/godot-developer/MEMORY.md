@@ -47,9 +47,9 @@
 - [x] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
 - [x] P2-Task 9: 30-wave campaign config
 - [x] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
-- [x] P2-Task 12: Tower info panel (stats + upgrade + sell buttons)
+- [x] P2-Task 12: Tower info panel (full stats, tier, synergy, fuse/target mode, element styling)
 - [ ] P2-Task 13: Wave preview panel
-- [ ] P2-Task 15: Fusion UX flow in Game.gd
+- [x] P2-Task 15: Fusion UX flow in Game.gd (fuse_requested signal, partner highlighting, fusion click handler)
 
 ## File Locations
 - `scripts/autoload/EnemySystem.gd` - wave spawning, enemy lifecycle
@@ -68,8 +68,8 @@
 - `scripts/ui/BuildMenu.gd` - tower selection UI, shows all 6 base elements with styled buttons (element-colored backgrounds, sprite thumbnails, tooltips)
 - `scripts/ui/GameOverScreen.gd` - game over overlay (victory/defeat), wired to GameManager.game_over
 - `scenes/ui/GameOverScreen.tscn` - fullscreen overlay with dimmer, centered panel, result label, waves label, play again button
-- `scripts/ui/TowerInfoPanel.gd` - tower info panel: stats display, upgrade/sell buttons, self-registers with UIManager
-- `scenes/ui/TowerInfoPanel.tscn` - anchored bottom-right, hidden by default, instanced in Game scene under UILayer
+- `scripts/ui/TowerInfoPanel.gd` - tower info panel: full stats, tier, synergy, fuse/sell/upgrade buttons, target mode dropdown, element-colored styling, fuse_requested signal
+- `scenes/ui/TowerInfoPanel.tscn` - anchored bottom-right (240x420), hidden by default, instanced in Game scene under UILayer. Nodes: NameLabel, TierLabel, ElementLabel, DamageLabel, SpeedLabel, RangeLabel, SpecialLabel, SynergyLabel, UpgradeCostLabel, SellValueLabel, TargetModeDropdown, ButtonRow(Upgrade+Sell), FuseButton
 - `scripts/autoload/FusionRegistry.gd` - fusion lookup table, can_fuse()/can_fuse_legendary() validation, get_fusion_partners()/get_legendary_partners()
 - `scripts/systems/ElementSynergy.gd` - element synergy autoload: tracks tower counts, provides damage/speed/range/chain/freeze/slow bonuses per element
 - `resources/towers/fusions/*.tres` - 15 dual-element fusion tower data (tier 2)
@@ -198,3 +198,19 @@
 - Projectile carries synergy_damage_mult, synergy_freeze_chance_bonus, synergy_slow_bonus from Tower at spawn time
 - Visual: subtle element-colored tint via Color.WHITE.lerp(element_color, 0.15 * tier) on tower sprite
 - Synergy tint replaces disabled-state WHITE restore (re-enables to synergy color, not WHITE)
+
+## Tower Info Panel (P2-Task 12)
+- TowerInfoPanel.gd emits `fuse_requested(tower)` signal, Game.gd connects once via `_connect_tower_info_fuse_signal()`
+- Tier text derived from: tier==1 + upgrade_to!=null + upgrade_to.upgrade_to!=null => "Tier 1"; upgrade_to.upgrade_to==null => "Enhanced"; upgrade_to==null => "Superior". tier==2 => "Fusion". tier==3 => "Legendary"
+- TargetMode dropdown indices match Tower.TargetMode enum (0-4). Tower.gd has NO class_name, so cannot reference Tower.TargetMode externally; just set int directly
+- Fuse button visible when: Superior (tier 1, no upgrade_to) with dual partners OR legendary partners; OR tier 2 with legendary partners
+- Panel dynamically updates on: gold_changed (upgrade affordability), phase_changed (sell value %), tower_upgraded, tower_fused
+- Element-colored StyleBoxFlat applied to PanelContainer via add_theme_stylebox_override("panel", style)
+
+## Fusion UX Flow (P2-Task 15)
+- Game.gd fusion state: `_fusing_tower` holds the initiating tower, `_fuse_signal_connected` prevents duplicate connections
+- Flow: Fuse button -> fuse_requested signal -> Game._on_fuse_requested() -> deselect tower, highlight partners -> player clicks partner -> _handle_fusion_click() -> TowerSystem.fuse_towers()/fuse_legendary() -> clear highlights, select result
+- Partner highlighting: pulsing yellow tween on Sprite2D.modulate, stored as meta "_fuse_tween"/"_pre_fuse_modulate" for cleanup
+- Right-click or Escape cancels fusion selection (same as tower placement cancel)
+- Handles bidirectional legendary fusion: tries _fusing_tower as tier2 first, then target as tier2
+- If _fusing_tower was consumed (reversed legendary), uses target as result_tower for post-fuse selection
