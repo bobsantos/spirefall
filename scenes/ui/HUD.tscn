@@ -43,6 +43,10 @@ size_flags_horizontal = 3
 text = "30"
 horizontal_alignment = 1
 
+[node name="CodexButton" type="Button" parent="TopBar"]
+layout_mode = 2
+text = "Codex (C)"
+
 [node name="StartWaveButton" type="Button" parent="TopBar"]
 layout_mode = 2
 text = "Start Wave"

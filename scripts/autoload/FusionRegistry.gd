@@ -43,6 +43,14 @@ func _register_legendary_fusions() -> void:
 	_legendary_fusions["earth+lightning+water"] = "res://resources/towers/legendaries/tectonic_dynamo.tres"
 
 
+func get_all_dual_fusions() -> Dictionary:
+	return _dual_fusions
+
+
+func get_all_legendary_fusions() -> Dictionary:
+	return _legendary_fusions
+
+
 func _make_key(element_a: String, element_b: String) -> String:
 	var elements: Array = [element_a, element_b]
 	elements.sort()

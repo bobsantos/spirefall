@@ -105,6 +105,9 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_upgrade") and UIManager.selected_tower:
 		TowerSystem.upgrade_tower(UIManager.selected_tower)
 
+	if event.is_action_pressed("ui_codex"):
+		UIManager.toggle_codex()
+
 
 # --- Camera helper methods ---
 

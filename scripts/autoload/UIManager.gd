@@ -12,6 +12,7 @@ var hud: Control = null
 var build_menu: Control = null
 var tower_info_panel: Control = null
 var wave_preview_panel: Control = null
+var codex_panel: Control = null
 
 
 func register_hud(hud_node: Control) -> void:
@@ -28,6 +29,15 @@ func register_tower_info_panel(panel_node: Control) -> void:
 
 func register_wave_preview(panel_node: Control) -> void:
 	wave_preview_panel = panel_node
+
+
+func register_codex(panel_node: Control) -> void:
+	codex_panel = panel_node
+
+
+func toggle_codex() -> void:
+	if codex_panel and codex_panel.has_method("toggle"):
+		codex_panel.toggle()
 
 
 func select_tower(tower: Node) -> void:
