@@ -1,61 +1,44 @@
-# Spirefall Gotchas (detailed)
+# Gotchas and Lessons Learned
 
-## Status Effects
-- StatusEffect is RefCounted (not Node), stored in Enemy._status_effects typed array
-- Burn stacks independently (multiple burns tick); Slow/Freeze replace each other (not additive)
-- Slow value is 0-1 fraction (0.3 = 30% slow), not percentage int
-- Burn ticks once per second via elapsed accumulator, not every frame
-- `apply_status()` is the public API; Projectile._try_apply_special() calls it on impact
-- STUN: like FREEZE (speed=0) but separate type. Yellow tint. Shares movement-impairing slot with SLOW/FREEZE.
-- WET: no speed effect. Enemies with WET take 1.5x lightning damage. Teal tint. Separate replacement slot.
+## GdUnit4 Headless Mode
+GdUnit4 v6.1.1 blocks headless execution by default (exit code 103). CI environments MUST pass `--ignoreHeadlessMode`. This is because Godot InputEvents don't work in headless mode, so UI interaction tests will silently fail. Unit tests and logic-only tests work fine.
 
-## Tower Specials
-- Tower specials data-driven: TowerData has special_key, special_value, special_duration, special_chance, aoe_radius_cells
-- AoE damage applied before status effects in Projectile._apply_aoe_hit()
-- Gale Tower ("multi"): Tower._attack() spawns N projectiles via _find_multiple_targets()
-- Thunder Pylon ("chain"): Projectile._apply_chain_hits() deals fractional damage. Chain radius = 2 cells (128px).
-- "multi" and "chain" skipped in _try_apply_special() (handled structurally)
-- Aura tower AoE exclusion: aoe_radius_cells on AURA_KEYS is for aura range only, NOT projectile AoE
+## Godot CI Docker Images
+- `barichello/godot-ci` is the standard community Docker image for Godot CI
+- Tags follow Godot versions (e.g., `4.6`)
+- The image provides `godot` binary at a known path
+- Must run `godot --headless --import --quit` before tests to generate `.godot/` import cache
 
-## Projectile System
-- Projectile.gd has class_name Projectile; Tower.gd casts via `as Projectile`
-- Tower emits projectile_spawned signal; Game.gd connects via TowerSystem.tower_created
-- Projectile is fire-and-forget: carries all damage/special data, no back-reference
-- If target dies mid-flight: single-target despawns; AoE hits at last known position
-- Sprite loaded from assets/sprites/projectiles/{element}.png
-- Elemental damage matrix duplicated in Projectile.gd for AoE per-enemy recalculation
+## GdUnit4 Report Paths
+- Reports go to `<project>/reports/` by default
+- JUnit XML and HTML reports are auto-generated via session hooks
+- Use `-rd` flag to customize report directory
+- Use `-rc` flag to control report history count
 
-## Wave/Economy
-- wave_config.json has no spawn_interval; EnemySystem defaults 0.5s normal, 1.5s boss
-- Wave clear bonus flow: _on_wave_cleared() -> EconomyManager.calculate_wave_bonus() -> add_gold()
-- Leak counter reset at COMBAT_PHASE start
-- GameOverScreen uses get_tree().reload_current_scene(). Must call EconomyManager.reset() before reload.
+## Godot Import Step
+Before running tests in CI, must import the project: `godot --headless --import --quit`
+This generates the `.godot/` directory with imported resources. Without it, tests that load scenes or resources will fail.
 
-## Ghost Tower Preview
-- Bare Sprite2D (not full Tower scene) added to game_board
-- Uses camera.get_global_mouse_position() -- camera-aware
-- Checks GridManager.can_place_tower() + EconomyManager.can_afford()
-- Hidden outside grid via GridManager.is_in_bounds(). Right-click/Escape cancels.
-- Tower sprite fallback: strips "_enhanced"/"_superior" suffixes for base sprite
+## GdUnit4 Signal Testing Pattern for Autoloads
+- `monitor_signals(autoload, false)` -- pass `false` for `auto_free` to avoid GdUnit4 freeing the autoload singleton
+- Signal emission is synchronous: call `monitor_signals()`, then perform the action, then `await assert_signal().wait_until(500).is_emitted("signal_name", args)`
+- `is_emitted()` and `is_not_emitted()` are async (require `await`), they poll the signal collector each process frame
+- `assert_signal()` constructor also calls `register_emitter()`, so previously collected signals are found on the first frame poll
 
-## Upgrades
-- base.tres -> enhanced.tres -> superior.tres via upgrade_to ExtResource
-- Enhanced = +40% dmg, +10% range, 1.5x cost. Superior = +100% dmg, +20% range, 2x cost.
-- range_cells is int: +10%/+20% on small ints means some tiers share range
+## GdUnit4 Script Validation
+- `godot --check-only --script` does NOT load project autoloads/addons, so GdUnitTestSuite won't resolve
+- Instead, validate with `godot --headless --path . --quit` which loads the full project and reports script errors
+- Godot binary on this Mac: `/Applications/Godot.app/Contents/MacOS/Godot`
 
-## Fusion
-- FusionRegistry keys: alphabetically sorted element pairs ("earth+fire", etc.)
-- Fusion eligibility: both Superior (upgrade_to==null), different elements
-- fuse_towers() flow: validate -> charge cost -> remove tower_b -> swap tower_a data in-place
-- All 15 fusion specials: freeze_burn, freeze_chain, wet_chain, cone_slow, stun_pulse, pushback, pull_burn, lava_pool, slow_zone, slow_aura, wide_slow, thorn, etc.
+## Testing Autoloads Without reset()
+- GameManager has no `reset()` method. Must manually reset all vars in `before_test()`: `game_state`, `current_wave`, `lives`, `_build_timer`, `_enemies_leaked_this_wave`
+- For coupled autoloads (e.g., GameManager -> EnemySystem), reset the dependency's internal state too: `_active_enemies`, `_wave_finished_spawning`, `_enemies_to_spawn`
+- To simulate wave cleared: set `EnemySystem._active_enemies.clear()`, `_wave_finished_spawning = true`, `_enemies_to_spawn.clear()`, then call `GameManager._process(delta)` to trigger the detection
 
-## Enemies
-- Enemy.push_back(cells): decrements _path_index, teleports to path point
-- Enemy.pull_toward(pos, px): moves toward pos, snaps to nearest path point
-- GroundEffect uses custom _draw() for visuals, fades in last 0.5s, ticks every 0.5s
-
-## Historical Fixes
-- (FIXED) GameManager victory: changed > to >= for final wave
-- (FIXED) Projectile class_name missing from .godot cache -- delete .godot/ to rebuild
-- (FIXED) Tower AttackCooldown one_shot must be true
-- (FIXED) Wave income was calculated for wrong wave number
+## GridManager + PathfindingSystem Co-dependency
+- GridManager calls `PathfindingSystem.is_path_valid()` in `would_block_path()` and `PathfindingSystem.recalculate()` in `place_tower()`/`remove_tower()`
+- PathfindingSystem reads `GridManager.grid`, `.spawn_points`, `.exit_points`
+- To test path-blocking behavior: set up a minimal map with spawn/exit points, call `PathfindingSystem.recalculate()`, then test placement
+- Reset pattern: `_initialize_grid()` + clear `_tower_map`, `spawn_points`, `exit_points`
+- For non-path tests (pure grid logic), no spawn/exit setup needed -- `would_block_path` won't be called if `is_cell_buildable` fails first
+- `is_in_bounds` (public) and `_is_in_bounds` (private) are identical implementations -- the public one was added for external callers

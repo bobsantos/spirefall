@@ -272,12 +272,13 @@ GameManager is tightly coupled to EnemySystem (for wave finished checks) and Eco
 
 ---
 
-### Task 5: GridManager Tests
+### Task 5: GridManager Tests ✅ COMPLETE
 
 **File:** `tests/unit/autoload/test_grid_manager.gd`
 **Source:** `scripts/autoload/GridManager.gd` (113 lines)
 **Effort:** Medium
 **Priority:** P0 -- grid logic is foundational
+**Status:** Complete - 23/23 tests implemented
 
 **Test cases:**
 
@@ -307,7 +308,7 @@ GameManager is tightly coupled to EnemySystem (for wave finished checks) and Eco
 | 22 | `test_tower_removed_signal_emitted` | Signal on removal |
 | 23 | `test_grid_updated_signal_emitted` | Signal on placement and removal |
 
-**Acceptance:** All grid operations validated. 90%+ coverage.
+**Acceptance:** All grid operations validated. 90%+ coverage. All 23 tests pass compilation.
 
 ---
 
