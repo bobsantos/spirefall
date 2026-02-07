@@ -33,6 +33,11 @@ var special_chance: float = 1.0
 var chain_count: int = 0
 var chain_damage_fraction: float = 0.0
 
+# Element synergy bonuses (passed from Tower at spawn time)
+var synergy_damage_mult: float = 1.0
+var synergy_freeze_chance_bonus: float = 0.0
+var synergy_slow_bonus: float = 0.0
+
 # Ground effect scene (lazy-loaded once)
 static var _ground_effect_scene: PackedScene = null
 
@@ -155,8 +160,9 @@ func _try_apply_chain_special(chain_enemy: Node) -> void:
 			# Storm Beacon: apply WET to all chain targets (always applies)
 			chain_enemy.apply_status(StatusEffect.Type.WET, 4.0, 1.0)
 		"freeze_chain":
-			# Cryo-Volt Array: attempt freeze on chain targets (uses same chance)
-			if special_chance < 1.0 and randf() > special_chance:
+			# Cryo-Volt Array: attempt freeze on chain targets (with ice synergy bonus)
+			var effective_chance: float = special_chance + synergy_freeze_chance_bonus
+			if effective_chance < 1.0 and randf() > effective_chance:
 				return
 			chain_enemy.apply_status(StatusEffect.Type.FREEZE, special_duration, 1.0)
 		_:
@@ -174,15 +180,19 @@ func _try_apply_special(target_enemy: Node) -> void:
 	if not is_instance_valid(target_enemy) or target_enemy.current_health <= 0:
 		return
 
-	# Roll proc chance
-	if special_chance < 1.0 and randf() > special_chance:
+	# Roll proc chance (add ice synergy freeze chance bonus for freeze-type specials)
+	var effective_chance: float = special_chance
+	if special_key == "freeze":
+		effective_chance += synergy_freeze_chance_bonus
+	if effective_chance < 1.0 and randf() > effective_chance:
 		return
 
 	match special_key:
 		"burn":
 			target_enemy.apply_status(StatusEffect.Type.BURN, special_duration, special_value)
 		"slow":
-			target_enemy.apply_status(StatusEffect.Type.SLOW, special_duration, special_value)
+			# Apply water synergy slow bonus
+			target_enemy.apply_status(StatusEffect.Type.SLOW, special_duration, special_value + synergy_slow_bonus)
 		"freeze":
 			target_enemy.apply_status(StatusEffect.Type.FREEZE, special_duration, 1.0)
 		"stun_pulse":
@@ -202,6 +212,8 @@ func _calculate_damage(target_enemy: Node) -> int:
 		return damage
 	var base_dmg: int = tower_data.damage
 	var multiplier: float = _get_element_multiplier(element, target_enemy.enemy_data.element)
+	# Apply element synergy damage bonus
+	multiplier *= synergy_damage_mult
 	var final_dmg: int = int(base_dmg * multiplier)
 	# Storm AoE wave scaling (Supercell Obelisk): damage increases per wave
 	if tower_data.special_key == "storm_aoe":
@@ -246,7 +258,8 @@ func _apply_cone_aoe_hit() -> void:
 		var enemy_dmg: int = _calculate_damage(enemy)
 		enemy.take_damage(enemy_dmg, element)
 
-	# Apply slow to survivors in cone
+	# Apply slow to survivors in cone (with water synergy bonus)
+	var effective_slow: float = special_value + synergy_slow_bonus
 	for enemy: Node in enemies:
 		if not is_instance_valid(enemy) or enemy.current_health <= 0:
 			continue
@@ -257,7 +270,7 @@ func _apply_cone_aoe_hit() -> void:
 		var angle_to_enemy: float = cone_direction.angle_to(to_enemy.normalized())
 		if absf(angle_to_enemy) > cone_half_angle:
 			continue
-		enemy.apply_status(StatusEffect.Type.SLOW, special_duration, special_value)
+		enemy.apply_status(StatusEffect.Type.SLOW, special_duration, effective_slow)
 
 
 func _apply_pull_burn_hit() -> void:
@@ -324,11 +337,12 @@ func _apply_earthquake_hit() -> void:
 			enemy.take_damage(enemy_dmg, element)
 
 	# Apply slow + roll stun chance per enemy on survivors
+	var effective_slow: float = special_value + synergy_slow_bonus
 	for enemy: Node in enemies:
 		if not is_instance_valid(enemy) or enemy.current_health <= 0:
 			continue
 		if enemy.global_position.distance_to(impact_pos) <= aoe_radius_px:
-			enemy.apply_status(StatusEffect.Type.SLOW, special_duration, special_value)
+			enemy.apply_status(StatusEffect.Type.SLOW, special_duration, effective_slow)
 			# Roll stun chance per enemy
 			if special_chance >= 1.0 or randf() <= special_chance:
 				enemy.apply_status(StatusEffect.Type.STUN, 1.0, 1.0)

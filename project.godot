@@ -29,6 +29,7 @@ EconomyManager="*res://scripts/autoload/EconomyManager.gd"
 UIManager="*res://scripts/autoload/UIManager.gd"
 AudioManager="*res://scripts/autoload/AudioManager.gd"
 FusionRegistry="*res://scripts/autoload/FusionRegistry.gd"
+ElementSynergy="*res://scripts/systems/ElementSynergy.gd"
 
 [display]
 

@@ -1,7 +1,7 @@
 # Spirefall Agent Memory
 
 ## Architecture Overview
-- 9 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager, FusionRegistry
+- 10 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager, FusionRegistry, ElementSynergy
 - All autoloads use `class_name` suffix `Class` (e.g., `EnemySystemClass`)
 - Autoloads reference each other directly by name (e.g., `EnemySystem.spawn_wave()`)
 
@@ -44,7 +44,7 @@
 - [x] P2-Task 3: Dual fusion system (15 Tier 2 towers + FusionRegistry)
 - [x] P2-Task 4: Dual fusion abilities (15 unique specials)
 - [x] P2-Task 5: Legendary fusion + abilities (6 Tier 3 towers)
-- [ ] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
+- [x] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
 - [x] P2-Task 9: 30-wave campaign config
 - [x] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
 - [x] P2-Task 12: Tower info panel (stats + upgrade + sell buttons)
@@ -71,6 +71,7 @@
 - `scripts/ui/TowerInfoPanel.gd` - tower info panel: stats display, upgrade/sell buttons, self-registers with UIManager
 - `scenes/ui/TowerInfoPanel.tscn` - anchored bottom-right, hidden by default, instanced in Game scene under UILayer
 - `scripts/autoload/FusionRegistry.gd` - fusion lookup table, can_fuse()/can_fuse_legendary() validation, get_fusion_partners()/get_legendary_partners()
+- `scripts/systems/ElementSynergy.gd` - element synergy autoload: tracks tower counts, provides damage/speed/range/chain/freeze/slow bonuses per element
 - `resources/towers/fusions/*.tres` - 15 dual-element fusion tower data (tier 2)
 - `resources/towers/legendaries/*.tres` - 6 triple-element legendary tower data (tier 3)
 
@@ -134,8 +135,7 @@
 - Stealth: stealth=true in EnemyData. Enemy starts at 0.15 alpha, _is_revealed=false. Untargetable by towers (filtered in Tower._get_in_range_enemies()). Revealed permanently when any tower is within 2 cells. _original_modulate tracks alpha for status visual resets.
 - Elemental: immune_element/weak_element assigned randomly in _apply_enemy_data() when enemy_name=="Elemental". Seeded RNG per instance (wave*1000 + instance_id). Immune element -> 0 damage. Weak element -> 2x damage. Checked in _apply_resistance() before physical_resist. Sprite tinted to immune element color.
 - EnemyData.gd has immune_element/weak_element fields. _create_scaled_enemy() copies them. Elemental assignment happens in Enemy.gd after scaling.
-- ELEMENT_COUNTERS maps immune->weak: fire->water, water->earth, earth->wind, wind->lightning, lightning->fire, ice->fire.
-- split.tres uses ext_resource to reference split_child.tres (Option B). load_steps=3 for the extra resource.
+- ELEMENT_COUNTERS maps immune->weak: fire->water, water->earth, earth->wind, wind->lightning, lightning->fire, ice->fire. split.tres uses ext_resource to reference split_child.tres.
 
 ## Legendary Fusion System (P2-Task 5)
 - 6 triple-element legendaries: Primordial Nexus, Supercell Obelisk, Arctic Maelstrom, Crystalline Monolith, Volcanic Tempest, Tectonic Dynamo
@@ -169,7 +169,7 @@
 ## Tower Disable Mechanic (P2-Task 17)
 - Tower.gd: `_is_disabled: bool`, `_disable_timer: float`, `disable_for(duration)`, `is_disabled() -> bool`
 - When disabled: `_process()` returns early after decrementing timer (skips attacks, auras, periodic abilities)
-- Visual: `sprite.modulate = Color(0.5, 0.5, 0.8, 0.7)` (blue-ish frozen tint); restored to WHITE on re-enable
+- Visual: `sprite.modulate = Color(0.5, 0.5, 0.8, 0.7)` (blue-ish frozen tint); restored to synergy color on re-enable (not WHITE)
 - `disable_for()` uses `maxf()` to extend if already disabled (doesn't reset shorter)
 - Used by: Ember Titan fire_trail (via GroundEffect), Glacial Wyrm tower_freeze (direct), fire_trail tower disable radius = 1 cell (64px)
 
@@ -181,20 +181,20 @@
 - EnemySystem.spawn_boss_minions(boss, template, count): spawns scaled minions at boss position + path_index
 - Boss ability + minion spawn use separate timers (`_boss_ability_timer`, `_minion_spawn_timer`)
 
-### Ember Titan (Wave 10, "fire_trail")
-- immune_element="fire", boss_ability_interval=1.0s
-- Spawns GroundEffect "fire_trail" at boss position every 1s: 64px radius, 3s duration, 15 dps fire damage
-- GroundEffect._apply_effect() also disables towers within 1 cell (64px) for 2s
+- Ember Titan (wave 10): fire_trail every 1s, immune fire, disables towers in 1 cell for 2s
+- Glacial Wyrm (wave 20): tower_freeze every 8s (3 cells, 3s), spawns ice minions every 15s
+- Chaos Elemental (wave 30): element_cycle every 10s, soft enrage +10% speed/cycle
 
-### Glacial Wyrm (Wave 20, "tower_freeze")
-- 12000 HP, 0.4x speed, 250g, element="ice", immune_element="ice"
-- boss_ability_interval=8.0s: freezes all towers within 3 cells (192px) for 3s via tower.disable_for()
-- minion_data=ice_minion.tres, minion_spawn_interval=15.0s, minion_spawn_count=2
-- ice_minion.tres: 60 HP, 1.2x speed, 2g, element="ice", immune_element="ice"
-
-### Chaos Elemental (Wave 30, "element_cycle")
-- 25000 HP, 0.3x speed, 500g, element="none"
-- boss_ability_interval=10.0s: cycles through CHAOS_ELEMENTS array (fire/water/earth/wind/lightning/ice)
-- Each cycle: sets immune_element to new element, weak_element from ELEMENT_COUNTERS
-- Soft enrage: speed *= (1.0 + 0.1 * cycle_count) -- 10% faster each cycle
-- Visual: sprite tint changes to ELEMENT_COLORS[immune_element] each cycle
+## Element Synergy System (P2-Task 10)
+- ElementSynergyClass autoload at `scripts/systems/ElementSynergy.gd`, registered as `ElementSynergy` in project.godot
+- Thresholds: 3 towers = tier 1 (+10% dmg), 5 = tier 2 (+20% dmg + aura), 8 = tier 3 (+30% dmg + enhanced aura)
+- Fusion towers (tier 2/3) count EACH element in fusion_elements toward synergy (e.g., fire+water fusion counts as 1 fire + 1 water)
+- Element-specific aura bonuses at tier 2/3: fire/wind = attack speed, water = slow bonus, earth = range, lightning = chain bounces, ice = freeze chance
+- Tier 3 doubles tier 2 aura values (e.g., fire: +10% -> +20% attack speed)
+- Synergy recalculates on tower_created, tower_sold, tower_upgraded, tower_fused signals
+- Only emits synergy_changed signal when tiers actually change (avoids unnecessary Tower.apply_tower_data() calls)
+- Tower.gd caches synergy bonuses in _synergy_* vars, refreshed in _refresh_synergy_bonuses() called from apply_tower_data()
+- Tower._on_synergy_changed() calls apply_tower_data() to re-apply range/speed/visual when tiers change
+- Projectile carries synergy_damage_mult, synergy_freeze_chance_bonus, synergy_slow_bonus from Tower at spawn time
+- Visual: subtle element-colored tint via Color.WHITE.lerp(element_color, 0.15 * tier) on tower sprite
+- Synergy tint replaces disabled-state WHITE restore (re-enables to synergy color, not WHITE)

@@ -35,6 +35,15 @@ var _attack_parity: bool = false  # false = freeze, true = burn
 var _is_disabled: bool = false
 var _disable_timer: float = 0.0
 
+# Element synergy cached bonuses (refreshed on synergy_changed signal)
+var _synergy_damage_mult: float = 1.0
+var _synergy_attack_speed_bonus: float = 0.0
+var _synergy_range_bonus_cells: int = 0
+var _synergy_chain_bonus: int = 0
+var _synergy_freeze_chance_bonus: float = 0.0
+var _synergy_slow_bonus: float = 0.0
+var _synergy_color: Color = Color.WHITE
+
 var _projectile_scene: PackedScene = preload("res://scenes/projectiles/BaseProjectile.tscn")
 
 @onready var sprite: Sprite2D = $Sprite2D
@@ -45,17 +54,24 @@ var _projectile_scene: PackedScene = preload("res://scenes/projectiles/BaseProje
 func _ready() -> void:
 	if tower_data:
 		apply_tower_data()
+	ElementSynergy.synergy_changed.connect(_on_synergy_changed)
 
 
 func apply_tower_data() -> void:
-	_range_pixels = tower_data.range_cells * GridManager.CELL_SIZE
+	# Refresh synergy bonuses before applying stats
+	_refresh_synergy_bonuses()
+
+	# Range includes earth synergy bonus
+	var effective_range_cells: float = tower_data.range_cells + _synergy_range_bonus_cells
+	_range_pixels = effective_range_cells * GridManager.CELL_SIZE
 	# Update collision shape to match range
 	var shape := CircleShape2D.new()
 	shape.radius = _range_pixels
 	collision.shape = shape
-	# Set attack cooldown (guard against zero attack_speed for pure-aura towers)
+	# Set attack cooldown with fire/wind synergy speed bonus
 	if tower_data.attack_speed > 0.0:
-		attack_cooldown.wait_time = 1.0 / tower_data.attack_speed
+		var effective_speed: float = tower_data.attack_speed * (1.0 + _synergy_attack_speed_bonus)
+		attack_cooldown.wait_time = 1.0 / effective_speed
 		attack_cooldown.one_shot = true
 	# Configure periodic ability interval for legendary towers
 	_ability_timer = 0.0
@@ -76,6 +92,9 @@ func apply_tower_data() -> void:
 		tex = load(texture_path)
 	if tex:
 		sprite.texture = tex
+	# Apply synergy visual tint (only when not disabled)
+	if not _is_disabled and sprite:
+		sprite.modulate = _synergy_color
 
 
 func _process(delta: float) -> void:
@@ -88,9 +107,9 @@ func _process(delta: float) -> void:
 		if _disable_timer <= 0.0:
 			_is_disabled = false
 			_disable_timer = 0.0
-			# Restore normal sprite tint
+			# Restore synergy tint (or WHITE if no synergy active)
 			if sprite:
-				sprite.modulate = Color.WHITE
+				sprite.modulate = _synergy_color
 		return
 
 	# Aura passive effects tick independently of attacks
@@ -225,8 +244,13 @@ func _spawn_projectile(target: Node) -> void:
 
 	# Chain lightning setup (standard "chain" and fusion chain variants)
 	if tower_data.special_key == "chain" or tower_data.special_key == "freeze_chain" or tower_data.special_key == "wet_chain":
-		proj.chain_count = int(tower_data.special_value)
+		proj.chain_count = int(tower_data.special_value) + _synergy_chain_bonus
 		proj.chain_damage_fraction = tower_data.chain_damage_fraction
+
+	# Pass synergy bonuses to projectile for damage and special calculations
+	proj.synergy_damage_mult = _synergy_damage_mult
+	proj.synergy_freeze_chance_bonus = _synergy_freeze_chance_bonus
+	proj.synergy_slow_bonus = _synergy_slow_bonus
 
 	projectile_spawned.emit(proj)
 
@@ -234,6 +258,8 @@ func _spawn_projectile(target: Node) -> void:
 func _calculate_damage(target: Node) -> int:
 	var base_dmg: int = tower_data.damage
 	var multiplier: float = _get_element_multiplier(tower_data.element, target.enemy_data.element)
+	# Apply element synergy damage bonus
+	multiplier *= _synergy_damage_mult
 	var final_dmg: int = int(base_dmg * multiplier)
 	# Storm AoE wave scaling: damage increases by special_value% per wave
 	if tower_data.special_key == "storm_aoe":
@@ -317,6 +343,10 @@ func _tick_aura(delta: float) -> void:
 	var aura_range_px: float = tower_data.aoe_radius_cells * GridManager.CELL_SIZE
 	var enemies: Array[Node] = EnemySystem.get_active_enemies()
 
+	# Apply synergy bonuses to aura effects
+	var slow_value: float = tower_data.special_value + _synergy_slow_bonus
+	var freeze_chance: float = tower_data.special_chance + _synergy_freeze_chance_bonus
+
 	match tower_data.special_key:
 		"slow_aura":
 			# Glacier Keep: apply slow to all enemies in aura range
@@ -324,14 +354,14 @@ func _tick_aura(delta: float) -> void:
 				if not is_instance_valid(enemy) or enemy.current_health <= 0:
 					continue
 				if position.distance_to(enemy.position) <= aura_range_px:
-					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
+					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, slow_value)
 		"wide_slow":
 			# Sandstorm Citadel: continuously slow all enemies in range
 			for enemy: Node in enemies:
 				if not is_instance_valid(enemy) or enemy.current_health <= 0:
 					continue
 				if position.distance_to(enemy.position) <= aura_range_px:
-					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
+					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, slow_value)
 		"thorn":
 			# Permafrost Pillar: deal damage per second to all enemies in range
 			# Damage per tick = special_value * _aura_interval (since value is dmg/s)
@@ -348,10 +378,10 @@ func _tick_aura(delta: float) -> void:
 				if not is_instance_valid(enemy) or enemy.current_health <= 0:
 					continue
 				if position.distance_to(enemy.position) <= aura_range_px:
-					# Always apply slow
-					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, tower_data.special_value)
-					# Roll freeze chance each tick
-					if randf() <= tower_data.special_chance:
+					# Always apply slow (with water synergy bonus if applicable)
+					enemy.apply_status(StatusEffect.Type.SLOW, tower_data.special_duration, slow_value)
+					# Roll freeze chance each tick (with ice synergy bonus)
+					if randf() <= freeze_chance:
 						enemy.apply_status(StatusEffect.Type.FREEZE, tower_data.special_duration, 1.0)
 
 
@@ -404,3 +434,21 @@ func disable_for(duration: float) -> void:
 
 func is_disabled() -> bool:
 	return _is_disabled
+
+
+func _refresh_synergy_bonuses() -> void:
+	## Query ElementSynergy for current bonuses and cache them.
+	_synergy_damage_mult = ElementSynergy.get_best_synergy_bonus(self)
+	_synergy_attack_speed_bonus = ElementSynergy.get_attack_speed_bonus(self)
+	_synergy_range_bonus_cells = ElementSynergy.get_range_bonus_cells(self)
+	_synergy_chain_bonus = ElementSynergy.get_chain_bonus(self)
+	_synergy_freeze_chance_bonus = ElementSynergy.get_freeze_chance_bonus(self)
+	_synergy_slow_bonus = ElementSynergy.get_slow_bonus(self)
+	_synergy_color = ElementSynergy.get_synergy_color(self)
+
+
+func _on_synergy_changed() -> void:
+	## Called when any element synergy tier changes. Reapply tower stats.
+	if not tower_data:
+		return
+	apply_tower_data()
