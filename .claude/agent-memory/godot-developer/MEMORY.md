@@ -34,7 +34,7 @@
 - Plan: `docs/work/plan.md` -- 18 tasks, ~4 weeks estimated
 - [ ] P2-Task 18: Refactor element matrix (centralize duplicated 6x6 matrix)
 - [x] P2-Task 1: Wind/Lightning specials (multi-target + chain)
-- [ ] P2-Task 11: Build menu expansion (all 6 base elements)
+- [x] P2-Task 11: Build menu expansion (all 6 base elements, styled buttons)
 - [x] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
 - [x] P2-Task 7: Flying enemy behavior (ignores maze)
 - [x] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
@@ -65,7 +65,7 @@
 - `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
 - `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
 - `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan, boss_glacial_wyrm, boss_chaos_elemental, ice_minion, healer, split, split_child, stealth, elemental
-- `scripts/ui/BuildMenu.gd` - tower selection UI, filtered by PHASE_1_ELEMENTS const
+- `scripts/ui/BuildMenu.gd` - tower selection UI, shows all 6 base elements with styled buttons (element-colored backgrounds, sprite thumbnails, tooltips)
 - `scripts/ui/GameOverScreen.gd` - game over overlay (victory/defeat), wired to GameManager.game_over
 - `scenes/ui/GameOverScreen.tscn` - fullscreen overlay with dimmer, centered panel, result label, waves label, play again button
 - `scripts/ui/TowerInfoPanel.gd` - tower info panel: stats display, upgrade/sell buttons, self-registers with UIManager
