@@ -56,3 +56,16 @@ func get_enemy_path() -> PackedVector2Array:
 	if GridManager.spawn_points.is_empty() or GridManager.exit_points.is_empty():
 		return PackedVector2Array()
 	return get_world_path(GridManager.spawn_points[0], GridManager.exit_points[0])
+
+
+func get_flying_path() -> PackedVector2Array:
+	## Returns a straight-line path from spawn to exit for flying enemies.
+	## Flying enemies ignore the tower maze entirely -- they only need start and end points.
+	if GridManager.spawn_points.is_empty() or GridManager.exit_points.is_empty():
+		return PackedVector2Array()
+	var start: Vector2 = GridManager.grid_to_world(GridManager.spawn_points[0])
+	var end: Vector2 = GridManager.grid_to_world(GridManager.exit_points[0])
+	var path := PackedVector2Array()
+	path.append(start)
+	path.append(end)
+	return path

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/towers/thunder_pylon_superior.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Thunder Pylon Enhanced"
+element = "lightning"
+tier = 1
+cost = 45
+damage = 20
+attack_speed = 0.9
+range_cells = 4
+damage_type = "lightning"
+special_description = "Chains to 3 targets at 60% dmg"
+special_key = "chain"
+special_value = 3.0
+chain_damage_fraction = 0.6
+upgrade_to = ExtResource("2")
+fusion_elements = []

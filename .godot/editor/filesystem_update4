@@ -1,7 +1,13 @@
-res://scenes/towers/BaseTower.tscn
-res://scripts/towers/Tower.gd
 res://scripts/ui/BuildMenu.gd
-res://scripts/autoload/EnemySystem.gd
 res://scripts/autoload/GameManager.gd
-res://scripts/autoload/GridManager.gd
+res://scripts/ui/HUD.gd
+res://scripts/ui/TowerInfoPanel.gd
+res://scenes/towers/BaseTower.tscn
 res://scripts/main/Game.gd
+res://scripts/autoload/TowerSystem.gd
+res://scripts/autoload/FusionRegistry.gd
+res://scripts/enemies/Enemy.gd
+res://scripts/enemies/StatusEffect.gd
+res://scripts/projectiles/Projectile.gd
+res://scripts/towers/Tower.gd
+res://scripts/effects/GroundEffect.gd

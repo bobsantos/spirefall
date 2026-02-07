@@ -16,3 +16,6 @@ spawn_count = 1
 split_on_death = false
 stealth = false
 heal_per_second = 0.0
+immune_element = "fire"
+boss_ability_key = "fire_trail"
+boss_ability_interval = 1.0

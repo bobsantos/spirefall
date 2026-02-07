@@ -1,10 +1,12 @@
-[gd_scene load_steps=6 format=3 uid="uid://game_main"]
+[gd_scene load_steps=8 format=3 uid="uid://game_main"]
 
 [ext_resource type="Script" path="res://scripts/main/Game.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://hud" path="res://scenes/ui/HUD.tscn" id="2"]
 [ext_resource type="PackedScene" uid="uid://buildmenu" path="res://scenes/ui/BuildMenu.tscn" id="3"]
 [ext_resource type="PackedScene" uid="uid://towerinfo" path="res://scenes/ui/TowerInfoPanel.tscn" id="4"]
 [ext_resource type="PackedScene" uid="uid://gameoverscreen" path="res://scenes/ui/GameOverScreen.tscn" id="5"]
+[ext_resource type="PackedScene" uid="uid://wavepreviewpanel" path="res://scenes/ui/WavePreviewPanel.tscn" id="6"]
+[ext_resource type="PackedScene" uid="uid://codexpanel" path="res://scenes/ui/CodexPanel.tscn" id="7"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1")
@@ -20,7 +22,13 @@ layer = 10
 
 [node name="TowerInfoPanel" parent="UILayer" instance=ExtResource("4")]
 
+[node name="WavePreviewPanel" parent="UILayer" instance=ExtResource("6")]
+
+[node name="CodexPanel" parent="UILayer" instance=ExtResource("7")]
+
 [node name="GameOverScreen" parent="UILayer" instance=ExtResource("5")]
 
 [node name="Camera2D" type="Camera2D" parent="."]
 position = Vector2(640, 480)
+position_smoothing_enabled = true
+position_smoothing_speed = 12.0

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Storm Beacon"
+element = "lightning"
+tier = 2
+cost = 130
+damage = 35
+attack_speed = 0.8
+range_cells = 5
+damage_type = "lightning"
+special_description = "Chain lightning with bonus damage to wet targets"
+special_key = "wet_chain"
+special_value = 3.0
+special_duration = 0.0
+special_chance = 1.0
+chain_damage_fraction = 0.6
+fusion_elements = ["lightning", "water"]

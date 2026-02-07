@@ -6,6 +6,7 @@ extends Node
 signal tower_created(tower: Node)
 signal tower_upgraded(tower: Node)
 signal tower_sold(tower: Node, refund: int)
+signal tower_fused(tower: Node)
 
 var _tower_scene: PackedScene = preload("res://scenes/towers/BaseTower.tscn")
 var _active_towers: Array[Node] = []
@@ -56,6 +57,59 @@ func sell_tower(tower: Node) -> void:
 	_active_towers.erase(tower)
 	tower_sold.emit(tower, refund)
 	tower.queue_free()
+
+
+func fuse_towers(tower_a: Node, tower_b: Node) -> bool:
+	## Fuse two Superior-tier towers of different elements into a dual-element fusion tower.
+	## tower_a is kept in place and becomes the fusion result; tower_b is consumed.
+	if not FusionRegistry.can_fuse(tower_a, tower_b):
+		return false
+	var result: TowerData = FusionRegistry.get_fusion_result(
+		tower_a.tower_data.element, tower_b.tower_data.element
+	)
+	if result == null:
+		return false
+	# Fusion cost is the result tower's cost (additional fee on top of invested towers)
+	var fusion_cost: int = result.cost
+	if not EconomyManager.can_afford(fusion_cost):
+		return false
+	EconomyManager.spend_gold(fusion_cost)
+	# Remove tower_b from grid (no refund)
+	var grid_pos_b: Vector2i = tower_b.grid_position
+	GridManager.remove_tower(grid_pos_b)
+	_active_towers.erase(tower_b)
+	tower_b.queue_free()
+	# Replace tower_a in-place with fusion result
+	tower_a.tower_data = result
+	tower_a.apply_tower_data()
+	tower_fused.emit(tower_a)
+	return true
+
+
+func fuse_legendary(tower_tier2: Node, tower_superior: Node) -> bool:
+	## Fuse a tier-2 dual fusion tower with a Superior tier-1 tower into a legendary tier-3.
+	## tower_tier2 is kept in place and becomes the legendary; tower_superior is consumed.
+	if not FusionRegistry.can_fuse_legendary(tower_tier2, tower_superior):
+		return false
+	var result: TowerData = FusionRegistry.get_legendary_result(
+		tower_tier2.tower_data.fusion_elements, tower_superior.tower_data.element
+	)
+	if result == null:
+		return false
+	var fusion_cost: int = result.cost
+	if not EconomyManager.can_afford(fusion_cost):
+		return false
+	EconomyManager.spend_gold(fusion_cost)
+	# Remove the superior tower from grid (no refund)
+	var grid_pos_b: Vector2i = tower_superior.grid_position
+	GridManager.remove_tower(grid_pos_b)
+	_active_towers.erase(tower_superior)
+	tower_superior.queue_free()
+	# Replace tier2 tower in-place with legendary result
+	tower_tier2.tower_data = result
+	tower_tier2.apply_tower_data()
+	tower_fused.emit(tower_tier2)
+	return true
 
 
 func get_active_towers() -> Array[Node]:

@@ -16,6 +16,7 @@ extends Resource
 @export var special_value: float = 0.0  # Burn: dmg/s, Slow: 0-1 fraction, Freeze: unused
 @export var special_duration: float = 0.0  # Seconds for burn/slow/freeze
 @export var special_chance: float = 1.0  # Proc chance 0-1 (1.0 = always, 0.2 = 20%)
+@export var chain_damage_fraction: float = 0.0  # Chain lightning: fraction of damage dealt to secondary targets
 @export var aoe_radius_cells: float = 0.0  # AoE radius in cells (0 = single-target)
 @export var icon: Texture2D = null
 @export var projectile_scene: PackedScene = null

@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Cryo-Volt Array"
+element = "ice"
+tier = 2
+cost = 130
+damage = 35
+attack_speed = 0.8
+range_cells = 4
+damage_type = "ice"
+special_description = "Freezes primary target and chains to 3 nearby enemies"
+special_key = "freeze_chain"
+special_value = 3.0
+special_duration = 1.5
+special_chance = 0.3
+chain_damage_fraction = 0.6
+fusion_elements = ["ice", "lightning"]

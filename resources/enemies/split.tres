@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/EnemyData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/enemies/split_child.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+enemy_name = "Split"
+base_health = 150
+speed_multiplier = 1.0
+gold_reward = 4
+element = "none"
+special = "Splits into 2 on death"
+is_flying = false
+is_boss = false
+spawn_count = 1
+split_on_death = true
+split_data = ExtResource("2")
+stealth = false
+heal_per_second = 0.0

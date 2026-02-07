@@ -4,7 +4,7 @@ extends RefCounted
 ## Lightweight status effect data. Stored in Enemy._status_effects array.
 ## Not a Node -- just a data container ticked by Enemy._process().
 
-enum Type { BURN, SLOW, FREEZE }
+enum Type { BURN, SLOW, FREEZE, STUN, WET }
 
 var type: Type
 var duration: float          # Total remaining seconds
@@ -42,4 +42,8 @@ static func type_to_string(t: Type) -> String:
 			return "slow"
 		Type.FREEZE:
 			return "freeze"
+		Type.STUN:
+			return "stun"
+		Type.WET:
+			return "wet"
 	return "unknown"

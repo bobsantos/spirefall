@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Permafrost Pillar"
+element = "earth"
+tier = 2
+cost = 130
+damage = 30
+attack_speed = 0.5
+range_cells = 3
+damage_type = "earth"
+special_description = "Returns thorn damage to attackers in range"
+special_key = "thorn"
+special_value = 15.0
+special_duration = 0.0
+special_chance = 1.0
+fusion_elements = ["earth", "ice"]

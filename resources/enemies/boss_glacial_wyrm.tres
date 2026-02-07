@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="EnemyData" load_steps=3 format=3]
+
+[ext_resource type="Script" path="res://scripts/enemies/EnemyData.gd" id="1"]
+[ext_resource type="Resource" path="res://resources/enemies/ice_minion.tres" id="2"]
+
+[resource]
+script = ExtResource("1")
+enemy_name = "Glacial Wyrm"
+base_health = 12000
+speed_multiplier = 0.4
+gold_reward = 250
+element = "ice"
+special = "Tower freeze, ice immune, spawns minions"
+is_flying = false
+is_boss = true
+spawn_count = 1
+split_on_death = false
+stealth = false
+heal_per_second = 0.0
+immune_element = "ice"
+boss_ability_key = "tower_freeze"
+boss_ability_interval = 8.0
+minion_data = ExtResource("2")
+minion_spawn_interval = 15.0
+minion_spawn_count = 2

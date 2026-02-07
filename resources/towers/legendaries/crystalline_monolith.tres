@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Crystalline Monolith"
+element = "earth"
+tier = 3
+cost = 320
+damage = 45
+attack_speed = 0.6
+range_cells = 4
+damage_type = "earth"
+special_description = "Periodic stun pulse every 8s; stunned enemies take 2x damage from all sources"
+special_key = "stun_amplify"
+special_value = 2.0
+special_duration = 2.0
+special_chance = 1.0
+aoe_radius_cells = 2.5
+fusion_elements = ["earth", "ice", "lightning"]

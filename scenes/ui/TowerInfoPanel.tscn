@@ -1,4 +1,6 @@
-[gd_scene format=3 uid="uid://towerinfo"]
+[gd_scene load_steps=2 format=3 uid="uid://towerinfo"]
+
+[ext_resource type="Script" path="res://scripts/ui/TowerInfoPanel.gd" id="1"]
 
 [node name="TowerInfoPanel" type="PanelContainer"]
 visible = false
@@ -8,38 +10,95 @@ anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -200.0
-offset_top = -300.0
+offset_left = -240.0
+offset_top = -420.0
 grow_horizontal = 0
 grow_vertical = 0
+script = ExtResource("1")
 
 [node name="VBoxContainer" type="VBoxContainer" parent="."]
 layout_mode = 2
+theme_override_constants/separation = 3
 
 [node name="NameLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 16
 text = "Tower Name"
+
+[node name="TierLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Tier 1"
 
 [node name="ElementLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 12
 text = "Element: Fire"
+
+[node name="SeparatorTop" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
 
 [node name="DamageLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 12
 text = "Damage: 15"
 
 [node name="SpeedLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 12
 text = "Speed: 1.0/s"
 
 [node name="RangeLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
+theme_override_font_sizes/font_size = 12
 text = "Range: 4 cells"
 
-[node name="UpgradeButton" type="Button" parent="VBoxContainer"]
+[node name="SpecialLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-text = "Upgrade (U)"
+theme_override_font_sizes/font_size = 11
+autowrap_mode = 2
+text = ""
 
-[node name="SellButton" type="Button" parent="VBoxContainer"]
+[node name="SynergyLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2
-text = "Sell (S)"
+theme_override_font_sizes/font_size = 11
+text = ""
+
+[node name="SeparatorBottom" type="HSeparator" parent="VBoxContainer"]
+layout_mode = 2
+
+[node name="UpgradeCostLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Upgrade: 30g"
+
+[node name="SellValueLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+text = "Sell value: 22g (75%)"
+
+[node name="TargetModeDropdown" type="OptionButton" parent="VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 28)
+
+[node name="ButtonRow" type="HBoxContainer" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="UpgradeButton" type="Button" parent="VBoxContainer/ButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 32)
+text = "Upgrade"
+
+[node name="SellButton" type="Button" parent="VBoxContainer/ButtonRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+custom_minimum_size = Vector2(0, 32)
+text = "Sell"
+
+[node name="FuseButton" type="Button" parent="VBoxContainer"]
+visible = false
+layout_mode = 2
+custom_minimum_size = Vector2(0, 32)
+text = "Fuse..."

@@ -55,7 +55,8 @@
 	  "enemies": [
 		{ "type": "normal", "count": 8 },
 		{ "type": "flying", "count": 4 },
-		{ "type": "swarm", "count": 6 }
+		{ "type": "swarm", "count": 4 },
+		{ "type": "elemental", "count": 2 }
 	  ]
 	},
 	{
@@ -64,7 +65,8 @@
 		{ "type": "normal", "count": 6 },
 		{ "type": "fast", "count": 6 },
 		{ "type": "armored", "count": 4 },
-		{ "type": "flying", "count": 3 }
+		{ "type": "flying", "count": 3 },
+		{ "type": "elemental", "count": 2 }
 	  ]
 	},
 	{
@@ -73,6 +75,205 @@
 		{ "type": "normal", "count": 4 },
 		{ "type": "armored", "count": 4 },
 		{ "type": "boss_ember_titan", "count": 1 }
+	  ],
+	  "is_income_wave": true,
+	  "is_boss_wave": true
+	},
+	{
+	  "wave": 11,
+	  "enemies": [
+		{ "type": "normal", "count": 12 },
+		{ "type": "fast", "count": 8 },
+		{ "type": "healer", "count": 2 }
+	  ]
+	},
+	{
+	  "wave": 12,
+	  "enemies": [
+		{ "type": "armored", "count": 8 },
+		{ "type": "split", "count": 4 },
+		{ "type": "swarm", "count": 6 }
+	  ]
+	},
+	{
+	  "wave": 13,
+	  "enemies": [
+		{ "type": "fast", "count": 10 },
+		{ "type": "elemental", "count": 4 },
+		{ "type": "healer", "count": 3 }
+	  ]
+	},
+	{
+	  "wave": 14,
+	  "enemies": [
+		{ "type": "normal", "count": 8 },
+		{ "type": "flying", "count": 6 },
+		{ "type": "stealth", "count": 3 }
+	  ]
+	},
+	{
+	  "wave": 15,
+	  "enemies": [
+		{ "type": "normal", "count": 10 },
+		{ "type": "armored", "count": 6 },
+		{ "type": "fast", "count": 6 },
+		{ "type": "healer", "count": 2 },
+		{ "type": "swarm", "count": 4 }
+	  ],
+	  "is_income_wave": true
+	},
+	{
+	  "wave": 16,
+	  "enemies": [
+		{ "type": "normal", "count": 12 },
+		{ "type": "armored", "count": 6 },
+		{ "type": "split", "count": 4 },
+		{ "type": "stealth", "count": 3 }
+	  ]
+	},
+	{
+	  "wave": 17,
+	  "enemies": [
+		{ "type": "fast", "count": 12 },
+		{ "type": "flying", "count": 6 },
+		{ "type": "elemental", "count": 4 },
+		{ "type": "healer", "count": 3 }
+	  ]
+	},
+	{
+	  "wave": 18,
+	  "enemies": [
+		{ "type": "armored", "count": 8 },
+		{ "type": "split", "count": 6 },
+		{ "type": "swarm", "count": 6 },
+		{ "type": "stealth", "count": 4 }
+	  ]
+	},
+	{
+	  "wave": 19,
+	  "enemies": [
+		{ "type": "normal", "count": 10 },
+		{ "type": "fast", "count": 8 },
+		{ "type": "armored", "count": 6 },
+		{ "type": "flying", "count": 4 },
+		{ "type": "elemental", "count": 4 },
+		{ "type": "healer", "count": 3 }
+	  ]
+	},
+	{
+	  "wave": 20,
+	  "enemies": [
+		{ "type": "armored", "count": 6 },
+		{ "type": "fast", "count": 6 },
+		{ "type": "flying", "count": 4 },
+		{ "type": "healer", "count": 2 },
+		{ "type": "boss_glacial_wyrm", "count": 1 }
+	  ],
+	  "is_income_wave": true,
+	  "is_boss_wave": true
+	},
+	{
+	  "wave": 21,
+	  "enemies": [
+		{ "type": "normal", "count": 14 },
+		{ "type": "armored", "count": 8 },
+		{ "type": "healer", "count": 4 },
+		{ "type": "split", "count": 4 }
+	  ]
+	},
+	{
+	  "wave": 22,
+	  "enemies": [
+		{ "type": "fast", "count": 12 },
+		{ "type": "stealth", "count": 6 },
+		{ "type": "flying", "count": 6 },
+		{ "type": "elemental", "count": 4 }
+	  ]
+	},
+	{
+	  "wave": 23,
+	  "enemies": [
+		{ "type": "armored", "count": 10 },
+		{ "type": "split", "count": 6 },
+		{ "type": "healer", "count": 4 },
+		{ "type": "swarm", "count": 8 }
+	  ]
+	},
+	{
+	  "wave": 24,
+	  "enemies": [
+		{ "type": "normal", "count": 12 },
+		{ "type": "fast", "count": 10 },
+		{ "type": "stealth", "count": 6 },
+		{ "type": "elemental", "count": 6 },
+		{ "type": "healer", "count": 4 }
+	  ]
+	},
+	{
+	  "wave": 25,
+	  "enemies": [
+		{ "type": "armored", "count": 10 },
+		{ "type": "flying", "count": 8 },
+		{ "type": "split", "count": 6 },
+		{ "type": "healer", "count": 5 },
+		{ "type": "swarm", "count": 6 }
+	  ],
+	  "is_income_wave": true
+	},
+	{
+	  "wave": 26,
+	  "enemies": [
+		{ "type": "normal", "count": 14 },
+		{ "type": "armored", "count": 10 },
+		{ "type": "fast", "count": 10 },
+		{ "type": "healer", "count": 5 },
+		{ "type": "stealth", "count": 5 }
+	  ]
+	},
+	{
+	  "wave": 27,
+	  "enemies": [
+		{ "type": "split", "count": 8 },
+		{ "type": "flying", "count": 8 },
+		{ "type": "elemental", "count": 6 },
+		{ "type": "swarm", "count": 8 },
+		{ "type": "healer", "count": 4 }
+	  ]
+	},
+	{
+	  "wave": 28,
+	  "enemies": [
+		{ "type": "armored", "count": 12 },
+		{ "type": "stealth", "count": 8 },
+		{ "type": "fast", "count": 10 },
+		{ "type": "healer", "count": 6 },
+		{ "type": "elemental", "count": 6 }
+	  ]
+	},
+	{
+	  "wave": 29,
+	  "enemies": [
+		{ "type": "normal", "count": 14 },
+		{ "type": "armored", "count": 10 },
+		{ "type": "fast", "count": 10 },
+		{ "type": "flying", "count": 8 },
+		{ "type": "split", "count": 6 },
+		{ "type": "stealth", "count": 6 },
+		{ "type": "healer", "count": 5 },
+		{ "type": "swarm", "count": 8 }
+	  ]
+	},
+	{
+	  "wave": 30,
+	  "enemies": [
+		{ "type": "armored", "count": 8 },
+		{ "type": "fast", "count": 8 },
+		{ "type": "flying", "count": 6 },
+		{ "type": "elemental", "count": 6 },
+		{ "type": "stealth", "count": 4 },
+		{ "type": "healer", "count": 4 },
+		{ "type": "swarm", "count": 6 },
+		{ "type": "boss_chaos_elemental", "count": 1 }
 	  ],
 	  "is_income_wave": true,
 	  "is_boss_wave": true

@@ -80,6 +80,19 @@ func get_active_enemies() -> Array[Node]:
 	return _active_enemies
 
 
+func get_wave_config(wave_number: int) -> Dictionary:
+	## Returns the raw wave_config.json entry for the given wave number.
+	## Empty dictionary if wave_number not found.
+	if _wave_config.has(wave_number):
+		return _wave_config[wave_number]
+	return {}
+
+
+func get_enemy_template(enemy_type: String) -> EnemyData:
+	## Public accessor for enemy template data. Loads and caches on first access.
+	return _load_enemy_template(enemy_type)
+
+
 func spawn_wave(wave_number: int) -> void:
 	_wave_finished_spawning = false
 	_enemies_to_spawn = _build_wave_queue(wave_number)
@@ -103,7 +116,10 @@ func _spawn_next_enemy() -> void:
 	var enemy_data: EnemyData = _enemies_to_spawn.pop_front()
 	var enemy: Node = _enemy_scene.instantiate()
 	enemy.enemy_data = enemy_data
-	enemy.path_points = PathfindingSystem.get_enemy_path()
+	if enemy_data.is_flying:
+		enemy.path_points = PathfindingSystem.get_flying_path()
+	else:
+		enemy.path_points = PathfindingSystem.get_enemy_path()
 
 	_active_enemies.append(enemy)
 	enemy.tree_exiting.connect(_on_enemy_removed.bind(enemy))
@@ -126,6 +142,74 @@ func on_enemy_reached_exit(enemy: Node) -> void:
 	enemy_reached_exit.emit(enemy)
 	_remove_enemy(enemy)
 	enemy.queue_free()
+
+
+func spawn_split_enemies(parent: Node) -> void:
+	## Spawn 2 child enemies at the parent's position, continuing from the parent's path index.
+	## Called when a split enemy dies. Children are added to _active_enemies BEFORE the parent
+	## is removed, so wave_cleared is not triggered prematurely.
+	var split_data: EnemyData = parent.enemy_data.split_data
+	if split_data == null:
+		# No split data -- just do normal kill
+		on_enemy_killed(parent)
+		return
+
+	var parent_path: PackedVector2Array = parent.path_points
+	var parent_path_index: int = parent._path_index
+	var parent_position: Vector2 = parent.position
+
+	# Award gold for killing the parent
+	EconomyManager.add_gold(parent.enemy_data.gold_reward)
+	enemy_killed.emit(parent)
+
+	# Spawn 2 children FIRST (add to _active_enemies before removing parent)
+	for i: int in range(2):
+		var child_data: EnemyData = _create_scaled_enemy(split_data, GameManager.current_wave)
+		var child: Node = _enemy_scene.instantiate()
+		child.enemy_data = child_data
+		child.path_points = parent_path
+		# Set path index and position so the child continues from where the parent died
+		child._path_index = parent_path_index
+		child.position = parent_position
+		# Slight offset so children don't overlap perfectly
+		if i == 0:
+			child.position += Vector2(-8, 0)
+		else:
+			child.position += Vector2(8, 0)
+
+		_active_enemies.append(child)
+		child.tree_exiting.connect(_on_enemy_removed.bind(child))
+		enemy_spawned.emit(child)
+
+	# Now remove and free the parent (children are already in _active_enemies)
+	_remove_enemy(parent)
+	parent.queue_free()
+
+
+func spawn_boss_minions(boss: Node, minion_template: EnemyData, count: int) -> void:
+	## Spawn minions at the boss's position, continuing from the boss's path index.
+	## Used by Glacial Wyrm and other bosses that summon adds mid-combat.
+	if minion_template == null:
+		return
+	var boss_path: PackedVector2Array = boss.path_points
+	var boss_path_index: int = boss._path_index
+	var boss_position: Vector2 = boss.position
+
+	for i: int in range(count):
+		var data: EnemyData = _create_scaled_enemy(minion_template, GameManager.current_wave)
+		var minion: Node = _enemy_scene.instantiate()
+		minion.enemy_data = data
+		if data.is_flying:
+			minion.path_points = PathfindingSystem.get_flying_path()
+		else:
+			minion.path_points = boss_path
+		minion._path_index = boss_path_index
+		# Slight offset so minions don't stack perfectly
+		minion.position = boss_position + Vector2(randf_range(-16, 16), randf_range(-16, 16))
+
+		_active_enemies.append(minion)
+		minion.tree_exiting.connect(_on_enemy_removed.bind(minion))
+		enemy_spawned.emit(minion)
 
 
 func _remove_enemy(enemy: Node) -> void:
@@ -188,6 +272,15 @@ func _create_scaled_enemy(template: EnemyData, wave_number: int) -> EnemyData:
 	data.split_data = template.split_data
 	data.stealth = template.stealth
 	data.heal_per_second = template.heal_per_second
+	data.immune_element = template.immune_element
+	data.weak_element = template.weak_element
+
+	# Boss ability fields
+	data.boss_ability_key = template.boss_ability_key
+	data.boss_ability_interval = template.boss_ability_interval
+	data.minion_data = template.minion_data
+	data.minion_spawn_interval = template.minion_spawn_interval
+	data.minion_spawn_count = template.minion_spawn_count
 
 	# Apply GDD scaling formulas
 	# HP = Base HP * (1 + 0.15 * wave)^2

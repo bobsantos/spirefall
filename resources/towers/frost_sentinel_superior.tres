@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Frost Sentinel Superior"
+element = "ice"
+tier = 1
+cost = 70
+damage = 20
+attack_speed = 0.7
+range_cells = 4
+damage_type = "ice"
+special_description = "30% freeze chance for 2s"
+special_key = "freeze"
+special_value = 0.0
+special_duration = 2.0
+special_chance = 0.3
+aoe_radius_cells = 0.0
+fusion_elements = []
