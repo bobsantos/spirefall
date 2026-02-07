@@ -170,12 +170,13 @@ This is the simplest autoload to test and establishes the testing pattern for al
 
 ---
 
-### Task 2: StatusEffect Tests
+### Task 2: StatusEffect Tests ✅ COMPLETE
 
 **File:** `tests/unit/enemies/test_status_effect.gd`
 **Source:** `scripts/enemies/StatusEffect.gd` (49 lines)
 **Effort:** Small
 **Priority:** P0 -- pure RefCounted, no scene dependencies
+**Status:** Complete - 12/12 tests implemented
 
 **Test cases:**
 
@@ -194,7 +195,7 @@ This is the simplest autoload to test and establishes the testing pattern for al
 | 11 | `test_is_expired_true_when_overshot` | Duration 1.0 after tick(2.0) -> expired |
 | 12 | `test_type_to_string_all_types` | All 5 enum values map to correct strings |
 
-**Acceptance:** 100% line coverage of StatusEffect.gd.
+**Acceptance:** 100% line coverage of StatusEffect.gd. All 12 tests pass.
 
 ---
 
