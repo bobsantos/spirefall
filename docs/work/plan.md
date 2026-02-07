@@ -1,769 +1,968 @@
-# Spirefall Phase 2: Core Systems Implementation Plan
+# Spirefall Phase 3A: Automated Testing Plan
 
-**Goal:** Complete element and tower systems -- all 6 base elements, dual-element fusion (15 towers), triple-element legendaries (6 towers), full enemy roster (10 types), 30-wave Classic mode with scaling, tower upgrade tiers, element synergy bonuses, and essential UI/UX improvements.
+**Goal:** Establish comprehensive automated testing for all core game systems using GdUnit4, achieving at least 85% code coverage across gameplay logic. This hardens Phase 1 and Phase 2 implementations against regressions before Phase 3 feature development begins.
 
-**Reference:** GDD Section 13.2 (Weeks 5-8: Core Systems)
+**Reference:** GDD Section 13.3 (Weeks 9-10: Polish and QA)
 
 ---
 
-## Current State Assessment
+## Testing Framework Setup
 
-### What Phase 1 Delivered
+### GdUnit4 v6.1.1
 
-**Codebase:** ~1,773 lines of GDScript across 18 scripts, 8 autoload managers, component-based architecture.
+**What it is:** GdUnit4 is the most mature unit/integration testing framework for Godot 4.x GDScript. It provides assertion APIs, mocking/spying, scene runners for integration tests, signal monitoring, and a CLI runner for CI/CD.
 
-**Working towers (6 Tier 1 base towers defined as .tres):**
-- Flame Spire (fire, burn 5 dmg/s 3s, 100% proc) -- fully functional
-- Tidal Obelisk (water, slow 30% 2s, 100% proc) -- fully functional
-- Stone Bastion (earth, AoE 2-cell radius) -- fully functional
-- Frost Sentinel (ice, freeze 20% chance 1.5s) -- fully functional
-- Thunder Pylon (lightning) -- .tres exists but `special_key` is empty, chain special not implemented
-- Gale Tower (wind) -- .tres exists but `special_key` is empty, multi-target special not implemented
+**Installation status:** Installed at `addons/gdUnit4/` and enabled in `project.godot` under `[editor_plugins]`.
 
-**Working enemies (6 defined as .tres):**
-- Normal (100 HP, 1.0x speed, 3g) -- fully functional
-- Fast (60 HP, 1.8x, 2g) -- fully functional
-- Armored (200 HP, 0.6x, 5g, 50% physical resist) -- fully functional
-- Flying (80 HP, 1.2x, 4g) -- .tres has `is_flying = true` but flying behavior not implemented (uses ground path)
-- Swarm (30 HP, 1.4x, 1g, spawns 3x) -- fully functional
-- Boss Ember Titan (5000 HP, 0.5x, 100g) -- .tres exists but fire immunity and fire trail not implemented
+**Directory structure:**
+```
+tests/
+  unit/
+    autoload/           # GameManager, EconomyManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, FusionRegistry
+    enemies/            # Enemy, EnemyData, StatusEffect
+    towers/             # Tower, TowerData
+    projectiles/        # Projectile
+    systems/            # ElementMatrix, ElementSynergy
+    effects/            # GroundEffect
+  integration/          # Multi-system interaction tests
+  resources/            # Test-specific .tres fixtures
+```
 
-**Working systems:**
-- Grid (20x15, 64px cells) with A* pathfinding (AStarGrid2D) and dynamic recalculation
-- Tower factory (TowerSystem) with create, upgrade (via `upgrade_to` TowerData chain), sell (75% build / 50% combat)
-- Economy (starting gold 100, wave income 10+wave*3, no-leak +25%, interest 5%/100g capped 25%)
-- Game state machine (BUILD_PHASE -> COMBAT_PHASE -> INCOME_PHASE or BUILD_PHASE -> GAME_OVER)
-- HUD (wave/lives/gold/timer/start wave button)
-- Build menu (filtered to tier==1 && element in fire/water/earth)
-- Elemental damage matrix (6x6 in Tower.gd and Projectile.gd)
-- Status effects (BURN, SLOW, FREEZE) with sprite tinting
-- Projectile system with single-target and AoE support
-- Ghost tower preview with valid/invalid tinting (green/red)
-- Game over screen (Victory/Defeat + Play Again)
-- 10-wave campaign from wave_config.json with scaling formulas
+**Running tests:**
 
-**Existing data fields ready for Phase 2 (already in code, unused):**
-- `TowerData.tier` (supports 1/2/3), `TowerData.fusion_elements: Array[String]`, `TowerData.upgrade_to: TowerData`
-- `EnemyData.is_flying`, `.split_on_death`, `.split_data`, `.stealth`, `.heal_per_second`
-- `Tower.TargetMode` enum has FIRST, LAST, STRONGEST, WEAKEST, CLOSEST (all implemented in `_find_target()`)
-- `UIManager.show_wave_preview()` stub exists (pass-through)
-- `UIManager.register_tower_info_panel()` exists but TowerInfoPanel has no script attached
-- TowerInfoPanel.tscn exists with labels (Name, Element, Damage, Speed, Range) and Upgrade/Sell buttons but no wired logic
+From the Godot editor: open the GdUnit4 panel (via the bottom dock or Project > Tools > GdUnit4) and click Run All.
 
-### What Phase 2 Must Deliver
+From the command line:
+```bash
+# Set GODOT_BIN to your Godot 4.6 binary path
+export GODOT_BIN=/path/to/godot
 
-1. Wind and Lightning tower specials (chain + multi-target)
-2. Tower upgrade tiers: Enhanced (T1+) and Superior (T1++) for all 6 elements
-3. Dual-element fusion system (15 Tier 2 towers)
-4. Triple-element legendary fusion system (6 Tier 3 towers)
-5. Four new enemy types: Healer, Split, Stealth, Elemental
-6. Flying enemy behavior (ignores maze, uses direct spawn-to-exit path)
-7. Boss behaviors: Ember Titan fire immunity/trail, Glacial Wyrm freeze/minions, Chaos Elemental cycling
-8. 30-wave campaign config with GDD-accurate compositions
-9. Element synergy bonuses (3/5/8 tower thresholds)
-10. Tower targeting mode UI (player-selectable: First/Last/Strongest/Weakest/Closest)
-11. Tower info panel with full stats, upgrade, sell, and fusion UI
-12. Build menu expansion (show all 6 base elements)
-13. Wave preview panel (show upcoming enemy types before combat)
-14. Camera pan/zoom controls (WASD + mouse drag + scroll wheel)
-15. Raise max_waves from 10 to 30
+# Run all tests
+./addons/gdUnit4/runtest.sh --add tests/
+
+# Run a specific test suite
+./addons/gdUnit4/runtest.sh --add tests/unit/autoload/test_economy_manager.gd
+
+# Run tests matching a pattern
+./addons/gdUnit4/runtest.sh --add tests/unit/ -i "test_*"
+```
+
+**Test naming convention:**
+- Test suite files: `test_{script_name}.gd` (e.g., `test_economy_manager.gd`)
+- Test functions: `test_{behavior_under_test}` (e.g., `test_spend_gold_reduces_balance`)
+- Mirrors source layout: `scripts/autoload/EconomyManager.gd` -> `tests/unit/autoload/test_economy_manager.gd`
+
+**Test template:**
+```gdscript
+extends GdUnitTestSuite
+
+# Runs once before all tests in this suite
+func before() -> void:
+    pass
+
+# Runs before each individual test
+func before_test() -> void:
+    pass
+
+# Runs after each individual test
+func after_test() -> void:
+    pass
+
+# Runs once after all tests in this suite
+func after() -> void:
+    pass
+
+func test_example_behavior() -> void:
+    assert_int(42).is_equal(42)
+```
+
+### Testing Best Practices for Godot GDScript
+
+1. **Isolate autoloads.** Autoloads persist across tests. Always reset state in `before_test()` (e.g., `EconomyManager.reset()`, clear active enemy/tower arrays). Alternatively, create local instances of the class under test to avoid cross-contamination.
+
+2. **Use `auto_free()` for scene nodes.** Any Node created in a test must be freed. Wrap with `auto_free()` to ensure cleanup even if the test fails.
+
+3. **Prefer pure logic tests over scene tests.** Test calculations, state transitions, and data transformations directly by calling methods on isolated objects. Reserve `scene_runner()` for integration tests that need `_process()` ticking.
+
+4. **Avoid `randf()` in deterministic tests.** For tests involving random behavior (freeze chance, elemental assignment), seed the RNG or test boundary conditions (0% and 100% chance).
+
+5. **Test data with `.tres` fixtures.** Create minimal test-specific `.tres` resources in `tests/resources/` rather than loading full production resources (avoids coupling tests to balance changes).
+
+6. **Signal testing.** Use `monitor_signals()` + `assert_signal()` to verify signal emission without wiring up full scene trees.
+
+7. **Keep tests fast.** Target < 1 second per test. Use `await_millis()` only for integration tests that need frame ticks. Most unit tests should be synchronous.
+
+8. **One behavior per test.** Each `test_*` function verifies one specific behavior. Use descriptive names: `test_burn_damage_ticks_once_per_second`, not `test_burn`.
+
+---
+
+## Codebase Analysis: Coverage Targets
+
+| Script | Lines | Testability | Target Coverage | Priority |
+|--------|-------|-------------|----------------|----------|
+| `EconomyManager.gd` | 56 | Pure logic, no scene deps | 95% | P0 |
+| `StatusEffect.gd` | 49 | Pure RefCounted, no deps | 95% | P0 |
+| `ElementMatrix.gd` | 71 | Static pure functions | 95% | P0 |
+| `EnemyData.gd` | 28 | Data class, minimal logic | 90% | P0 |
+| `TowerData.gd` | 24 | Data class, minimal logic | 90% | P0 |
+| `GameManager.gd` | 98 | State machine, autoload deps | 90% | P0 |
+| `GridManager.gd` | 113 | Grid logic, PathfindingSystem dep | 90% | P0 |
+| `PathfindingSystem.gd` | 71 | AStarGrid2D wrapper | 85% | P0 |
+| `EnemySystem.gd` | 314 | Wave spawning, scaling formulas | 85% | P1 |
+| `TowerSystem.gd` | 116 | Factory pattern, autoload deps | 90% | P1 |
+| `FusionRegistry.gd` | 144 | Pure lookup logic | 90% | P1 |
+| `ElementSynergy.gd` | 259 | Counting + bonus calc | 85% | P1 |
+| `Enemy.gd` | 517 | Scene node, complex behaviors | 80% | P1 |
+| `Tower.gd` | 439 | Scene node, targeting/attacks | 80% | P1 |
+| `Projectile.gd` | 370 | Scene node, damage/specials | 80% | P2 |
+| `GroundEffect.gd` | 93 | Scene node, tick-based | 80% | P2 |
+| `Game.gd` | 409 | Orchestrator, integration only | 70% | P3 |
+| `BuildMenu.gd` | 235 | UI, visual-heavy | 50% | P3 |
+| `TowerInfoPanel.gd` | 327 | UI, visual-heavy | 50% | P3 |
+| `WavePreviewPanel.gd` | 212 | UI, visual-heavy | 50% | P3 |
+| `HUD.gd` | 113 | UI, visual-heavy | 40% | P3 |
+| `CodexPanel.gd` | 712 | UI, visual-heavy | 40% | P3 |
+| `GameOverScreen.gd` | 34 | UI, trivial | 30% | P3 |
+| `ForestClearing.gd` | 73 | Map setup, visual | 50% | P3 |
+| `UIManager.gd` | 69 | Thin pass-through | 60% | P3 |
+| `AudioManager.gd` | 43 | Stub, no behavior | Skip | -- |
+
+**Weighted target: 85% coverage across P0+P1+P2 scripts (2,367 lines of core logic).**
 
 ---
 
 ## Implementation Tasks
 
-### Task 1: Wind and Lightning Tower Specials
+### Task 1: EconomyManager Tests
 
-**Files:** Modified: `scripts/towers/Tower.gd`, `scripts/projectiles/Projectile.gd`, `resources/towers/gale_tower.tres`, `resources/towers/thunder_pylon.tres`
+**File:** `tests/unit/autoload/test_economy_manager.gd`
+**Source:** `scripts/autoload/EconomyManager.gd` (56 lines)
+**Effort:** Small
+**Priority:** P0 -- pure logic, zero dependencies, ideal first test suite
 
-Implement the two remaining base tower special abilities that have data (.tres) but no behavior code.
+This is the simplest autoload to test and establishes the testing pattern for all other suites.
 
-**Gale Tower -- "multi" special (hits 2 targets):**
-- Add `special_key = "multi"` and `special_value = 2.0` to `gale_tower.tres`
-- In `Tower._attack()`, when `special_key == "multi"`: find up to `special_value` targets in range, spawn one projectile per target
-- Each projectile deals full damage independently (not split damage)
-- Targeting uses the same `_find_target()` logic but collects the top N candidates
+**Test cases:**
 
-**Thunder Pylon -- "chain" special (chains to 3 targets at 60% damage):**
-- Add `special_key = "chain"`, `special_value = 3.0`, and a new field or convention for chain damage fraction (60% = 0.6)
-- Add `chain_count: int` and `chain_damage_fraction: float` to Projectile.gd
-- On Projectile._hit() for single-target with chain: after hitting the primary target, find up to `chain_count` additional enemies within a chain radius (e.g., 2 cells) of the impact point, excluding already-hit enemies
-- Each chain bounce deals `damage * chain_damage_fraction` and can apply the same special effects
-- Visual: chain projectiles can be instant (line effect) or reuse the same projectile sprite at increased speed
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_starting_gold_is_100` | `gold == 100` after `_ready()` |
+| 2 | `test_reset_restores_starting_gold` | After spending, `reset()` returns gold to 100 |
+| 3 | `test_add_gold_increases_balance` | `add_gold(50)` -> gold == 150 |
+| 4 | `test_spend_gold_reduces_balance` | `spend_gold(30)` -> gold == 70, returns true |
+| 5 | `test_spend_gold_fails_when_insufficient` | `spend_gold(200)` -> gold unchanged, returns false |
+| 6 | `test_can_afford_true_when_enough` | `can_afford(100)` -> true |
+| 7 | `test_can_afford_false_when_not_enough` | `can_afford(101)` -> false |
+| 8 | `test_can_afford_exact_amount` | `can_afford(100)` -> true (edge case: exact balance) |
+| 9 | `test_interest_at_100_gold` | 100g at 5% -> +5g (1 tier) |
+| 10 | `test_interest_at_500_gold` | 500g at 25% cap -> +125g |
+| 11 | `test_interest_at_600_gold_capped` | 600g still capped at 25% -> +150g |
+| 12 | `test_interest_at_99_gold_zero` | 99g -> 0 tiers -> +0g |
+| 13 | `test_interest_at_250_gold` | 250g at 10% -> +25g |
+| 14 | `test_wave_bonus_base_formula` | `calculate_wave_bonus(5, 1)` -> 10 + 15 = 25 |
+| 15 | `test_wave_bonus_no_leak_multiplier` | `calculate_wave_bonus(5, 0)` -> 25 * 1.25 = 31 |
+| 16 | `test_wave_bonus_wave_1` | `calculate_wave_bonus(1, 0)` -> (10+3)*1.25 = 16 |
+| 17 | `test_gold_changed_signal_on_add` | Signal emitted with correct value |
+| 18 | `test_insufficient_funds_signal` | Signal emitted when spend fails |
 
-**Implementation details:**
-- Tower.gd `_attack()` currently calls `_spawn_projectile(target)` unconditionally -- add a pre-check for multi-target to spawn multiple projectiles
-- Projectile.gd `_hit()` needs a chain path: after `_apply_single_hit()`, if `chain_count > 0`, iterate nearby enemies and apply chain damage
-- The elemental damage matrix already handles lightning vs any element, so chain hits get correct multipliers per target
-
-**Acceptance:** Gale Tower fires two projectiles per attack cycle at two different enemies. Thunder Pylon's projectile chains to up to 3 additional targets at 60% damage. Both display visible projectile/chain behavior.
-
----
-
-### Task 2: Tower Upgrade Tiers (Enhanced and Superior)
-
-**Files:** Modified: `scripts/towers/TowerData.gd`, `scripts/autoload/TowerSystem.gd`, `scripts/towers/Tower.gd`; Created: 12 new .tres files in `resources/towers/` (Enhanced and Superior for each of the 6 elements)
-
-Create the Tier 1+ (Enhanced) and Tier 1++ (Superior) upgrade tiers for all 6 base elements per GDD Section 5.5.
-
-**New TowerData fields (if needed):**
-- `TowerData` already has `upgrade_to: TowerData` for chaining. Each base tower's .tres will point `upgrade_to` at its Enhanced version, and Enhanced points to Superior.
-- Add `upgrade_cost: int` to TowerData (the incremental cost to upgrade, not the total value). Alternatively, `TowerSystem.upgrade_tower()` already computes `upgrade_data.cost - tower.tower_data.cost` as the incremental cost, so the `.cost` field on each .tres can represent the tower's total invested value. Keep this pattern.
-
-**New .tres files (naming convention: `{element}_{tier_suffix}.tres`):**
-- Enhanced (T1+): `flame_spire_enhanced.tres`, `tidal_obelisk_enhanced.tres`, `stone_bastion_enhanced.tres`, `frost_sentinel_enhanced.tres`, `thunder_pylon_enhanced.tres`, `gale_tower_enhanced.tres`
-- Superior (T1++): `flame_spire_superior.tres`, `tidal_obelisk_superior.tres`, `stone_bastion_superior.tres`, `frost_sentinel_superior.tres`, `thunder_pylon_superior.tres`, `gale_tower_superior.tres`
-
-**Stat scaling per GDD Section 5.5:**
-- Enhanced: +40% damage, +10% range over base. Cost = 1.5x base cost.
-- Superior: +100% damage, +20% range over base. Cost = 2x base cost. Unlocks/enhances special effect.
-
-**Example -- Flame Spire line:**
-| Tier | Cost | Damage | Range | Special |
-|------|------|--------|-------|---------|
-| Base | 30 | 15 | 4 | Burn 5 dmg/s 3s |
-| Enhanced | 45 | 21 | 4 | Burn 5 dmg/s 3s |
-| Superior | 60 | 30 | 5 | Burn 8 dmg/s 4s |
-
-**Wire up upgrade chains:**
-- Set `upgrade_to` on each base .tres to point at its Enhanced .tres
-- Set `upgrade_to` on each Enhanced .tres to point at its Superior .tres
-- Superior .tres has `upgrade_to = null` (fusion is handled separately)
-
-**TowerSystem.upgrade_tower() changes:**
-- Already works via `tower.tower_data.upgrade_to` chain and computes incremental cost
-- Verify it calls `tower.apply_tower_data()` to refresh sprite, range, cooldown
-- Add a `tier` field visual update (sprite may change per tier -- use naming convention `{base_name}_enhanced.png`, `{base_name}_superior.png`, or fall back to base sprite if upgrade sprites are not yet created)
-
-**Acceptance:** Each of the 6 base towers can be upgraded twice (Base -> Enhanced -> Superior). Each upgrade costs the correct incremental amount, applies correct stat increases, and updates the tower's visuals/behavior. Superior tier towers have enhanced special effects.
+**Acceptance:** All 18 tests pass. 100% function coverage of EconomyManager.
 
 ---
 
-### Task 3: Dual-Element Fusion System
+### Task 2: StatusEffect Tests
 
-**Files:** Modified: `scripts/autoload/TowerSystem.gd`, `scripts/towers/TowerData.gd`, `scripts/ui/BuildMenu.gd`; Created: 15 new .tres files in `resources/towers/fusions/`, New: `scripts/towers/FusionRegistry.gd`
+**File:** `tests/unit/enemies/test_status_effect.gd`
+**Source:** `scripts/enemies/StatusEffect.gd` (49 lines)
+**Effort:** Small
+**Priority:** P0 -- pure RefCounted, no scene dependencies
 
-Implement the core fusion mechanic: merging two Superior (T1++) towers of different elements to create a Tier 2 dual-element tower.
+**Test cases:**
 
-**FusionRegistry (new autoload or static class):**
-- Create `FusionRegistry.gd` as a singleton/autoload (or a static helper class referenced by TowerSystem)
-- Stores a lookup table: `Dictionary` mapping sorted element pairs to TowerData resource paths
-  - Key format: sorted alphabetically, e.g., `"earth+fire"` -> `res://resources/towers/fusions/magma_forge.tres`
-- `get_fusion_result(element_a: String, element_b: String) -> TowerData` -- returns the fusion TowerData or null if no valid combo
-- `can_fuse(tower_a: Node, tower_b: Node) -> bool` -- both must be tier 1, both must have tier suffix "superior" (or `tier == 1` with no further `upgrade_to`), and they must be different elements with a valid fusion entry
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_burn_creation` | Type, duration, value set correctly |
+| 2 | `test_burn_tick_returns_damage_per_second` | `tick(1.0)` returns `value` (one full second) |
+| 3 | `test_burn_tick_partial_no_damage` | `tick(0.5)` returns 0.0 (not yet 1s elapsed) |
+| 4 | `test_burn_tick_accumulates` | `tick(0.6)` + `tick(0.6)` -> second tick returns value (1.2s total) |
+| 5 | `test_slow_tick_returns_zero` | SLOW `tick()` always returns 0.0 |
+| 6 | `test_freeze_tick_returns_zero` | FREEZE `tick()` always returns 0.0 |
+| 7 | `test_stun_tick_returns_zero` | STUN `tick()` always returns 0.0 |
+| 8 | `test_wet_tick_returns_zero` | WET `tick()` always returns 0.0 |
+| 9 | `test_is_expired_false_while_active` | Duration 3.0 after tick(1.0) -> not expired |
+| 10 | `test_is_expired_true_when_depleted` | Duration 1.0 after tick(1.0) -> expired |
+| 11 | `test_is_expired_true_when_overshot` | Duration 1.0 after tick(2.0) -> expired |
+| 12 | `test_type_to_string_all_types` | All 5 enum values map to correct strings |
 
-**TowerSystem.fuse_towers(tower_a: Node, tower_b: Node) -> Node:**
-- Validate via FusionRegistry.can_fuse()
-- Fusion cost comes from the resulting TowerData.cost (this is the additional fusion fee, not cumulative)
-- Check `EconomyManager.can_afford(fusion_cost)`
-- Remove tower_b from grid (free it, refund nothing)
-- Replace tower_a in-place: swap its tower_data to the fusion result, call `apply_tower_data()`
-- Emit `tower_fused` signal (new signal on TowerSystem)
-
-**Fusion UX flow:**
-- Player selects a Superior tower -> TowerInfoPanel shows "Fuse" button if another Superior of a different element is adjacent (or anywhere on the map -- design decision, recommend "anywhere" for simpler UX)
-- Player clicks "Fuse" -> enters fusion mode (similar to placement mode) -> clicks a second Superior tower of compatible element -> fusion executes
-- Alternatively: TowerInfoPanel shows a dropdown/list of compatible fusion partners currently on the map
-
-**15 Dual-Element Tower .tres files (in `resources/towers/fusions/`):**
-
-| Elements | Tower Name | Cost | Damage | Speed | Range | Special |
-|----------|-----------|------|--------|-------|-------|---------|
-| Fire+Water | Steam Engine | 120 | 35 | 0.8/s | 5 | AoE burn fog |
-| Fire+Earth | Magma Forge | 130 | 40 | 0.6/s | 4 | Lava pool 3s |
-| Fire+Wind | Inferno Vortex | 110 | 30 | 1.0/s | 5 | Pull + burn AoE |
-| Fire+Lightning | Plasma Cannon | 140 | 80 | 0.3/s | 6 | Single-target burst |
-| Fire+Ice | Thermal Shock | 120 | 35 | 0.9/s | 4 | Freeze/burn cycle |
-| Water+Earth | Mud Pit | 130 | 25 | 0.7/s | 4 | Slowing terrain |
-| Water+Wind | Tsunami Shrine | 120 | 30 | 0.5/s | 5 | Pushback wave |
-| Water+Lightning | Storm Beacon | 130 | 35 | 0.8/s | 5 | Chain + wet bonus |
-| Water+Ice | Glacier Keep | 120 | 20 | 0.6/s | 5 | Slow aura + encase |
-| Earth+Wind | Sandstorm Citadel | 120 | 25 | 0.7/s | 6 | Wide slow aura |
-| Earth+Lightning | Seismic Coil | 130 | 35 | 0.6/s | 4 | Periodic stun |
-| Earth+Ice | Permafrost Pillar | 130 | 30 | 0.5/s | 3 | Thorn damage |
-| Wind+Lightning | Tempest Spire | 110 | 12 | 3.0/s | 5 | Hits 5 targets |
-| Wind+Ice | Blizzard Tower | 120 | 28 | 0.7/s | 5 | Cone AoE slow |
-| Lightning+Ice | Cryo-Volt Array | 130 | 35 | 0.8/s | 4 | Freeze + 3x chain |
-
-Each .tres sets `tier = 2`, `fusion_elements` to the two elements, `special_key` to its unique key (e.g., "lava_pool", "pushback", "stun_pulse"), and `upgrade_to = null` (legendaries are a separate fusion, not a direct upgrade).
-
-**Acceptance:** Two Superior towers of different elements can be fused into the correct Tier 2 tower. The fusion costs gold, removes the secondary tower, replaces the primary tower in-place. All 15 combinations produce the correct result. Invalid combinations (same element, non-Superior, insufficient gold) are rejected.
+**Acceptance:** 100% line coverage of StatusEffect.gd.
 
 ---
 
-### Task 4: Dual-Element Tower Special Abilities
+### Task 3: ElementMatrix Tests
 
-**Files:** Modified: `scripts/projectiles/Projectile.gd`, `scripts/towers/Tower.gd`, `scripts/enemies/Enemy.gd`, `scripts/enemies/StatusEffect.gd`; Created: optional helper scripts for complex specials (e.g., `scripts/effects/LavaPool.gd`, `scripts/effects/PushbackWave.gd`)
+**File:** `tests/unit/systems/test_element_matrix.gd`
+**Source:** `scripts/systems/ElementMatrix.gd` (71 lines)
+**Effort:** Small
+**Priority:** P0 -- static class, no dependencies
 
-Implement the unique special abilities for all 15 Tier 2 fusion towers. These are more complex than Tier 1 specials and several require new mechanics.
+**Test cases:**
 
-**New status effect types needed:**
-- STUN (speed = 0 like freeze, but distinct for interaction purposes; e.g., stunned enemies take 2x damage from Crystalline Monolith)
-- WET (for Storm Beacon chain bonus)
-- Possibly PULL (for Inferno Vortex)
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_get_multiplier_strong` | fire vs earth -> 1.5 |
+| 2 | `test_get_multiplier_weak` | fire vs water -> 0.5 |
+| 3 | `test_get_multiplier_neutral` | fire vs fire -> 1.0 |
+| 4 | `test_get_multiplier_slight_strong` | wind vs earth -> 1.25 |
+| 5 | `test_get_multiplier_slight_weak` | water vs lightning -> 0.75 |
+| 6 | `test_get_multiplier_none_target` | fire vs "none" -> 1.0 |
+| 7 | `test_get_multiplier_chaos_target` | fire vs "chaos" -> 1.0 |
+| 8 | `test_get_multiplier_unknown_attacker` | "plasma" vs fire -> 1.0 |
+| 9 | `test_matrix_symmetry_spot_checks` | Verify a few attacker/defender pairs for correctness per GDD |
+| 10 | `test_all_36_combinations` | Iterate all 6x6 pairs and verify each matches MATRIX const |
+| 11 | `test_get_elements_returns_6` | Array size == 6, contains all expected strings |
+| 12 | `test_get_counter_fire` | Counter of fire is water |
+| 13 | `test_get_counter_all_6` | All 6 elements have correct counters per COUNTERS const |
+| 14 | `test_get_counter_unknown` | "none" -> "" |
+| 15 | `test_get_color_fire` | Returns Color(1.0, 0.4, 0.2) |
+| 16 | `test_get_color_unknown` | Returns Color.WHITE |
+| 17 | `test_get_color_all_6` | All 6 elements return non-WHITE colors |
 
-**New mechanics to implement:**
-
-*Ground effects (Magma Forge, Mud Pit):*
-- Create a `GroundEffect` scene (Area2D + Timer + CollisionShape2D) that persists at a grid position for a duration
-- Magma Forge: spawns a lava pool at impact point, deals burn damage to enemies passing through for 3s
-- Mud Pit: spawns a slowing zone at impact point, enemies inside move at 50% speed and take +25% damage
-
-*Pushback (Tsunami Shrine):*
-- On hit, push affected enemies backward along their path by N path points (e.g., 2 cells worth)
-- Implement as `Enemy.push_back(distance_px: float)` that decrements `_path_index` and sets position accordingly
-- Cooldown-gated to prevent perma-lock: pushback has internal cooldown per enemy (e.g., 3s immunity after being pushed)
-
-*Pull (Inferno Vortex):*
-- Enemies within AoE range are slowly pulled toward the tower center over the effect duration
-- Implement as a periodic force applied in Enemy._process() via a "pull" status or direct position manipulation from the tower
-
-*Aura effects (Glacier Keep, Sandstorm Citadel):*
-- Passive aura applied every 0.5s to enemies in range (not projectile-based)
-- Add `has_aura: bool` and `aura_key: String` to TowerData
-- Tower._process() applies aura effects to enemies in range on a separate timer from attacks
-
-*Prioritized implementation:*
-- Phase 2a (implement first, simpler): Steam Engine (AoE burn), Plasma Cannon (high single-target), Tempest Spire (multi-5), Thermal Shock (freeze+burn), Cryo-Volt Array (freeze+chain), Blizzard Tower (cone AoE slow)
-- Phase 2b (implement second, require new systems): Magma Forge (ground effect), Mud Pit (ground effect), Inferno Vortex (pull), Tsunami Shrine (pushback), Storm Beacon (wet+chain), Glacier Keep (aura), Sandstorm Citadel (aura), Seismic Coil (stun pulse), Permafrost Pillar (thorn/melee range)
-
-**Acceptance:** Each of the 15 Tier 2 towers exhibits its described special ability. Ground effects persist visually and mechanically. Aura towers affect nearby enemies passively. Pushback and pull manipulate enemy positions along the path.
+**Acceptance:** 100% coverage of ElementMatrix.gd.
 
 ---
 
-### Task 5: Triple-Element Legendary Fusion System and Abilities
+### Task 4: GameManager Tests
 
-**Files:** Modified: `scripts/autoload/TowerSystem.gd`, `scripts/towers/FusionRegistry.gd`; Created: 6 new .tres files in `resources/towers/legendaries/`
+**File:** `tests/unit/autoload/test_game_manager.gd`
+**Source:** `scripts/autoload/GameManager.gd` (98 lines)
+**Effort:** Medium
+**Priority:** P0 -- state machine, but depends on EconomyManager and EnemySystem
 
-Extend the fusion system to support Tier 3 legendary towers: merge a Tier 2 tower with a Superior (T1++) tower of the third element.
+GameManager is tightly coupled to EnemySystem (for wave finished checks) and EconomyManager (for interest/bonuses). Tests either use the real autoloads with careful reset, or mock the dependencies.
 
-**FusionRegistry extension:**
-- Add a second lookup for legendary fusions: a Tier 2 tower (which has `fusion_elements = ["fire", "water"]`) combined with a Superior tower of a third element (e.g., "earth") that is not already in the Tier 2's fusion_elements
-- `get_legendary_result(tier2_elements: Array[String], third_element: String) -> TowerData`
-- `can_fuse_legendary(tower_tier2: Node, tower_superior: Node) -> bool`
+**Test cases:**
 
-**TowerSystem.fuse_legendary(tower_tier2: Node, tower_superior: Node) -> Node:**
-- Same pattern as dual fusion: validate, charge cost, remove superior tower, replace tier2 tower in-place
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_initial_state_is_menu` | `game_state == MENU` before `start_game()` |
+| 2 | `test_start_game_transitions_to_build` | `start_game()` -> BUILD_PHASE, wave==1, lives==20 |
+| 3 | `test_start_game_emits_phase_changed` | Signal emitted with BUILD_PHASE |
+| 4 | `test_lose_life_decrements` | `lose_life(1)` -> lives == 19 |
+| 5 | `test_lose_all_lives_triggers_game_over` | `lose_life(20)` -> GAME_OVER, lives==0 |
+| 6 | `test_lose_life_clamps_at_zero` | `lose_life(25)` -> lives==0 |
+| 7 | `test_record_enemy_leak_increments` | `record_enemy_leak()` increases `_enemies_leaked_this_wave` |
+| 8 | `test_start_wave_early_from_build_phase` | Transitions to COMBAT_PHASE |
+| 9 | `test_start_wave_early_bonus_gold` | Bonus = remaining_timer * 10, added to gold |
+| 10 | `test_start_wave_early_emits_bonus_signal` | `early_wave_bonus` signal emitted |
+| 11 | `test_start_wave_early_ignored_in_combat` | No state change if already in COMBAT |
+| 12 | `test_wave_cleared_advances_to_build` | After combat, transitions to BUILD, wave increments |
+| 13 | `test_wave_cleared_income_phase_every_5` | Wave 5, 10, 15... -> INCOME_PHASE -> BUILD_PHASE |
+| 14 | `test_wave_cleared_at_max_waves_game_over` | Wave 30 cleared -> GAME_OVER victory |
+| 15 | `test_game_over_victory_true_at_max` | `game_over` signal emitted with `victory=true` |
+| 16 | `test_game_over_victory_false_on_death` | Losing all lives mid-game -> `victory=false` |
+| 17 | `test_build_timer_set_on_build_phase` | `_build_timer == build_phase_duration` |
+| 18 | `test_wave_1_no_auto_start` | Wave 1 build timer does not decrement in `_process()` |
+| 19 | `test_combat_phase_emits_wave_started` | `wave_started` signal with correct wave number |
+| 20 | `test_wave_completed_signal_emitted` | `wave_completed` emitted on clear |
 
-**6 Legendary Tower .tres files (in `resources/towers/legendaries/`):**
-
-| Elements | Tower Name | Cost | Key Ability |
-|----------|-----------|------|-------------|
-| Fire+Water+Earth | Primordial Nexus | 300 | Geyser every 10s: massive AoE + slow |
-| Fire+Wind+Lightning | Supercell Obelisk | 280 | Lightning storm AoE; scales with wave |
-| Water+Wind+Ice | Arctic Maelstrom | 300 | Permanent blizzard: 50% slow + freeze chance |
-| Earth+Lightning+Ice | Crystalline Monolith | 320 | Stun pulse every 8s; stunned take 2x |
-| Fire+Earth+Wind | Volcanic Tempest | 280 | Magma projectiles create burning ground |
-| Water+Earth+Lightning | Tectonic Dynamo | 300 | Earthquake: slow + damage + disruption |
-
-Each .tres sets `tier = 3`, `fusion_elements` to all three elements.
-
-**Legendary ability implementation:**
-- Most legendary abilities are enhanced versions of Tier 2 mechanics (larger AoE, periodic pulses, persistent auras)
-- Supercell Obelisk's wave-scaling: `bonus_damage = base_damage * (1 + 0.05 * GameManager.current_wave)`
-- Crystalline Monolith's "stunned take 2x": requires Enemy.gd to check for STUN status in `take_damage()` and apply a 2x multiplier
-- Arctic Maelstrom's permanent blizzard: continuous aura that never turns off (no attack projectile, just aura)
-
-**Acceptance:** A Tier 2 tower can be fused with a compatible Superior tower to create the correct Tier 3 legendary. All 6 legendaries have distinct, powerful abilities. The fusion system correctly identifies valid triple-element combinations.
-
----
-
-### Task 6: New Enemy Types (Healer, Split, Stealth, Elemental)
-
-**Files:** Modified: `scripts/enemies/Enemy.gd`, `scripts/enemies/EnemyData.gd`, `scripts/autoload/EnemySystem.gd`, `scripts/towers/Tower.gd`; Created: 4 new .tres files in `resources/enemies/`
-
-Implement the four missing enemy types from the GDD. EnemyData.gd already has the necessary fields; the behavior code needs to be added to Enemy.gd.
-
-**Healer (healer.tres):**
-- Stats: 120 HP, 0.8x speed, 6g, element "nature" or "none"
-- `heal_per_second = 10.0` in .tres
-- Enemy.gd `_process()`: if `enemy_data.heal_per_second > 0`, find all allies within 2-cell radius (128px) using `EnemySystem.get_active_enemies()` and heal them by `heal_per_second * delta` per frame
-- Healer does NOT heal itself
-- Visual: green pulse particle or tint on healed allies (brief green flash)
-- Strategy consideration: healers should be high-priority targets; targeting mode "Strongest" won't necessarily find them. Consider adding a "Healer" targeting mode in a future task, or rely on player using "Weakest" (healers have moderate HP)
-
-**Split (split.tres):**
-- Stats: 150 HP, 1.0x speed, 4g, element "none"
-- `split_on_death = true`, `split_data` points to a "split_child" EnemyData resource (half HP, same speed, 1g each)
-- Create `resources/enemies/split_child.tres`: 75 HP base (but actual HP will be 50% of parent's current max at time of split), 1.0x speed, 1g
-- Enemy.gd `_die()`: if `enemy_data.split_on_death` and `enemy_data.split_data != null`, instead of just emitting killed signal, spawn 2 child enemies at the current position with the current `_path_index`
-- EnemySystem needs a `spawn_split_enemy(data: EnemyData, position: Vector2, path_index: int)` method
-- Children inherit the parent's path progress so they continue from the split point, not from spawn
-
-**Stealth (stealth.tres):**
-- Stats: 50 HP, 1.5x speed, 5g, element "none"
-- `stealth = true` in .tres
-- Enemy.gd: if `enemy_data.stealth`, set `sprite.modulate.a = 0.15` (nearly invisible) on spawn
-- Stealth enemies are untargetable by towers until "revealed"
-- Reveal condition: when a stealth enemy enters any tower's attack range, it becomes revealed
-  - Toggle `_is_revealed: bool` on Enemy
-  - Tower._find_target() skips enemies where `enemy.enemy_data.stealth and not enemy._is_revealed`
-  - Each frame in Enemy._process(), check if any tower is within detection range: `TowerSystem.get_active_towers()` distance check
-  - Once revealed, set `sprite.modulate.a = 1.0` and `_is_revealed = true` (stays revealed permanently once detected)
-- Alternative simpler design: stealth enemies are invisible on the health bar and minimap but towers auto-reveal them when in range. This avoids tower targeting complexity.
-
-**Elemental (elemental.tres):**
-- Stats: 180 HP, 0.9x speed, 6g
-- Immune to 1 random element, 2x weak to another
-- Add `immune_element: String` and `weak_element: String` to EnemyData.gd
-- On spawn (in `_create_scaled_enemy` or `_apply_enemy_data`), if enemy is elemental type, randomly assign immune and weak elements (ensure they differ)
-- Enemy.gd `_apply_resistance()`: if `element == immune_element`, return 0 damage. If `element == weak_element`, return `amount * 2`
-- Visual indicator: tint sprite to the immune element's color, and show a small icon for weakness
-- The element assignment should be deterministic per wave (use wave number as seed) so retries produce the same challenge
-
-**Acceptance:** All four enemy types function correctly: healers heal nearby allies, split enemies spawn two children on death that continue along the path, stealth enemies are nearly invisible until a tower reveals them, elemental enemies are immune to one element and take double from another.
+**Acceptance:** All state transitions, signals, and edge cases covered. 90%+ coverage.
 
 ---
 
-### Task 7: Flying Enemy Behavior
+### Task 5: GridManager Tests
 
-**Files:** Modified: `scripts/enemies/Enemy.gd`, `scripts/autoload/PathfindingSystem.gd`, `scripts/autoload/EnemySystem.gd`
+**File:** `tests/unit/autoload/test_grid_manager.gd`
+**Source:** `scripts/autoload/GridManager.gd` (113 lines)
+**Effort:** Medium
+**Priority:** P0 -- grid logic is foundational
 
-Implement flying enemies that ignore the maze (tower walls) and fly directly from spawn to exit.
+**Test cases:**
 
-**Path calculation:**
-- PathfindingSystem gets a new method: `get_flying_path() -> PackedVector2Array` that returns a straight-line path from spawn to exit (just the two endpoints converted to world coordinates, or a few intermediate points for smoother movement)
-- Alternatively, compute the A* path ignoring all TOWER cells (only UNBUILDABLE blocks flight). Add `get_flying_path(from: Vector2i, to: Vector2i) -> PackedVector2Array` that temporarily treats all TOWER cells as walkable.
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_initial_grid_all_buildable` | After init, every cell is BUILDABLE |
+| 2 | `test_grid_dimensions` | 20 columns, 15 rows |
+| 3 | `test_get_cell_in_bounds` | Returns correct CellType |
+| 4 | `test_get_cell_out_of_bounds` | Returns UNBUILDABLE |
+| 5 | `test_get_cell_negative_coords` | Returns UNBUILDABLE |
+| 6 | `test_is_cell_buildable_true` | BUILDABLE cell returns true |
+| 7 | `test_is_cell_buildable_false_tower` | TOWER cell returns false |
+| 8 | `test_is_cell_buildable_false_path` | PATH cell returns false |
+| 9 | `test_load_map_data_sets_spawns_exits` | Spawn/exit points populated |
+| 10 | `test_load_map_data_marks_spawn_cells` | Grid cell at spawn == SPAWN |
+| 11 | `test_place_tower_sets_cell` | Cell becomes TOWER after placement |
+| 12 | `test_place_tower_stores_reference` | `get_tower_at()` returns the tower node |
+| 13 | `test_place_tower_fails_on_unbuildable` | Returns false, grid unchanged |
+| 14 | `test_place_tower_fails_if_blocks_path` | Returns false when placement would block |
+| 15 | `test_remove_tower_restores_buildable` | Cell reverts to BUILDABLE |
+| 16 | `test_remove_tower_clears_reference` | `get_tower_at()` returns null |
+| 17 | `test_grid_to_world_conversion` | (0,0) -> (32, 32), (1,1) -> (96, 96) |
+| 18 | `test_world_to_grid_conversion` | (32, 32) -> (0, 0), (100, 100) -> (1, 1) |
+| 19 | `test_is_in_bounds_edges` | (0,0)=true, (19,14)=true, (20,14)=false, (-1,0)=false |
+| 20 | `test_can_place_tower_combines_checks` | Buildable + won't block path |
+| 21 | `test_tower_placed_signal_emitted` | Signal on successful placement |
+| 22 | `test_tower_removed_signal_emitted` | Signal on removal |
+| 23 | `test_grid_updated_signal_emitted` | Signal on placement and removal |
 
-**Enemy.gd changes:**
-- In `_ready()`, after `_apply_enemy_data()`: if `enemy_data.is_flying`, request a flying path instead of the ground path
-- EnemySystem._spawn_next_enemy(): set `enemy.path_points` to `PathfindingSystem.get_flying_path()` when the enemy data has `is_flying = true`
-- Flying enemies should render above ground enemies: set `z_index = 1` or higher
-
-**Visual:**
-- Flying enemies could have a subtle shadow offset or bob up and down using a sine wave on `position.y` (cosmetic only, not affecting path progress calculation)
-- Ensure the health bar stays aligned if a bobbing effect is added
-
-**Acceptance:** Flying enemies travel in a straight line (or shortest direct path) from spawn to exit, ignoring tower maze walls. They render above ground enemies. Ground-targeting towers can still hit them (no targeting restriction in Phase 2; anti-air is a Phase 3 consideration).
-
----
-
-### Task 8: Boss Behaviors
-
-**Files:** Modified: `scripts/enemies/Enemy.gd`, `scripts/enemies/EnemyData.gd`; Created: `resources/enemies/boss_glacial_wyrm.tres`, `resources/enemies/boss_chaos_elemental.tres`; Optional: `scripts/enemies/BossAbility.gd`
-
-Implement the three boss encounters described in GDD Section 7.3.
-
-**Boss shared infrastructure:**
-- Add `boss_ability_key: String` to EnemyData.gd (e.g., "fire_trail", "tower_freeze", "element_cycle")
-- Add `boss_ability_interval: float` to EnemyData.gd (seconds between ability activations)
-- Enemy.gd: if `enemy_data.is_boss and enemy_data.boss_ability_key != ""`, run a boss ability timer in `_process()`
-
-**Wave 10 -- Ember Titan (fire_trail):**
-- Update `boss_ember_titan.tres`: add `immune_element = "fire"`, `boss_ability_key = "fire_trail"`, `boss_ability_interval = 0.0` (continuous)
-- Fire immunity: handled by Task 6's elemental resistance system (`immune_element` in `_apply_resistance()`)
-- Fire trail: every 1s (or continuously), spawn a `GroundEffect` (from Task 4) at the boss's current position that deals burn damage to towers within 1 cell for 3s
-- Tower damage: towers don't currently take damage. For Phase 2, simplify to "fire trail damages nearby enemies of the player" -> no, per GDD it damages towers. Add `Tower.take_damage(amount: int)` that reduces a tower's effectiveness or eventually disables it temporarily (e.g., 3s stun on the tower's attack timer). Keep this simple: fire trail applies a 2s attack cooldown pause to towers within 1 cell.
-
-**Wave 20 -- Glacial Wyrm (tower_freeze):**
-- Create `boss_glacial_wyrm.tres`: 12000 HP (scaled), 0.4x speed, 250g, ice element, `boss_ability_key = "tower_freeze"`, `boss_ability_interval = 8.0`
-- Every 8s, freezes all towers within 3-cell radius for 3s (towers cannot attack)
-- Tower.gd: add `_is_disabled: bool` and `disable_for(duration: float)` method; `_process()` skips targeting when disabled
-- Spawns 2-3 ice minions (use Swarm-type data with ice element) every 15s
-- EnemySystem needs `spawn_boss_minions(data: EnemyData, count: int, position: Vector2, path_index: int)` (similar to split spawn)
-
-**Wave 30 -- Chaos Elemental (element_cycle):**
-- Create `boss_chaos_elemental.tres`: 25000 HP (scaled), 0.3x speed, 500g, element "chaos", `boss_ability_key = "element_cycle"`, `boss_ability_interval = 10.0`
-- Every 10s, cycles to a new element: becomes immune to that element and weak to its counter
-- Enemy.gd: for chaos boss, maintain a `_current_element` state that rotates through all 6 elements
-- Visual: sprite tint changes to match current element
-- Must defeat before it cycles through all elements twice (soft enrage: gains 10% speed per cycle)
-
-**Acceptance:** Ember Titan leaves a fire trail that disrupts nearby towers and is immune to fire. Glacial Wyrm periodically freezes towers and spawns ice minions. Chaos Elemental cycles through elements every 10s requiring the player to have diverse tower coverage.
+**Acceptance:** All grid operations validated. 90%+ coverage.
 
 ---
 
-### Task 9: 30-Wave Campaign Configuration
+### Task 6: PathfindingSystem Tests
 
-**Files:** Modified: `resources/waves/wave_config.json`, `scripts/autoload/GameManager.gd`
+**File:** `tests/unit/autoload/test_pathfinding_system.gd`
+**Source:** `scripts/autoload/PathfindingSystem.gd` (71 lines)
+**Effort:** Medium
+**Priority:** P0 -- pathfinding correctness is critical
 
-Expand the wave config from 10 to 30 waves following GDD Section 7.2 composition guidelines.
+Depends on GridManager being set up with spawn/exit points. Tests should set up a minimal grid configuration.
 
-**GameManager change:**
-- Set `max_waves = 30`
+**Test cases:**
 
-**Wave composition design (per GDD Section 7.2):**
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_path_exists_on_clear_grid` | Spawn to exit has a non-empty path |
+| 2 | `test_path_blocked_returns_empty` | Solid wall across grid -> empty path |
+| 3 | `test_recalculate_updates_solids` | Place tower -> recalculate -> path routes around |
+| 4 | `test_is_path_valid_true` | Open grid has valid path |
+| 5 | `test_is_path_valid_false_blocked` | Blocking wall -> invalid |
+| 6 | `test_get_world_path_converts_coords` | Grid points converted to world pixel coords |
+| 7 | `test_get_enemy_path_uses_first_spawn_exit` | Returns path from spawn_points[0] to exit_points[0] |
+| 8 | `test_get_enemy_path_empty_when_no_spawns` | Returns empty array |
+| 9 | `test_get_flying_path_returns_two_points` | Straight line: spawn world coords, exit world coords |
+| 10 | `test_get_flying_path_ignores_towers` | Same result regardless of tower placement |
+| 11 | `test_path_recalculated_signal` | Signal emitted on recalculate() |
+| 12 | `test_diagonal_mode_never` | Path never takes diagonal steps |
+| 13 | `test_no_path_through_unbuildable` | UNBUILDABLE cells treated as solid |
 
-*Waves 1-5 (Tutorial):*
-- Already defined in current config. Keep waves 1-5 as-is (Normal, Fast, Swarm).
-
-*Waves 6-10 (Early game):*
-- Current waves 6-10 already have Armored, Flying, Swarm, and Boss Ember Titan.
-- Add Elemental enemies starting wave 8 (per GDD: "appears wave 8+").
-- Keep Boss Ember Titan at wave 10.
-
-*Waves 11-15 (Mid game intro):*
-- Wave 11: Normal (12), Fast (8), Healer (2) -- introduces Healer
-- Wave 12: Armored (8), Split (4), Swarm (6) -- introduces Split
-- Wave 13: Fast (10), Elemental (4), Healer (3)
-- Wave 14: Normal (8), Flying (6), Stealth (3) -- introduces Stealth
-- Wave 15: Mixed heavy + income wave
-
-*Waves 16-20 (Mid game):*
-- Increasing counts of all types
-- Wave 20: Boss Glacial Wyrm + escort wave
-
-*Waves 21-25 (Late game):*
-- All enemy types in heavy compositions
-- Multiple healers per wave, stealth squads, elemental variants
-
-*Waves 26-30 (Endgame):*
-- Maximum difficulty compositions
-- Wave 30: Boss Chaos Elemental + all-type escort wave
-
-**Scaling verification:**
-- At wave 30, Normal enemy HP = 100 * (1 + 0.15*30)^2 = 100 * 5.5^2 = 3025 HP
-- At wave 30, Normal speed = 1.0 * min(1 + 0.02*30, 2.0) = 1.6x (capped below 2.0)
-- At wave 30, Normal gold = 3 * (1 + 0.08*30) = 3 * 3.4 = 10g
-- Boss wave 30 HP = 25000 * (1 + 0.15*30)^2 = 25000 * 30.25 = 756,250 HP
-
-**Acceptance:** All 30 waves are defined in wave_config.json with appropriate enemy types and counts. Game progresses through all 30 waves with bosses at waves 10, 20, and 30. Scaling formulas produce challenging but beatable compositions at each stage.
+**Acceptance:** Pathfinding correctness verified. 85%+ coverage.
 
 ---
 
-### Task 10: Element Synergy Bonuses
+### Task 7: EnemySystem Tests
 
-**Files:** Created: `scripts/systems/ElementSynergy.gd`; Modified: `scripts/autoload/TowerSystem.gd`, `scripts/towers/Tower.gd`
+**File:** `tests/unit/autoload/test_enemy_system.gd`
+**Source:** `scripts/autoload/EnemySystem.gd` (314 lines)
+**Effort:** Large
+**Priority:** P1 -- wave spawning and scaling are core mechanics
 
-Implement the element synergy bonus system from GDD Section 6.3.
+**Test cases:**
 
-**Synergy thresholds:**
-- 3 towers of same element: +10% damage for all towers of that element
-- 5 towers of same element: +20% damage + element-specific aura effect
-- 8 towers of same element: +30% damage + enhanced aura (larger radius, stronger)
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_wave_config_loads_successfully` | `_wave_config` is not empty after `_ready()` |
+| 2 | `test_get_wave_config_returns_data` | `get_wave_config(1)` has "enemies" array |
+| 3 | `test_get_wave_config_missing_wave` | `get_wave_config(999)` returns empty dict |
+| 4 | `test_get_enemy_template_loads_tres` | `get_enemy_template("normal")` returns valid EnemyData |
+| 5 | `test_get_enemy_template_caches` | Second call returns same reference |
+| 6 | `test_get_enemy_template_invalid` | Unknown type returns null |
+| 7 | `test_scaling_hp_wave_1` | 100 * (1 + 0.15*1)^2 = 132 |
+| 8 | `test_scaling_hp_wave_10` | 100 * (1 + 0.15*10)^2 = 625 |
+| 9 | `test_scaling_hp_wave_30` | 100 * (1 + 0.15*30)^2 = 3025 |
+| 10 | `test_scaling_speed_wave_10` | 1.0 * (1 + 0.02*10) = 1.2 |
+| 11 | `test_scaling_speed_capped_at_2x` | Wave 60: min(1 + 0.02*60, 2.0) = 2.0 |
+| 12 | `test_scaling_gold_wave_10` | 3 * (1 + 0.08*10) = 5 (int truncated from 5.4) |
+| 13 | `test_build_wave_queue_correct_count` | Wave 1: 8 normal enemies |
+| 14 | `test_swarm_multiplies_by_spawn_count` | Swarm count 3 * spawn_count 3 = 9 |
+| 15 | `test_boss_wave_uses_boss_spawn_interval` | `_spawn_interval == BOSS_SPAWN_INTERVAL` |
+| 16 | `test_spawn_wave_sets_queue` | After `spawn_wave()`, `_enemies_to_spawn` is non-empty |
+| 17 | `test_is_wave_finished_false_during_spawn` | While queue has items -> false |
+| 18 | `test_is_wave_finished_true_when_done` | After all spawned -> true |
+| 19 | `test_get_active_enemy_count` | Matches `_active_enemies.size()` |
+| 20 | `test_on_enemy_killed_awards_gold` | Gold increases by enemy gold_reward |
+| 21 | `test_on_enemy_killed_emits_signal` | `enemy_killed` signal emitted |
+| 22 | `test_on_enemy_reached_exit_loses_life` | GameManager.lives decremented |
+| 23 | `test_wave_cleared_signal_when_all_dead` | Signal emitted when last enemy removed |
+| 24 | `test_split_enemies_spawn_two_children` | After split, 2 children added to active |
+| 25 | `test_split_children_continue_from_parent_index` | `_path_index` matches parent |
+| 26 | `test_split_awards_parent_gold` | Parent gold rewarded before children spawn |
+| 27 | `test_boss_minions_spawn_at_boss_position` | Minions positioned near boss |
+| 28 | `test_fallback_queue_for_unknown_wave` | Generates reasonable fallback |
+| 29 | `test_create_scaled_enemy_copies_all_fields` | All EnemyData fields are copied |
+| 30 | `test_enemy_spawned_signal` | Signal emitted with enemy node |
 
-**ElementSynergy.gd (new autoload or manager):**
-- Track tower counts per element: `var _element_counts: Dictionary = {}` (element string -> int)
-- On `TowerSystem.tower_created`, `tower_sold`, `tower_upgraded` (element might change on fusion): recalculate counts
-- `get_synergy_bonus(element: String) -> float` returns the damage multiplier (1.0, 1.1, 1.2, or 1.3)
-- `get_synergy_tier(element: String) -> int` returns 0, 1, 2, or 3
-
-**Tower.gd integration:**
-- In `_calculate_damage()`, multiply by `ElementSynergy.get_synergy_bonus(tower_data.element)`
-- For Tier 2/3 towers with multiple elements (fusion_elements), use the highest bonus among their elements
-
-**Aura effects (5+ and 8+ thresholds):**
-- Fire 5+: nearby fire towers gain +10% attack speed
-- Water 5+: water towers slow enemies 10% more
-- Earth 5+: earth towers gain +1 cell range
-- Wind 5+: wind towers gain +15% attack speed
-- Lightning 5+: lightning chain bounces +1 additional target
-- Ice 5+: ice freeze chance +10%
-- At 8+: double the aura bonus values and increase radius
-
-**Visual feedback:**
-- Towers benefiting from synergy get a subtle colored glow/particle matching their element
-- HUD or info panel shows current synergy tiers per element
-
-**Acceptance:** Placing 3/5/8 towers of the same element correctly applies damage bonuses and aura effects to all towers of that element. Synergy bonuses update when towers are placed, sold, or fused. UI indicates active synergies.
-
----
-
-### Task 11: Build Menu Expansion
-
-**Files:** Modified: `scripts/ui/BuildMenu.gd`
-
-Expand the build menu from 3 towers (fire/water/earth only) to all 6 base elements.
-
-**Changes:**
-- Remove the `PHASE_1_ELEMENTS` filter constant (or expand it to all 6 elements)
-- `_load_available_towers()`: load all .tres where `tier == 1` (base towers only -- fusions are not buildable, they are crafted)
-- Sort buttons by a canonical element order: fire, water, earth, wind, lightning, ice
-- Group buttons visually by element with colored separators or element icons above each group
-- Each button shows: tower name, cost, element icon (colored circle or small sprite)
-- Consider adding a tab/filter system if the menu becomes crowded once upgrade tiers are visible
-
-**Visual improvements:**
-- Add element-colored borders or backgrounds to buttons (fire=red, water=blue, earth=brown, wind=green, lightning=yellow, ice=cyan)
-- Show tower sprite thumbnail on the button if icon texture is available
-- Tooltip on hover: show damage, speed, range, special description
-
-**Acceptance:** Build menu displays all 6 base element towers. Buttons are visually grouped by element with clear color coding. Player can select and place any of the 6 base towers.
+**Acceptance:** All spawning, scaling, and lifecycle logic validated. 85%+ coverage.
 
 ---
 
-### Task 12: Tower Info Panel
+### Task 8: TowerSystem Tests
 
-**Files:** Created: `scripts/ui/TowerInfoPanel.gd`; Modified: `scenes/ui/TowerInfoPanel.tscn`, `scripts/autoload/UIManager.gd`
+**File:** `tests/unit/autoload/test_tower_system.gd`
+**Source:** `scripts/autoload/TowerSystem.gd` (116 lines)
+**Effort:** Medium
+**Priority:** P1 -- factory for all tower operations
 
-Wire up the existing TowerInfoPanel scene with a script that displays full tower stats, and provides upgrade, sell, fusion, and targeting mode controls.
+**Test cases:**
 
-**TowerInfoPanel.gd (new script):**
-- `@onready` references to all labels (NameLabel, ElementLabel, DamageLabel, SpeedLabel, RangeLabel) and buttons (UpgradeButton, SellButton)
-- `display_tower(tower: Node)` populates all labels from `tower.tower_data`
-- Add new UI elements to the .tscn:
-  - SpecialLabel: shows `tower_data.special_description`
-  - TierLabel: shows "Tier 1" / "Enhanced" / "Superior" / "Fusion" / "Legendary"
-  - UpgradeCostLabel: shows cost of next upgrade (or "Max" if no upgrade_to)
-  - SellValueLabel: shows refund amount (75% build phase, 50% combat)
-  - FuseButton: visible only when tower is Superior and a valid fusion partner exists
-  - TargetModeDropdown (OptionButton): First / Last / Strongest / Weakest / Closest
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_create_tower_spends_gold` | Gold reduced by tower cost |
+| 2 | `test_create_tower_returns_node` | Non-null node with correct tower_data |
+| 3 | `test_create_tower_fails_insufficient_gold` | Returns null, gold unchanged |
+| 4 | `test_create_tower_fails_unbuildable_cell` | Returns null |
+| 5 | `test_create_tower_fails_blocks_path` | Returns null |
+| 6 | `test_create_tower_adds_to_active` | `get_active_towers()` includes new tower |
+| 7 | `test_create_tower_emits_signal` | `tower_created` signal emitted |
+| 8 | `test_upgrade_tower_success` | tower_data updated to upgrade_to |
+| 9 | `test_upgrade_tower_spends_incremental_cost` | Gold reduced by (upgrade.cost - current.cost) |
+| 10 | `test_upgrade_tower_fails_no_upgrade` | Returns false when upgrade_to==null |
+| 11 | `test_upgrade_tower_fails_insufficient_gold` | Returns false, no changes |
+| 12 | `test_upgrade_tower_emits_signal` | `tower_upgraded` signal emitted |
+| 13 | `test_sell_tower_refund_build_phase` | 75% refund during BUILD_PHASE |
+| 14 | `test_sell_tower_refund_combat_phase` | 50% refund during COMBAT_PHASE |
+| 15 | `test_sell_tower_removes_from_active` | Tower no longer in `get_active_towers()` |
+| 16 | `test_sell_tower_frees_grid_cell` | Grid cell reverts to BUILDABLE |
+| 17 | `test_sell_tower_emits_signal` | `tower_sold` signal with tower and refund |
+| 18 | `test_fuse_towers_success` | Result tower has correct fusion data |
+| 19 | `test_fuse_towers_spends_fusion_cost` | Gold reduced by result.cost |
+| 20 | `test_fuse_towers_removes_tower_b` | Tower B freed, removed from active |
+| 21 | `test_fuse_towers_replaces_tower_a` | Tower A has new tower_data |
+| 22 | `test_fuse_towers_fails_invalid_combo` | Returns false |
+| 23 | `test_fuse_towers_fails_insufficient_gold` | Returns false |
+| 24 | `test_fuse_towers_emits_signal` | `tower_fused` signal emitted |
+| 25 | `test_fuse_legendary_success` | Tier 2 + Superior -> Tier 3 |
+| 26 | `test_fuse_legendary_fails_invalid` | Returns false for wrong tier combo |
+| 27 | `test_get_active_towers_returns_list` | Matches internal `_active_towers` |
 
-**Upgrade button wiring:**
-- UpgradeButton.pressed -> `TowerSystem.upgrade_tower(selected_tower)`
-- Disable if `tower.tower_data.upgrade_to == null` or cannot afford
-- After upgrade, refresh panel with new stats
-
-**Sell button wiring:**
-- SellButton.pressed -> `TowerSystem.sell_tower(selected_tower)` -> `UIManager.deselect_tower()`
-
-**Fusion button wiring:**
-- FuseButton.pressed -> enter fusion selection mode (emit signal to Game.gd)
-- Game.gd enters a "fusion target selection" state similar to tower placement
-- Player clicks a second tower -> `TowerSystem.fuse_towers()` or `fuse_legendary()`
-
-**Target mode dropdown:**
-- Connect OptionButton.item_selected signal
-- Set `tower.target_mode` to the corresponding `Tower.TargetMode` enum value
-- Initialize dropdown to the tower's current target_mode
-
-**Acceptance:** Selecting a tower shows a panel with full stats, special description, tier, upgrade cost, and sell value. Upgrade and Sell buttons function correctly. Targeting mode can be changed via dropdown. Fusion button appears when applicable and initiates the fusion flow.
-
----
-
-### Task 13: Wave Preview Panel
-
-**Files:** Created: `scripts/ui/WavePreviewPanel.gd`, `scenes/ui/WavePreviewPanel.tscn`; Modified: `scripts/autoload/UIManager.gd`, `scripts/autoload/GameManager.gd`
-
-Show upcoming enemy types during the build phase so the player can prepare strategically.
-
-**WavePreviewPanel.tscn:**
-- Small panel in the top-right or below the HUD
-- Shows "Wave N" header
-- Lists each enemy type in the upcoming wave with: icon/sprite, name, count, and any notable properties (flying, stealth, healer, etc.)
-- For boss waves, show a "BOSS" indicator with the boss name
-
-**WavePreviewPanel.gd:**
-- `display_wave(wave_number: int)` -- reads wave_config.json data (already parsed in EnemySystem._wave_config)
-- EnemySystem needs a public accessor: `get_wave_config(wave_number: int) -> Dictionary` that returns the wave entry
-- For each enemy group, load the .tres to get the enemy name and look up its sprite
-- Show enemy element if applicable (for Elemental types, show "Random Element")
-- Show boss_wave indicator
-
-**Timing:**
-- Show at the start of BUILD_PHASE for the upcoming wave (current_wave, since current_wave was already incremented)
-- GameManager.phase_changed signal triggers the preview update
-- Hide during COMBAT_PHASE (or show a "Wave in progress..." message)
-
-**Acceptance:** During build phase, a panel displays the upcoming wave's enemy composition including types, counts, and special properties. Boss waves are clearly marked. Panel updates each build phase.
+**Acceptance:** All creation, upgrade, sell, and fusion paths tested. 90%+ coverage.
 
 ---
 
-### Task 14: Camera Pan and Zoom
+### Task 9: FusionRegistry Tests
 
-**Files:** Modified: `scripts/main/Game.gd`
+**File:** `tests/unit/autoload/test_fusion_registry.gd`
+**Source:** `scripts/autoload/FusionRegistry.gd` (144 lines)
+**Effort:** Medium
+**Priority:** P1 -- fusion lookup correctness is critical
 
-Implement camera controls per GDD Section 10.2: WASD pan, middle mouse drag, scroll wheel zoom.
+**Test cases:**
 
-**Camera2D setup:**
-- The Camera2D already exists at `$Camera2D` in Game.gd
-- Set `zoom` limits: min 0.5x (zoomed out to see full map), max 2.0x (zoomed in for detail)
-- Set position limits to keep the map in view (0,0 to 1280,960 with padding)
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_all_15_dual_fusions_registered` | `_dual_fusions.size() == 15` |
+| 2 | `test_all_6_legendary_fusions_registered` | `_legendary_fusions.size() == 6` |
+| 3 | `test_make_key_sorts_alphabetically` | `_make_key("water", "fire")` == `"fire+water"` |
+| 4 | `test_make_legendary_key_sorts` | `_make_legendary_key(["wind", "fire", "earth"])` == `"earth+fire+wind"` |
+| 5 | `test_get_fusion_result_fire_water` | Returns Steam Engine TowerData |
+| 6 | `test_get_fusion_result_reversed_order` | `get_fusion_result("water", "fire")` == same result |
+| 7 | `test_get_fusion_result_all_15` | Each of the 15 element pairs returns non-null |
+| 8 | `test_get_fusion_result_invalid_combo` | Same element or unknown -> null |
+| 9 | `test_get_legendary_result_fire_water_earth` | Returns Primordial Nexus |
+| 10 | `test_get_legendary_result_all_6` | Each triple-element combo returns non-null |
+| 11 | `test_get_legendary_result_invalid` | Nonexistent triple -> null |
+| 12 | `test_can_fuse_both_superior` | Two tier-1 no-upgrade towers of different elements -> true |
+| 13 | `test_can_fuse_fails_same_element` | Same element -> false |
+| 14 | `test_can_fuse_fails_not_superior` | upgrade_to != null -> false |
+| 15 | `test_can_fuse_fails_wrong_tier` | tier != 1 -> false |
+| 16 | `test_can_fuse_legendary_valid` | Tier 2 + Superior of third element -> true |
+| 17 | `test_can_fuse_legendary_fails_element_already_in_fusion` | Third element in fusion_elements -> false |
+| 18 | `test_can_fuse_legendary_fails_not_tier2` | Non-tier-2 -> false |
+| 19 | `test_can_fuse_legendary_fails_not_superior` | Tower with upgrade_to -> false |
+| 20 | `test_get_fusion_partners_finds_valid` | Returns list of compatible towers |
+| 21 | `test_get_fusion_partners_excludes_self` | Source tower not in results |
+| 22 | `test_get_legendary_partners_bidirectional` | Works from tier2 or superior perspective |
+| 23 | `test_get_all_dual_fusions_returns_dict` | Returns dict with 15 entries |
+| 24 | `test_get_all_legendary_fusions_returns_dict` | Returns dict with 6 entries |
 
-**WASD panning:**
-- In `_process()`, check `Input.is_action_pressed()` for ui_left/ui_right/ui_up/ui_down
-- Move camera position by `pan_speed * delta` in the pressed direction
-- `pan_speed` constant: ~400 px/s at 1x zoom, scale inversely with zoom level
-- Clamp camera position to map bounds
-
-**Middle mouse drag:**
-- Track middle mouse button state in `_unhandled_input()`
-- On middle mouse press: record start position
-- On mouse motion while middle is held: offset camera by the motion delta (inverted for natural drag feel)
-- On middle mouse release: stop dragging
-
-**Scroll wheel zoom:**
-- In `_unhandled_input()`, handle MOUSE_BUTTON_WHEEL_UP / MOUSE_BUTTON_WHEEL_DOWN
-- Zoom toward/away from mouse position (not just screen center)
-- Zoom step: 0.1x per scroll tick
-- Clamp between min and max zoom
-- Smooth zoom with a tween (optional, nice-to-have)
-
-**Edge case handling:**
-- Don't pan while placing a tower (or do -- design choice; recommend allowing it)
-- Ghost tower preview must account for camera offset/zoom in `_update_ghost()`
-- Grid position calculations in `_handle_click()` already use `camera.get_global_mouse_position()` which accounts for camera transform
-
-**Acceptance:** Player can pan the camera with WASD keys and middle mouse drag. Scroll wheel zooms in/out centered on the mouse position. Camera is clamped to map bounds. Ghost tower preview and click-to-place work correctly at all zoom levels.
-
----
-
-### Task 15: Fusion Mode UX in Game.gd
-
-**Files:** Modified: `scripts/main/Game.gd`, `scripts/autoload/UIManager.gd`
-
-Implement the user-facing fusion interaction flow that connects the TowerInfoPanel "Fuse" button to the TowerSystem fusion logic.
-
-**Fusion mode state in Game.gd:**
-- Add `_fusion_source: Node = null` (the tower that initiated fusion)
-- When TowerInfoPanel emits a "fuse_requested" signal (via UIManager), set `_fusion_source` and enter fusion selection mode
-- Show a visual indicator on all valid fusion targets (compatible Superior towers for dual fusion, or compatible towers for legendary fusion): highlight them with a pulsing outline or colored border
-- Ghost-like behavior: as mouse hovers over valid targets, show the fusion result name/icon as a tooltip
-- Left-click on a valid target: execute `TowerSystem.fuse_towers(_fusion_source, target)` or `fuse_legendary()`
-- Right-click or Escape: cancel fusion mode
-- After successful fusion: select the newly fused tower and show its info panel
-
-**Validation display:**
-- Invalid targets (wrong tier, same element, no valid combo) show no highlight
-- If the player clicks an invalid target, show a brief error message (e.g., "Cannot fuse with this tower")
-- If the player cannot afford the fusion cost, show "Not enough gold" and tint the cost red in the info panel
-
-**Acceptance:** Player can initiate fusion from the tower info panel, select a compatible tower, and complete the fusion. Visual feedback clearly shows valid targets. Invalid actions show appropriate error messages. The flow works for both Tier 2 (dual) and Tier 3 (legendary) fusions.
+**Acceptance:** All fusion lookup and validation logic covered. 90%+ coverage.
 
 ---
 
-### Task 16: Ground Effect System
+### Task 10: ElementSynergy Tests
 
-**Files:** Created: `scripts/effects/GroundEffect.gd`, `scenes/effects/GroundEffect.tscn`; Modified: `scripts/main/Game.gd`
+**File:** `tests/unit/systems/test_element_synergy.gd`
+**Source:** `scripts/systems/ElementSynergy.gd` (259 lines)
+**Effort:** Large
+**Priority:** P1 -- synergy bonus calculations affect all tower damage
 
-Build a reusable ground effect system used by Magma Forge (lava pools), Mud Pit (slowing terrain), boss fire trails, and Volcanic Tempest (burning ground patches).
+Tests require mock tower nodes with tower_data. Create minimal stub tower objects with the necessary properties.
 
-**GroundEffect.tscn:**
-- Area2D root with CircleShape2D collision
-- Sprite2D for the visual (lava, mud, ice, etc.)
-- Timer for duration (auto-despawn when expired)
+**Test cases:**
 
-**GroundEffect.gd:**
-- `@export var effect_type: String = ""` (lava, mud, ice, fire_trail)
-- `@export var duration: float = 3.0`
-- `@export var damage_per_second: float = 0.0`
-- `@export var slow_fraction: float = 0.0`
-- `@export var radius_cells: float = 1.0`
-- `_on_body_entered(body)` / `_on_body_exited(body)`: track enemies in the area
-- `_process(delta)`: apply damage and/or status effects to enemies currently inside
-- Auto-queue_free when duration timer expires
-- Spawn method: `GroundEffect.create(type, position, duration, params) -> GroundEffect` static factory or just set properties after instantiation
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_calculate_tier_thresholds` | 0->0, 3->1, 5->2, 8->3 |
+| 2 | `test_calculate_tier_between_thresholds` | 4->1, 7->2, 10->3 |
+| 3 | `test_element_count_single_tower` | 1 fire tower -> fire count == 1 |
+| 4 | `test_element_count_fusion_tower` | fire+water fusion -> fire=1, water=1 |
+| 5 | `test_element_count_ignores_none` | "none" element not counted |
+| 6 | `test_synergy_bonus_tier_0` | 0 towers -> 1.0x damage |
+| 7 | `test_synergy_bonus_tier_1` | 3 fire towers -> 1.1x |
+| 8 | `test_synergy_bonus_tier_2` | 5 fire towers -> 1.2x |
+| 9 | `test_synergy_bonus_tier_3` | 8 fire towers -> 1.3x |
+| 10 | `test_best_synergy_bonus_fusion_tower` | fire+water tower with 5 fire, 3 water -> 1.2x (best of fire) |
+| 11 | `test_attack_speed_bonus_fire_tier2` | 5 fire -> +0.10 |
+| 12 | `test_attack_speed_bonus_fire_tier3` | 8 fire -> +0.20 |
+| 13 | `test_attack_speed_bonus_wind_tier2` | 5 wind -> +0.15 |
+| 14 | `test_range_bonus_earth_tier2` | 5 earth -> +1 cell |
+| 15 | `test_range_bonus_earth_tier3` | 8 earth -> +2 cells |
+| 16 | `test_chain_bonus_lightning_tier2` | 5 lightning -> +1 chain |
+| 17 | `test_freeze_chance_bonus_ice_tier2` | 5 ice -> +0.10 |
+| 18 | `test_slow_bonus_water_tier2` | 5 water -> +0.10 |
+| 19 | `test_no_aura_bonus_below_tier2` | 3 fire -> attack_speed_bonus == 0 |
+| 20 | `test_synergy_color_at_tier0` | Returns Color.WHITE |
+| 21 | `test_synergy_color_at_tier1` | Returns lerp(WHITE, element_color, 0.15) |
+| 22 | `test_synergy_changed_signal_on_tier_change` | Signal emitted when tier transitions |
+| 23 | `test_synergy_changed_not_emitted_when_same_tier` | No signal if adding tower doesn't change tier |
+| 24 | `test_recalculate_clears_old_counts` | Selling towers decrements correctly |
 
-**Integration with Game.gd:**
-- Projectile or Tower emits a signal (or directly instantiates via a new signal: `ground_effect_spawned(effect: Node)`)
-- Game.gd adds the ground effect to game_board as a child
-
-**Acceptance:** Ground effects can be spawned at arbitrary positions, persist for a specified duration, apply damage/slow to enemies passing through, and despawn automatically. Visual representation is visible on the game board.
-
----
-
-### Task 17: Tower Disable Mechanic (Boss Interaction)
-
-**Files:** Modified: `scripts/towers/Tower.gd`
-
-Add the ability for bosses to temporarily disable towers (used by Ember Titan fire trail and Glacial Wyrm tower freeze).
-
-**Tower.gd additions:**
-- `var _is_disabled: bool = false`
-- `var _disable_timer: float = 0.0`
-- `func disable_for(duration: float) -> void`: sets `_is_disabled = true`, `_disable_timer = duration`
-- In `_process()`: if `_is_disabled`, decrement timer, skip targeting/attacking. When timer expires, restore.
-- Visual feedback: disabled tower has a blue-ish frozen tint or grayed-out modulate (e.g., `sprite.modulate = Color(0.5, 0.5, 0.8, 0.7)` for frozen, restored to WHITE when re-enabled)
-
-**Boss ability triggers:**
-- Ember Titan fire trail (from Task 8): calls `tower.disable_for(2.0)` on towers within 1 cell of the trail
-- Glacial Wyrm tower freeze (from Task 8): calls `tower.disable_for(3.0)` on all towers within 3 cells every 8s
-- The boss ability logic in Enemy.gd iterates `TowerSystem.get_active_towers()` and checks distance
-
-**Acceptance:** Towers can be temporarily disabled with visual feedback. During disable, towers do not attack. Timer restores normal function. Boss abilities correctly trigger tower disabling.
+**Acceptance:** All synergy tier, bonus, and aura calculations validated. 85%+ coverage.
 
 ---
 
-### Task 18: Refactor Elemental Damage Matrix
+### Task 11: Enemy Behavior Tests
 
-**Files:** Created: `scripts/systems/ElementMatrix.gd`; Modified: `scripts/towers/Tower.gd`, `scripts/projectiles/Projectile.gd`, `scripts/enemies/Enemy.gd`
+**File:** `tests/unit/enemies/test_enemy.gd`
+**Source:** `scripts/enemies/Enemy.gd` (517 lines)
+**Effort:** X-Large
+**Priority:** P1 -- most complex script, many behaviors
 
-The elemental damage matrix is currently duplicated in Tower.gd and Projectile.gd. Centralize it and extend it to support immunity, weakness, and synergy.
+Tests require scene instantiation since Enemy extends Node2D with @onready children. Use `auto_free()` and minimal scene setup.
 
-**ElementMatrix.gd (new autoload or static class):**
-- Single source of truth for the 6x6 damage multiplier matrix
-- `static func get_multiplier(attacker_element: String, target_element: String) -> float`
-- `static func get_elements() -> Array[String]` returns canonical element list
-- `static func get_counter(element: String) -> String` returns the element that deals 1.5x to the given element
-- Supports "none" and "chaos" as target elements (return 1.0 for both)
+**Test cases (grouped by subsystem):**
 
-**Enemy.gd resistance refactor:**
-- Move elemental immunity/weakness checks into `_apply_resistance()` using ElementMatrix
-- Support `immune_element` (returns 0 damage) and `weak_element` (returns 2x damage) from EnemyData
-- Physical resist remains a separate check for earth element
+**Movement (7 tests):**
 
-**Remove duplication:**
-- Tower.gd `_get_element_multiplier()` -> calls `ElementMatrix.get_multiplier()`
-- Projectile.gd `_get_element_multiplier()` -> calls `ElementMatrix.get_multiplier()`
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_starts_at_first_path_point` | `position == path_points[0]` after _ready |
+| 2 | `test_moves_along_path` | After ticking, position approaches second point |
+| 3 | `test_path_index_increments` | Reaching a point advances `_path_index` |
+| 4 | `test_path_progress_updates` | `path_progress` reflects fractional position |
+| 5 | `test_reached_exit_triggers_exit` | Moving past last point calls `_reached_exit()` |
+| 6 | `test_push_back_decrements_index` | `push_back(2)` moves enemy backward |
+| 7 | `test_pull_toward_snaps_to_path` | `pull_toward()` snaps to nearest path point |
 
-**Acceptance:** Elemental damage matrix exists in one place. All damage calculations (Tower, Projectile, Enemy resistance) reference the same source. Adding new elements or changing multipliers requires editing only one file.
+**Damage and Death (8 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 8 | `test_take_damage_reduces_health` | 100 HP - 30 dmg = 70 HP |
+| 9 | `test_take_damage_kills_at_zero` | Lethal damage triggers `_die()` |
+| 10 | `test_apply_resistance_immune_element` | Immune element -> 0 damage |
+| 11 | `test_apply_resistance_weak_element` | Weak element -> 2x damage |
+| 12 | `test_apply_resistance_physical_resist` | 50% resist on earth -> half damage |
+| 13 | `test_wet_bonus_lightning_damage` | WET + lightning -> 1.5x damage |
+| 14 | `test_stunned_double_damage` | STUN -> 2x damage from all sources |
+| 15 | `test_heal_restores_health` | `heal(50)` caps at max_health |
+
+**Status Effects (10 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 16 | `test_apply_burn_status` | Burn added to _status_effects |
+| 17 | `test_burn_stacks` | Multiple burns accumulate independently |
+| 18 | `test_slow_replaces_existing_slow` | New slow replaces old (shared slot) |
+| 19 | `test_freeze_replaces_slow` | Freeze replaces slow in movement slot |
+| 20 | `test_stun_replaces_freeze` | Stun replaces freeze in movement slot |
+| 21 | `test_wet_is_separate_slot` | WET does not replace slow/freeze |
+| 22 | `test_has_status_returns_true` | `has_status(BURN)` after applying burn |
+| 23 | `test_clear_all_status_effects` | All effects removed, speed restored |
+| 24 | `test_speed_zero_when_frozen` | FREEZE -> speed == 0 |
+| 25 | `test_speed_reduced_when_slowed` | 30% slow -> speed * 0.7 |
+
+**Special Enemy Types (8 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 26 | `test_healer_heals_nearby_allies` | Allies within 128px gain health |
+| 27 | `test_healer_does_not_heal_self` | Healer's own HP unchanged |
+| 28 | `test_healer_skips_full_health` | Full-health allies not healed |
+| 29 | `test_split_on_death_spawns_children` | `_die()` with split_on_death calls EnemySystem |
+| 30 | `test_stealth_starts_invisible` | `sprite.modulate.a == 0.15` |
+| 31 | `test_stealth_untargetable_until_revealed` | `_is_revealed == false` initially |
+| 32 | `test_stealth_reveals_near_tower` | Tower within 128px -> `_is_revealed = true` |
+| 33 | `test_elemental_assigns_immune_weak` | Elemental enemy gets non-empty immune/weak elements |
+
+**Boss Abilities (6 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 34 | `test_boss_fire_trail_spawns_ground_effect` | `ground_effect_spawned` signal emitted |
+| 35 | `test_boss_tower_freeze_disables_towers` | Towers within radius get `disable_for()` |
+| 36 | `test_boss_element_cycle_changes_immunity` | Each cycle rotates `immune_element` |
+| 37 | `test_chaos_enrage_increases_speed` | `_chaos_cycle_count` multiplies speed |
+| 38 | `test_boss_minion_spawn_timer` | Minion timer triggers EnemySystem.spawn_boss_minions |
+| 39 | `test_flying_bobbing_effect` | Sprite position.y oscillates with sine wave |
+
+**Acceptance:** 80%+ coverage across all Enemy subsystems. ~39 test cases.
+
+---
+
+### Task 12: Tower Behavior Tests
+
+**File:** `tests/unit/towers/test_tower.gd`
+**Source:** `scripts/towers/Tower.gd` (439 lines)
+**Effort:** X-Large
+**Priority:** P1 -- tower behavior is central to gameplay
+
+**Test cases (grouped by subsystem):**
+
+**Core Attack Loop (7 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_only_attacks_during_combat` | `_process()` skips if not COMBAT_PHASE |
+| 2 | `test_find_target_first_mode` | Returns enemy with highest path_progress |
+| 3 | `test_find_target_weakest_mode` | Returns enemy with lowest current_health |
+| 4 | `test_find_target_closest_mode` | Returns closest enemy by distance |
+| 5 | `test_find_target_excludes_stealth` | Unrevealed stealth enemies skipped |
+| 6 | `test_find_target_returns_null_no_enemies` | No enemies in range -> null |
+| 7 | `test_attack_spawns_projectile` | `projectile_spawned` signal emitted |
+
+**Multi-target / Chain (3 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 8 | `test_multi_attack_spawns_n_projectiles` | special_key="multi" with value=2 -> 2 projectiles |
+| 9 | `test_multi_attack_finds_multiple_targets` | `_find_multiple_targets()` returns up to N |
+| 10 | `test_chain_projectile_has_chain_data` | Projectile gets chain_count and chain_damage_fraction |
+
+**Damage Calculation (4 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 11 | `test_calculate_damage_base` | No multipliers -> base damage |
+| 12 | `test_calculate_damage_with_element_multiplier` | fire vs earth -> 1.5x |
+| 13 | `test_calculate_damage_with_synergy` | Synergy 1.2x applied on top of element |
+| 14 | `test_storm_aoe_wave_scaling` | Damage increases with wave number |
+
+**Special Abilities (6 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 15 | `test_freeze_burn_alternates` | Even attacks freeze, odd attacks burn |
+| 16 | `test_aura_slow_applies_to_enemies` | slow_aura ticks apply SLOW to enemies in range |
+| 17 | `test_thorn_aura_deals_damage` | Thorn aura does damage per tick |
+| 18 | `test_blizzard_aura_slow_and_freeze` | Blizzard applies slow always + freeze chance |
+| 19 | `test_periodic_geyser_burst` | Geyser deals AoE damage + slow on interval |
+| 20 | `test_pure_aura_skips_projectile` | attack_speed == 0 -> no projectile fired |
+
+**Disable Mechanic (4 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 21 | `test_disable_for_sets_flag` | `is_disabled()` returns true |
+| 22 | `test_disabled_tower_skips_attacks` | No projectiles while disabled |
+| 23 | `test_disable_timer_expires` | After duration, `is_disabled()` returns false |
+| 24 | `test_disable_extends_to_longer_duration` | `disable_for(5)` then `disable_for(3)` -> stays 5s |
+
+**Synergy Integration (3 tests):**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 25 | `test_synergy_refreshes_range` | Earth synergy adds range cells |
+| 26 | `test_synergy_refreshes_speed` | Fire synergy adds attack speed |
+| 27 | `test_on_synergy_changed_reapplies_data` | `synergy_changed` -> `apply_tower_data()` called |
+
+**Acceptance:** 80%+ coverage. ~27 test cases.
+
+---
+
+### Task 13: Projectile Tests
+
+**File:** `tests/unit/projectiles/test_projectile.gd`
+**Source:** `scripts/projectiles/Projectile.gd` (370 lines)
+**Effort:** Large
+**Priority:** P2 -- complex hit logic
+
+**Test cases:**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_single_hit_applies_damage` | Target takes correct damage |
+| 2 | `test_single_hit_applies_special` | Burn/slow/freeze applied via _try_apply_special |
+| 3 | `test_aoe_hit_damages_all_in_radius` | Multiple enemies within radius take damage |
+| 4 | `test_aoe_hit_skips_out_of_range` | Enemies outside radius unaffected |
+| 5 | `test_chain_hits_secondary_targets` | Chain damage applied to nearby non-primary enemies |
+| 6 | `test_chain_respects_count_limit` | Only `chain_count` secondary targets hit |
+| 7 | `test_chain_damage_fraction_applied` | Secondary damage = base * fraction |
+| 8 | `test_cone_aoe_angle_check` | Only enemies within 90-degree cone take damage |
+| 9 | `test_pull_burn_pulls_then_damages` | Enemies pulled toward impact, then burned |
+| 10 | `test_pushback_moves_enemies_back` | Enemies pushed back along path |
+| 11 | `test_earthquake_slow_and_stun` | AoE + slow to all + stun chance per enemy |
+| 12 | `test_ground_effect_spawned_lava_pool` | `ground_effect_spawned` signal for lava_pool |
+| 13 | `test_ground_effect_spawned_slow_zone` | `ground_effect_spawned` signal for slow_zone |
+| 14 | `test_ground_effect_spawned_burning_ground` | `ground_effect_spawned` signal for burning_ground |
+| 15 | `test_calculate_damage_per_target_element` | Different element enemies get different damage |
+| 16 | `test_synergy_damage_mult_applied` | Synergy multiplier affects damage |
+| 17 | `test_try_apply_special_proc_chance` | 0% chance -> no effect, 100% -> always applies |
+| 18 | `test_wet_chain_applies_wet` | Storm Beacon chain applies WET status |
+| 19 | `test_freeze_chain_attempts_freeze` | Cryo-Volt chain applies freeze with chance |
+| 20 | `test_projectile_tracks_target` | Moves toward target position each frame |
+| 21 | `test_projectile_uses_last_pos_if_target_dies` | Falls back to `target_last_pos` |
+| 22 | `test_projectile_hits_at_threshold` | Within 8px triggers `_hit()` |
+| 23 | `test_projectile_queue_frees_after_hit` | `queue_free()` called after `_hit()` |
+
+**Acceptance:** All hit variants, specials, and ground effects covered. 80%+ coverage.
+
+---
+
+### Task 14: GroundEffect Tests
+
+**File:** `tests/unit/effects/test_ground_effect.gd`
+**Source:** `scripts/effects/GroundEffect.gd` (93 lines)
+**Effort:** Small
+**Priority:** P2
+
+**Test cases:**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_lava_pool_deals_tick_damage` | Enemies in radius take burn damage per tick |
+| 2 | `test_slow_zone_applies_slow` | Enemies in radius get SLOW status |
+| 3 | `test_fire_trail_disables_towers` | Towers within 64px get `disable_for(2.0)` |
+| 4 | `test_burning_ground_deals_damage` | Same as lava_pool but orange color |
+| 5 | `test_effect_expires_after_duration` | `queue_free()` after `effect_duration` seconds |
+| 6 | `test_effect_fades_in_last_half_second` | `modulate.a` decreases in final 0.5s |
+| 7 | `test_tick_interval_respected` | Damage only applied every 0.5s |
+| 8 | `test_enemies_outside_radius_unaffected` | Distant enemies take no damage |
+
+**Acceptance:** 80%+ coverage of GroundEffect.gd.
+
+---
+
+### Task 15: Data Resource Validation Tests
+
+**File:** `tests/unit/test_resource_validation.gd`
+**Source:** All `.tres` files in `resources/`
+**Effort:** Medium
+**Priority:** P1 -- catches data entry errors early
+
+**Test cases:**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_all_6_base_tower_tres_load` | Each base tower .tres loads without error |
+| 2 | `test_all_12_enhanced_superior_load` | All enhanced/superior .tres load |
+| 3 | `test_all_15_fusion_tres_load` | All fusion .tres load with tier==2 |
+| 4 | `test_all_6_legendary_tres_load` | All legendary .tres load with tier==3 |
+| 5 | `test_base_towers_have_upgrade_chain` | Base -> Enhanced -> Superior chain complete |
+| 6 | `test_superior_towers_have_no_upgrade` | upgrade_to == null |
+| 7 | `test_fusion_towers_have_fusion_elements` | fusion_elements.size() == 2 |
+| 8 | `test_legendary_towers_have_fusion_elements` | fusion_elements.size() == 3 |
+| 9 | `test_all_enemy_tres_load` | All 14 enemy .tres load correctly |
+| 10 | `test_boss_enemies_have_abilities` | Bosses have non-empty boss_ability_key |
+| 11 | `test_split_enemy_has_split_data` | split.tres has split_data pointing to split_child.tres |
+| 12 | `test_healer_has_heal_per_second` | healer.tres heal_per_second > 0 |
+| 13 | `test_flying_enemy_is_flying` | flying.tres is_flying == true |
+| 14 | `test_stealth_enemy_is_stealth` | stealth.tres stealth == true |
+| 15 | `test_wave_config_has_30_waves` | wave_config.json has entries for waves 1-30 |
+| 16 | `test_wave_config_boss_waves` | Waves 10, 20, 30 have is_boss_wave == true |
+| 17 | `test_wave_config_all_enemy_types_exist` | Every type referenced in waves has a .tres |
+| 18 | `test_tower_cost_increases_with_tier` | Enhanced > Base, Superior > Enhanced |
+| 19 | `test_tower_damage_increases_with_tier` | Enhanced > Base, Superior > Enhanced |
+
+**Acceptance:** All data resources validated for correctness and consistency.
+
+---
+
+### Task 16: Integration Tests -- Tower-Enemy Combat
+
+**File:** `tests/integration/test_combat_flow.gd`
+**Source:** Tower, Projectile, Enemy, EnemySystem, TowerSystem interactions
+**Effort:** Large
+**Priority:** P2
+
+These tests verify that multiple systems work together correctly. They use `scene_runner()` or manually tick `_process()` to simulate real gameplay frames.
+
+**Test cases:**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_tower_kills_enemy_awards_gold` | Place tower, spawn enemy, simulate -> enemy dies, gold increases |
+| 2 | `test_burn_tower_applies_dot_to_enemy` | Flame Spire projectile -> enemy takes burn damage over time |
+| 3 | `test_slow_tower_reduces_enemy_speed` | Tidal Obelisk -> enemy speed reduced |
+| 4 | `test_aoe_tower_hits_multiple_enemies` | Stone Bastion -> multiple enemies damaged |
+| 5 | `test_chain_lightning_chains_to_secondaries` | Thunder Pylon -> primary + secondary targets hit |
+| 6 | `test_multi_tower_fires_at_two_targets` | Gale Tower -> 2 projectiles spawned |
+| 7 | `test_freeze_stops_enemy_movement` | Frost Sentinel freeze -> enemy speed == 0 |
+| 8 | `test_tower_upgrade_increases_damage` | Upgrade -> subsequent attacks deal more damage |
+| 9 | `test_selling_tower_reopens_path` | Sell -> grid cell reverts, pathfinding updates |
+| 10 | `test_enemy_reaching_exit_loses_life` | Enemy walks full path -> GameManager.lives - 1 |
+| 11 | `test_wave_clear_awards_bonus` | All enemies killed -> wave bonus gold added |
+| 12 | `test_no_leak_bonus_25_percent` | Wave cleared with 0 leaks -> 25% bonus |
+
+**Acceptance:** Core combat loop verified end-to-end.
+
+---
+
+### Task 17: Integration Tests -- Fusion Flow
+
+**File:** `tests/integration/test_fusion_flow.gd`
+**Source:** FusionRegistry, TowerSystem, ElementSynergy interactions
+**Effort:** Medium
+**Priority:** P2
+
+**Test cases:**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_full_dual_fusion_flow` | Create 2 superior towers -> fuse -> result is tier 2 |
+| 2 | `test_full_legendary_fusion_flow` | Create tier 2 + superior -> fuse -> result is tier 3 |
+| 3 | `test_fusion_updates_synergy_counts` | Element counts recalculated after fusion |
+| 4 | `test_fusion_tower_has_both_elements` | Fusion tower's fusion_elements matches source elements |
+| 5 | `test_fusion_cost_deducted` | Gold reduced by result tower cost |
+| 6 | `test_fusion_consumed_tower_freed` | Second tower removed from grid and freed |
+
+**Acceptance:** End-to-end fusion verified for both dual and legendary paths.
+
+---
+
+### Task 18: Integration Tests -- Game State Flow
+
+**File:** `tests/integration/test_game_state_flow.gd`
+**Source:** GameManager, EnemySystem, EconomyManager interactions
+**Effort:** Medium
+**Priority:** P2
+
+**Test cases:**
+
+| # | Test | Behavior |
+|---|------|----------|
+| 1 | `test_full_wave_cycle` | BUILD -> COMBAT -> wave clear -> BUILD (wave+1) |
+| 2 | `test_income_phase_every_5_waves` | Wave 5 -> INCOME -> interest applied -> BUILD |
+| 3 | `test_game_over_on_zero_lives` | Enemy leaks reduce lives to 0 -> GAME_OVER defeat |
+| 4 | `test_victory_at_wave_30` | Clear wave 30 -> GAME_OVER victory |
+| 5 | `test_early_wave_start_bonus` | Start early with timer remaining -> bonus gold |
+| 6 | `test_economy_reset_before_restart` | After game over restart, gold == 100 |
+
+**Acceptance:** Complete game lifecycle tested.
 
 ---
 
 ## Task Dependency Order
 
 ```
-Task 18 (element matrix refactor)     -- no dependencies, foundational
-Task 1  (wind/lightning specials)      -- no dependencies
-Task 2  (upgrade tiers)               -- no dependencies
-Task 7  (flying enemies)              -- no dependencies
-Task 11 (build menu expansion)        -- no dependencies
-Task 14 (camera controls)             -- no dependencies
-Task 6  (new enemy types)             -- depends on Task 18 (elemental enemy needs matrix)
-Task 9  (30-wave config)              -- depends on Task 6 (needs all enemy types defined)
-Task 3  (dual fusion system)          -- depends on Task 2 (needs Superior tier towers)
-Task 16 (ground effect system)        -- no dependencies, but needed by Task 4 and Task 8
-Task 4  (dual fusion abilities)       -- depends on Task 3 (needs fusion towers), Task 16 (ground effects)
-Task 17 (tower disable)               -- no dependencies, but needed by Task 8
-Task 8  (boss behaviors)              -- depends on Task 6, Task 16, Task 17
-Task 5  (legendary fusion + abilities) -- depends on Task 3 (extends fusion system), Task 4 (builds on special patterns)
-Task 10 (element synergy)             -- depends on Task 2 (needs upgrade tiers for tower counts to matter)
-Task 12 (tower info panel)            -- depends on Task 2 (upgrade UI), Task 3 (fusion UI), Task 10 (synergy display)
-Task 13 (wave preview)                -- depends on Task 9 (needs full wave config)
-Task 15 (fusion UX)                   -- depends on Task 3, Task 5, Task 12
+Task 1  (EconomyManager tests)        -- no dependencies, foundational
+Task 2  (StatusEffect tests)          -- no dependencies
+Task 3  (ElementMatrix tests)         -- no dependencies
+Task 4  (GameManager tests)           -- depends on Task 1 (economy signals)
+Task 5  (GridManager tests)           -- depends on Task 6 (pathfinding)
+Task 6  (PathfindingSystem tests)     -- depends on Task 5 (grid setup) -- co-dependent, test together
+Task 7  (EnemySystem tests)           -- depends on Task 4 (game state), Task 2 (status effects)
+Task 8  (TowerSystem tests)           -- depends on Task 1, Task 5
+Task 9  (FusionRegistry tests)        -- no dependencies (pure lookup)
+Task 10 (ElementSynergy tests)        -- depends on Task 8 (tower stubs)
+Task 11 (Enemy tests)                 -- depends on Task 2, Task 3
+Task 12 (Tower tests)                 -- depends on Task 3, Task 10
+Task 13 (Projectile tests)            -- depends on Task 3, Task 11, Task 12
+Task 14 (GroundEffect tests)          -- depends on Task 11 (enemy stubs)
+Task 15 (Resource validation)         -- no dependencies
+Task 16 (Integration: combat)         -- depends on Tasks 7, 8, 11, 12, 13
+Task 17 (Integration: fusion)         -- depends on Tasks 8, 9, 10
+Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 ```
 
 ---
 
 ## Recommended Implementation Order
 
-| Order | Task | Effort | Priority | Notes |
-|-------|------|--------|----------|-------|
-| 1 | Task 18: Refactor element matrix | Small | Critical | Eliminates duplication before adding more systems |
-| 2 | Task 1: Wind/Lightning specials | Medium | Critical | Completes all 6 base tower behaviors |
-| 3 | Task 11: Build menu expansion | Small | Critical | Unblocks player access to all 6 elements |
-| 4 | Task 2: Tower upgrade tiers | Large | Critical | 12 new .tres files + stat scaling |
-| 5 | Task 7: Flying enemy behavior | Small | High | Simple pathfinding change, needed for wave variety |
-| 6 | Task 6: New enemy types | Large | Critical | 4 types with distinct behaviors |
-| 7 | Task 14: Camera pan/zoom | Medium | Medium | Quality-of-life, no blockers |
-| 8 | Task 16: Ground effect system | Medium | High | Needed by fusion abilities and bosses |
-| 9 | Task 17: Tower disable mechanic | Small | High | Needed by boss behaviors |
-| 10 | Task 3: Dual fusion system | Large | Critical | Centerpiece mechanic of Phase 2 |
-| 11 | Task 4: Dual fusion abilities | X-Large | Critical | 15 unique specials, most complex task |
-| 12 | Task 5: Legendary fusion + abilities | Large | High | 6 towers, extends fusion system |
-| 13 | Task 10: Element synergy bonuses | Medium | High | Adds strategic depth |
-| 14 | Task 9: 30-wave config | Medium | Critical | Requires all enemies, unlocks full game |
-| 15 | Task 8: Boss behaviors | Large | High | 3 unique bosses with complex abilities |
-| 16 | Task 12: Tower info panel | Medium | High | Essential UI for upgrades/fusion |
-| 17 | Task 13: Wave preview panel | Small | Medium | Nice-to-have strategic info |
-| 18 | Task 15: Fusion UX flow | Medium | High | Ties fusion system to player interaction |
+| Order | Task | Test Count | Effort | Priority | Notes |
+|-------|------|-----------|--------|----------|-------|
+| 1 | Task 1: EconomyManager | 18 | Small | P0 | Easiest, establishes patterns |
+| 2 | Task 2: StatusEffect | 12 | Small | P0 | Pure RefCounted, no scene deps |
+| 3 | Task 3: ElementMatrix | 17 | Small | P0 | Static functions, fully isolated |
+| 4 | Task 15: Resource validation | 19 | Medium | P1 | Catches data errors early |
+| 5 | Task 9: FusionRegistry | 24 | Medium | P1 | Pure lookup, no scene deps |
+| 6 | Task 4: GameManager | 20 | Medium | P0 | State machine, some autoload deps |
+| 7 | Task 5: GridManager | 23 | Medium | P0 | Co-develop with PathfindingSystem |
+| 8 | Task 6: PathfindingSystem | 13 | Medium | P0 | Needs grid setup |
+| 9 | Task 7: EnemySystem | 30 | Large | P1 | Wave spawning, scaling formulas |
+| 10 | Task 8: TowerSystem | 27 | Medium | P1 | Factory, needs grid + economy |
+| 11 | Task 10: ElementSynergy | 24 | Large | P1 | Needs mock tower objects |
+| 12 | Task 11: Enemy | 39 | X-Large | P1 | Scene-based, complex behaviors |
+| 13 | Task 12: Tower | 27 | X-Large | P1 | Scene-based, targeting + attacks |
+| 14 | Task 13: Projectile | 23 | Large | P2 | Hit logic, ground effects |
+| 15 | Task 14: GroundEffect | 8 | Small | P2 | Tick-based effects |
+| 16 | Task 16: Integration: combat | 12 | Large | P2 | Multi-system end-to-end |
+| 17 | Task 17: Integration: fusion | 6 | Medium | P2 | Fusion pipeline |
+| 18 | Task 18: Integration: game state | 6 | Medium | P2 | Full lifecycle |
+
+**Total test cases: ~348**
 
 **Parallelizable groups:**
-- Tasks 18, 1, 11, 14 can all be done independently in parallel
-- Tasks 2, 7 can be done in parallel after Task 18
-- Tasks 6, 16, 17 can be done in parallel after Task 18
-- Tasks 12, 13 can be done in parallel once their dependencies are met
+- Tasks 1, 2, 3, 9, 15 can all be implemented independently in parallel
+- Tasks 4, 5, 6 can be done in parallel after Task 1
+- Tasks 7, 8 can be done in parallel after Tasks 4, 5, 6
+- Tasks 11, 12 can be done in parallel after Tasks 2, 3, 10
+- Tasks 16, 17, 18 can be done in parallel after their unit test dependencies
 
-**Estimated total effort:** ~4 weeks (1 developer), ~2 weeks (2 developers with parallel tracks)
+**Estimated total effort:** ~3 weeks (1 developer), ~1.5 weeks (2 developers with parallel tracks)
 
 ---
 
-## Out of Scope for Phase 2
+## CI/CD Integration (Optional)
 
-Per GDD, these are deferred to Phase 3+:
+### GitHub Actions Workflow
 
-- **Draft Mode** (Phase 3) -- element pick/ban system, alternating draft
-- **Endless Mode** (Phase 3) -- infinite scaling waves after wave 30
-- **Versus Mode** (Phase 3) -- PvP with send mechanics
-- **Co-op Mode** (Phase 3) -- shared map with partner
-- **Additional maps** (Phase 3) -- only ForestClearing in Phase 2
-- **Anti-air targeting restriction** (Phase 3) -- all towers can hit flying in Phase 2
-- **Meta progression / XP system** (Phase 3) -- persistent unlocks
-- **Save/load system** (Phase 3) -- mid-game saves
-- **Audio system** (Phase 3) -- music, SFX, AudioManager wiring
-- **Particle effects / VFX polish** (Phase 3) -- placeholder tints/colors suffice for Phase 2
-- **Touch input / mobile controls** (Phase 3) -- keyboard/mouse only in Phase 2
-- **HTML5 / Android export optimization** (Phase 3)
-- **Object pooling for enemies/projectiles** (Phase 3) -- instantiate/queue_free is acceptable for 30-wave scope
-- **Localization** (Phase 4)
-- **Leaderboards / online features** (Phase 4)
+Create `.github/workflows/test.yml`:
+
+```yaml
+name: GdUnit4 Tests
+on:
+  push:
+    branches: [main, phase2, phase3]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.6
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Import project
+        run: |
+          mkdir -p ~/.local/share/godot/export_presets
+          godot --headless --import --quit 2>/dev/null || true
+
+      - name: Run tests
+        run: |
+          godot --headless --path . -s -d res://addons/gdUnit4/bin/GdUnitCmdTool.gd --add tests/ --junit-report=results/junit.xml
+        timeout-minutes: 10
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: results/
+```
+
+### Pre-commit Hook
+
+Add to `.git/hooks/pre-commit` (or use a pre-commit framework):
+
+```bash
+#!/bin/bash
+# Run quick unit tests before committing
+if command -v godot &> /dev/null; then
+  godot --headless --path . -s -d res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+    --add tests/unit/ 2>&1 | tail -5
+  exit $?
+fi
+echo "Warning: Godot not found, skipping tests"
+```
+
+### Coverage Tracking
+
+GdUnit4 does not provide built-in code coverage (Godot 4.x lacks native coverage instrumentation). Track coverage manually:
+
+1. **Function coverage:** Maintain a checklist of every public function per script. Mark each as tested.
+2. **Branch coverage:** For functions with conditionals (match, if/elif), ensure tests exercise each branch.
+3. **Periodic audit:** After completing all test tasks, run through each source file and verify every non-trivial branch has a corresponding test.
+
+Target: update the coverage checklist in `docs/work/coverage.md` after each task.
+
+---
+
+## Out of Scope
+
+- **UI visual regression tests** -- BuildMenu, TowerInfoPanel, CodexPanel, HUD, and WavePreviewPanel are primarily visual. Testing their layout and styling requires screenshot comparison tooling not available in GdUnit4. Defer to manual QA.
+- **Performance benchmarks** -- Object pooling, pathfinding timing, and memory budgets are Phase 3 concerns. Tests validate correctness, not performance.
+- **Audio tests** -- AudioManager is a stub with no behavior to test.
+- **Touch/mobile input tests** -- Phase 3 scope, keyboard/mouse only in Phase 2.
+- **Network/multiplayer tests** -- No multiplayer systems implemented.
+- **Save/load tests** -- Save system is Phase 3.

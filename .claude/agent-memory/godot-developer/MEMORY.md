@@ -30,9 +30,9 @@
 - [x] P1-Task 9: Ghost tower preview (green/red tint)
 - [x] P1-Task 10: Game over screen (victory/defeat + play again)
 
-## Phase 2 Implementation Status (IN PROGRESS)
+## Phase 2 Implementation Status (COMPLETE)
 - Plan: `docs/work/plan.md` -- 18 tasks, ~4 weeks estimated
-- [ ] P2-Task 18: Refactor element matrix (centralize duplicated 6x6 matrix)
+- [x] P2-Task 18: Refactor element matrix (ElementMatrix.gd static class)
 - [x] P2-Task 1: Wind/Lightning specials (multi-target + chain)
 - [x] P2-Task 11: Build menu expansion (all 6 base elements, styled buttons)
 - [x] P2-Task 2: Tower upgrade tiers (Enhanced/Superior, 12 new .tres)
@@ -71,11 +71,14 @@
 - `scripts/ui/TowerInfoPanel.gd` - tower info panel: full stats, tier, synergy, fuse/sell/upgrade buttons, target mode dropdown, element-colored styling, fuse_requested signal
 - `scenes/ui/TowerInfoPanel.tscn` - anchored bottom-right (240x420), hidden by default, instanced in Game scene under UILayer. Nodes: NameLabel, TierLabel, ElementLabel, DamageLabel, SpeedLabel, RangeLabel, SpecialLabel, SynergyLabel, UpgradeCostLabel, SellValueLabel, TargetModeDropdown, ButtonRow(Upgrade+Sell), FuseButton
 - `scripts/autoload/FusionRegistry.gd` - fusion lookup table, can_fuse()/can_fuse_legendary() validation, get_fusion_partners()/get_legendary_partners()
+- `scripts/systems/ElementMatrix.gd` - single source of truth for 6x6 damage matrix, counters, element colors (static class, NOT autoload)
 - `scripts/systems/ElementSynergy.gd` - element synergy autoload: tracks tower counts, provides damage/speed/range/chain/freeze/slow bonuses per element
 - `resources/towers/fusions/*.tres` - 15 dual-element fusion tower data (tier 2)
 - `resources/towers/legendaries/*.tres` - 6 triple-element legendary tower data (tier 3)
 - `scripts/ui/WavePreviewPanel.gd` - wave preview panel: enemy composition, traits, boss banners
 - `scenes/ui/WavePreviewPanel.tscn` - anchored top-right (220px wide, below HUD at y=48), hidden by default, mouse_filter=IGNORE
+- `scripts/ui/CodexPanel.gd` - codex/encyclopedia panel: 4 tabs (Fusions, Towers, Elements, Enemies)
+- `scenes/ui/CodexPanel.tscn` - centered 900x600 PanelContainer overlay, hidden by default, mouse_filter=STOP
 
 ## Gotchas -> see `gotchas.md` for full list
 - StatusEffect is RefCounted (not Node). Burn stacks; Slow/Freeze/STUN share movement-impairing slot; WET is separate.
@@ -86,6 +89,8 @@
 - FusionRegistry keys: alphabetically sorted element pairs. Fusion eligibility = both Superior (upgrade_to==null), different elements.
 - Fusion specials (15 dual, 6 legendary): see MEMORY sections below or `gotchas.md`
 - Autoloads persist across scene reloads -- must call EconomyManager.reset() before reload_current_scene()
+- ElementMatrix is a static class (class_name, NOT autoload). Call via ElementMatrix.get_multiplier(), etc. ELEMENT_COLORS in UI scripts (BuildMenu, TowerInfoPanel, WavePreviewPanel) are intentionally different palettes from ElementMatrix.COLORS.
+- ElementSynergy.gd still has its own ELEMENT_COLORS (lighter tint values for tower synergy visuals) -- separate from ElementMatrix.COLORS
 
 ## New Enemy Types (P2-Task 6)
 - Healer: heal_per_second > 0 triggers _heal_nearby(delta) in _process(). Heals allies within 2 cells (128px), NOT self. Green flash (0.15s) on healed allies via _heal_flash_timer.
@@ -93,7 +98,7 @@
 - Stealth: stealth=true in EnemyData. Enemy starts at 0.15 alpha, _is_revealed=false. Untargetable by towers (filtered in Tower._get_in_range_enemies()). Revealed permanently when any tower is within 2 cells. _original_modulate tracks alpha for status visual resets.
 - Elemental: immune_element/weak_element assigned randomly in _apply_enemy_data() when enemy_name=="Elemental". Seeded RNG per instance (wave*1000 + instance_id). Immune element -> 0 damage. Weak element -> 2x damage. Checked in _apply_resistance() before physical_resist. Sprite tinted to immune element color.
 - EnemyData.gd has immune_element/weak_element fields. _create_scaled_enemy() copies them. Elemental assignment happens in Enemy.gd after scaling.
-- ELEMENT_COUNTERS maps immune->weak: fire->water, water->earth, earth->wind, wind->lightning, lightning->fire, ice->fire. split.tres uses ext_resource to reference split_child.tres.
+- ElementMatrix.COUNTERS maps immune->weak: fire->water, water->earth, earth->wind, wind->lightning, lightning->fire, ice->fire. split.tres uses ext_resource to reference split_child.tres.
 
 ## Legendary Fusion System (P2-Task 5)
 - 6 triple-element legendaries: Primordial Nexus, Supercell Obelisk, Arctic Maelstrom, Crystalline Monolith, Volcanic Tempest, Tectonic Dynamo
@@ -166,7 +171,30 @@
 - Camera2D in Game.tscn: position=(640,480), position_smoothing_enabled=true, speed=12.0
 - Ghost preview + click-to-place use camera.get_global_mouse_position() -- already camera-aware, no changes needed
 
+## Codex Panel (Phase 3)
+- `scripts/ui/CodexPanel.gd` - 4-tab encyclopedia (Fusions, Towers, Elements, Enemies), self-registers via UIManager.register_codex()
+- `scenes/ui/CodexPanel.tscn` - centered 900x600 PanelContainer, starts hidden, uid://codexpanel
+- Opens via HUD "Codex (C)" button or C key (ui_codex input action, keycode 67)
+- UIManager.toggle_codex() calls codex_panel.toggle() (method check via has_method)
+- FusionRegistry.get_all_dual_fusions() / get_all_legendary_fusions() return raw dictionaries
+- Legendary tab shows recipe: finds dual fusion pair from 3-element key, shows "DualName + [3rd element dot] (Sup.) = LegendaryName"
+- Content built dynamically from .tres resource loading -- no caching (panel rarely opened)
+- Escape key closes codex via _unhandled_input (handled before Game.gd's _unhandled_input because CodexPanel is a UI node)
+
 ## UI Panel Details -> see `ui-panels.md`
 - Tower Info Panel (P2-Task 12): fuse_requested signal, element-colored styling, upgrade/sell/fuse buttons
 - Wave Preview Panel (P2-Task 13): self-contained via phase_changed, shows enemy rows with icons + traits
 - Fusion UX Flow (P2-Task 15): partner highlighting, bidirectional legendary fusion click handling
+- Codex Panel: Fusions/Towers/Elements/Enemies tabs, HUD button + C key, centered overlay
+
+## Testing Framework (Phase 3A)
+- GdUnit4 v6.1.1 installed at `addons/gdUnit4/`, enabled in project.godot
+- Plan: `docs/work/plan.md` -- 18 tasks, 348 test cases, ~3 weeks
+- Test dir: `tests/unit/` (mirrors scripts/) + `tests/integration/` + `tests/resources/`
+- Run: `./addons/gdUnit4/runtest.sh --add tests/` (needs GODOT_BIN env var)
+- Naming: `test_{script_name}.gd`, functions `test_{behavior}`
+- Key pattern: `before_test()` must reset autoload state (EconomyManager.reset(), clear arrays)
+- auto_free() required for all Node instances created in tests
+- StatusEffect and ElementMatrix are pure logic -- easiest to test first
+- Scene-based tests (Enemy, Tower, Projectile) need scene instantiation via auto_free()
+- Coverage target: 85% across P0+P1+P2 scripts (2,367 lines)

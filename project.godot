@@ -94,6 +94,14 @@ ui_pan_right={
 ]
 }
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[gdunit4]
+
+report/root_path="res://tests"
+
 [rendering]
 
 textures/canvas_textures/default_texture_filter=0
