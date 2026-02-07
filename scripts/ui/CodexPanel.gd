@@ -5,14 +5,14 @@ extends PanelContainer
 
 @onready var content_container: VBoxContainer = $VBoxContainer/ScrollContainer/ContentContainer
 @onready var tab_buttons: Array[Button] = [
-	$VBoxContainer/TabBar/FusionsTab,
 	$VBoxContainer/TabBar/TowersTab,
 	$VBoxContainer/TabBar/ElementsTab,
+	$VBoxContainer/TabBar/FusionsTab,
 	$VBoxContainer/TabBar/EnemiesTab,
 ]
 @onready var close_button: Button = $VBoxContainer/HeaderBar/CloseButton
 
-const TABS: Array[String] = ["Fusions", "Towers", "Elements", "Enemies"]
+const TABS: Array[String] = ["Towers", "Elements", "Fusions", "Enemies"]
 var _current_tab: int = 0
 
 # Element colors matching the game's visual style
@@ -63,11 +63,15 @@ func _unhandled_input(event: InputEvent) -> void:
 func toggle() -> void:
 	visible = !visible
 	if visible:
+		get_tree().paused = true
 		_build_tab_content(_current_tab)
+	else:
+		get_tree().paused = false
 
 
 func _close() -> void:
 	visible = false
+	get_tree().paused = false
 
 
 func _on_close_pressed() -> void:
@@ -106,11 +110,11 @@ func _build_tab_content(tab_index: int) -> void:
 	_clear_content()
 	match tab_index:
 		0:
-			_build_fusions_tab()
-		1:
 			_build_towers_tab()
-		2:
+		1:
 			_build_elements_tab()
+		2:
+			_build_fusions_tab()
 		3:
 			_build_enemies_tab()
 

@@ -45,9 +45,11 @@ func start_wave_early() -> void:
 func _process(delta: float) -> void:
 	match game_state:
 		GameState.BUILD_PHASE:
-			_build_timer -= delta
-			if _build_timer <= 0.0:
-				_transition_to(GameState.COMBAT_PHASE)
+			# Wave 1: no auto-start, player must click Start Wave
+			if current_wave > 1:
+				_build_timer -= delta
+				if _build_timer <= 0.0:
+					_transition_to(GameState.COMBAT_PHASE)
 		GameState.COMBAT_PHASE:
 			if EnemySystem.get_active_enemy_count() == 0 and EnemySystem.is_wave_finished():
 				_on_wave_cleared()

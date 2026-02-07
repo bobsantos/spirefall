@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/ui/CodexPanel.gd" id="1"]
 
 [node name="CodexPanel" type="PanelContainer"]
+process_mode = 3
 visible = false
 layout_mode = 3
 anchors_preset = 8
@@ -42,10 +43,6 @@ text = "X"
 layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="FusionsTab" type="Button" parent="VBoxContainer/TabBar"]
-layout_mode = 2
-text = "Fusions"
-
 [node name="TowersTab" type="Button" parent="VBoxContainer/TabBar"]
 layout_mode = 2
 text = "Towers"
@@ -53,6 +50,10 @@ text = "Towers"
 [node name="ElementsTab" type="Button" parent="VBoxContainer/TabBar"]
 layout_mode = 2
 text = "Elements"
+
+[node name="FusionsTab" type="Button" parent="VBoxContainer/TabBar"]
+layout_mode = 2
+text = "Fusions"
 
 [node name="EnemiesTab" type="Button" parent="VBoxContainer/TabBar"]
 layout_mode = 2
