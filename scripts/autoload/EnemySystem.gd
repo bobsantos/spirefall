@@ -173,6 +173,32 @@ func spawn_split_enemies(parent: Node) -> void:
 	parent.queue_free()
 
 
+func spawn_boss_minions(boss: Node, minion_template: EnemyData, count: int) -> void:
+	## Spawn minions at the boss's position, continuing from the boss's path index.
+	## Used by Glacial Wyrm and other bosses that summon adds mid-combat.
+	if minion_template == null:
+		return
+	var boss_path: PackedVector2Array = boss.path_points
+	var boss_path_index: int = boss._path_index
+	var boss_position: Vector2 = boss.position
+
+	for i: int in range(count):
+		var data: EnemyData = _create_scaled_enemy(minion_template, GameManager.current_wave)
+		var minion: Node = _enemy_scene.instantiate()
+		minion.enemy_data = data
+		if data.is_flying:
+			minion.path_points = PathfindingSystem.get_flying_path()
+		else:
+			minion.path_points = boss_path
+		minion._path_index = boss_path_index
+		# Slight offset so minions don't stack perfectly
+		minion.position = boss_position + Vector2(randf_range(-16, 16), randf_range(-16, 16))
+
+		_active_enemies.append(minion)
+		minion.tree_exiting.connect(_on_enemy_removed.bind(minion))
+		enemy_spawned.emit(minion)
+
+
 func _remove_enemy(enemy: Node) -> void:
 	_active_enemies.erase(enemy)
 	if _active_enemies.is_empty() and _wave_finished_spawning:
@@ -235,6 +261,13 @@ func _create_scaled_enemy(template: EnemyData, wave_number: int) -> EnemyData:
 	data.heal_per_second = template.heal_per_second
 	data.immune_element = template.immune_element
 	data.weak_element = template.weak_element
+
+	# Boss ability fields
+	data.boss_ability_key = template.boss_ability_key
+	data.boss_ability_interval = template.boss_ability_interval
+	data.minion_data = template.minion_data
+	data.minion_spawn_interval = template.minion_spawn_interval
+	data.minion_spawn_count = template.minion_spawn_count
 
 	# Apply GDD scaling formulas
 	# HP = Base HP * (1 + 0.15 * wave)^2

@@ -4,18 +4,17 @@
 
 [resource]
 script = ExtResource("1")
-enemy_name = "Ember Titan"
-base_health = 5000
-speed_multiplier = 0.5
-gold_reward = 100
-element = "fire"
-special = "Fire trail, fire immune"
+enemy_name = "Chaos Elemental"
+base_health = 25000
+speed_multiplier = 0.3
+gold_reward = 500
+element = "none"
+special = "Cycles elements every 10s, soft enrage"
 is_flying = false
 is_boss = true
 spawn_count = 1
 split_on_death = false
 stealth = false
 heal_per_second = 0.0
-immune_element = "fire"
-boss_ability_key = "fire_trail"
-boss_ability_interval = 1.0
+boss_ability_key = "element_cycle"
+boss_ability_interval = 10.0

@@ -80,6 +80,9 @@ func _on_build_requested(tower_data: TowerData) -> void:
 
 
 func _on_enemy_spawned(enemy: Node) -> void:
+	# Connect boss ground effect signal (fire trail) so effects are added to the scene tree
+	if enemy.has_signal("ground_effect_spawned"):
+		enemy.ground_effect_spawned.connect(_on_ground_effect_spawned)
 	game_board.add_child(enemy)
 
 

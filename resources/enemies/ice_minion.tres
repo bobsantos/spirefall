@@ -4,18 +4,16 @@
 
 [resource]
 script = ExtResource("1")
-enemy_name = "Ember Titan"
-base_health = 5000
-speed_multiplier = 0.5
-gold_reward = 100
-element = "fire"
-special = "Fire trail, fire immune"
+enemy_name = "Ice Minion"
+base_health = 60
+speed_multiplier = 1.2
+gold_reward = 2
+element = "ice"
+special = "Summoned by Glacial Wyrm"
 is_flying = false
-is_boss = true
+is_boss = false
 spawn_count = 1
 split_on_death = false
 stealth = false
 heal_per_second = 0.0
-immune_element = "fire"
-boss_ability_key = "fire_trail"
-boss_ability_interval = 1.0
+immune_element = "ice"

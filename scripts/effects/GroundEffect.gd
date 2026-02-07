@@ -2,10 +2,10 @@ class_name GroundEffect
 extends Node2D
 
 ## Persistent ground effect that damages or slows enemies within a radius.
-## Spawned by projectiles on impact (lava_pool, slow_zone, burning_ground).
-## Auto-frees when duration expires.
+## Spawned by projectiles on impact (lava_pool, slow_zone, burning_ground)
+## or by boss abilities (fire_trail). Auto-frees when duration expires.
 
-var effect_type: String = ""  # "lava_pool", "slow_zone", or "burning_ground"
+var effect_type: String = ""  # "lava_pool", "slow_zone", "burning_ground", or "fire_trail"
 var effect_radius_px: float = 96.0
 var effect_duration: float = 3.0
 var element: String = ""
@@ -53,13 +53,23 @@ func _apply_effect() -> void:
 			continue
 
 		match effect_type:
-			"lava_pool", "burning_ground":
+			"lava_pool", "burning_ground", "fire_trail":
 				# Deal burn damage per tick (scaled by tick interval)
 				var tick_damage: int = max(1, int(damage_per_second * _tick_interval))
 				enemy.take_damage(tick_damage, element)
 			"slow_zone":
 				# Re-apply slow each tick to keep enemies slowed while inside
 				enemy.apply_status(StatusEffect.Type.SLOW, _tick_interval + 0.1, slow_fraction)
+
+	# Fire trail also disables nearby towers (within 1 cell / 64px)
+	if effect_type == "fire_trail":
+		var disable_radius_px: float = GridManager.CELL_SIZE  # 1 cell = 64px
+		var towers: Array[Node] = TowerSystem.get_active_towers()
+		for tower: Node in towers:
+			if not is_instance_valid(tower):
+				continue
+			if tower.global_position.distance_to(global_position) <= disable_radius_px:
+				tower.disable_for(2.0)
 
 
 func _update_visual() -> void:
@@ -74,6 +84,8 @@ func _draw() -> void:
 			color = Color(1.0, 0.3, 0.1, 0.3)  # Semi-transparent orange-red
 		"burning_ground":
 			color = Color(1.0, 0.5, 0.0, 0.3)  # Semi-transparent orange (distinct from lava)
+		"fire_trail":
+			color = Color(1.0, 0.2, 0.0, 0.35)  # Semi-transparent deep red-orange
 		"slow_zone":
 			color = Color(0.4, 0.3, 0.2, 0.3)  # Semi-transparent brown
 		_:

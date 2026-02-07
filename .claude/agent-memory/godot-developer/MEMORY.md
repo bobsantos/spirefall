@@ -40,13 +40,13 @@
 - [x] P2-Task 6: New enemy types (Healer, Split, Stealth, Elemental)
 - [ ] P2-Task 14: Camera pan/zoom (WASD + mouse drag + scroll)
 - [x] P2-Task 16: Ground effect system (lava pools, mud -- bundled into Task 4)
-- [ ] P2-Task 17: Tower disable mechanic (boss interaction)
+- [x] P2-Task 17: Tower disable mechanic (boss interaction)
 - [x] P2-Task 3: Dual fusion system (15 Tier 2 towers + FusionRegistry)
 - [x] P2-Task 4: Dual fusion abilities (15 unique specials)
 - [x] P2-Task 5: Legendary fusion + abilities (6 Tier 3 towers)
 - [ ] P2-Task 10: Element synergy bonuses (3/5/8 thresholds)
 - [ ] P2-Task 9: 30-wave campaign config
-- [ ] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
+- [x] P2-Task 8: Boss behaviors (Ember Titan, Glacial Wyrm, Chaos Elemental)
 - [x] P2-Task 12: Tower info panel (stats + upgrade + sell buttons)
 - [ ] P2-Task 13: Wave preview panel
 - [ ] P2-Task 15: Fusion UX flow in Game.gd
@@ -64,7 +64,7 @@
 - `scripts/projectiles/Projectile.gd` - projectile movement, hit logic, AoE, specials
 - `scenes/projectiles/BaseProjectile.tscn` - projectile scene (Node2D + Sprite2D at 0.5 scale)
 - `scripts/main/Game.gd` - wires tower projectile_spawned -> game_board.add_child
-- `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan, healer, split, split_child, stealth, elemental
+- `resources/enemies/*.tres` - normal, fast, armored, flying, swarm, boss_ember_titan, boss_glacial_wyrm, boss_chaos_elemental, ice_minion, healer, split, split_child, stealth, elemental
 - `scripts/ui/BuildMenu.gd` - tower selection UI, filtered by PHASE_1_ELEMENTS const
 - `scripts/ui/GameOverScreen.gd` - game over overlay (victory/defeat), wired to GameManager.game_over
 - `scenes/ui/GameOverScreen.tscn` - fullscreen overlay with dimmer, centered panel, result label, waves label, play again button
@@ -165,3 +165,37 @@
 - push_back/pull_toward still work on flying enemies (they snap to path points, which are just start/end)
 - Towers already target flying enemies (no is_flying filter in Tower._get_in_range_enemies()) -- anti-air is Phase 3
 - flying.tres: 80 HP, 1.2x speed, 4 gold, element="none", is_flying=true. Used in waves 8 and 9.
+
+## Tower Disable Mechanic (P2-Task 17)
+- Tower.gd: `_is_disabled: bool`, `_disable_timer: float`, `disable_for(duration)`, `is_disabled() -> bool`
+- When disabled: `_process()` returns early after decrementing timer (skips attacks, auras, periodic abilities)
+- Visual: `sprite.modulate = Color(0.5, 0.5, 0.8, 0.7)` (blue-ish frozen tint); restored to WHITE on re-enable
+- `disable_for()` uses `maxf()` to extend if already disabled (doesn't reset shorter)
+- Used by: Ember Titan fire_trail (via GroundEffect), Glacial Wyrm tower_freeze (direct), fire_trail tower disable radius = 1 cell (64px)
+
+## Boss Ability System (P2-Task 8)
+- EnemyData.gd: `boss_ability_key`, `boss_ability_interval`, `minion_data`, `minion_spawn_interval`, `minion_spawn_count`
+- Enemy.gd: `_tick_boss_ability(delta)` called in `_process()` when `is_boss && boss_ability_key != ""`
+- Enemy.gd emits `ground_effect_spawned(effect)` signal for fire trail (same pattern as Projectile)
+- Game.gd connects `ground_effect_spawned` in `_on_enemy_spawned()` for all enemies (signal only emitted by bosses)
+- EnemySystem.spawn_boss_minions(boss, template, count): spawns scaled minions at boss position + path_index
+- Boss ability + minion spawn use separate timers (`_boss_ability_timer`, `_minion_spawn_timer`)
+
+### Ember Titan (Wave 10, "fire_trail")
+- immune_element="fire", boss_ability_interval=1.0s
+- Spawns GroundEffect "fire_trail" at boss position every 1s: 64px radius, 3s duration, 15 dps fire damage
+- GroundEffect._apply_effect() also disables towers within 1 cell (64px) for 2s
+
+### Glacial Wyrm (Wave 20, "tower_freeze")
+- 12000 HP, 0.4x speed, 250g, element="ice", immune_element="ice"
+- boss_ability_interval=8.0s: freezes all towers within 3 cells (192px) for 3s via tower.disable_for()
+- minion_data=ice_minion.tres, minion_spawn_interval=15.0s, minion_spawn_count=2
+- ice_minion.tres: 60 HP, 1.2x speed, 2g, element="ice", immune_element="ice"
+
+### Chaos Elemental (Wave 30, "element_cycle")
+- 25000 HP, 0.3x speed, 500g, element="none"
+- boss_ability_interval=10.0s: cycles through CHAOS_ELEMENTS array (fire/water/earth/wind/lightning/ice)
+- Each cycle: sets immune_element to new element, weak_element from ELEMENT_COUNTERS
+- Soft enrage: speed *= (1.0 + 0.1 * cycle_count) -- 10% faster each cycle
+- Visual: sprite tint changes to ELEMENT_COLORS[immune_element] each cycle
+- _chaos_element_index tracks position in cycle, _chaos_cycle_count tracks total cycles for enrage

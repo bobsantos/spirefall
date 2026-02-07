@@ -31,6 +31,10 @@ var _ability_interval: float = 0.0
 # freeze_burn alternation: toggles each attack between freeze and burn
 var _attack_parity: bool = false  # false = freeze, true = burn
 
+# Disable mechanic: bosses can temporarily disable towers (no attacking, visual feedback)
+var _is_disabled: bool = false
+var _disable_timer: float = 0.0
+
 var _projectile_scene: PackedScene = preload("res://scenes/projectiles/BaseProjectile.tscn")
 
 @onready var sprite: Sprite2D = $Sprite2D
@@ -76,6 +80,17 @@ func apply_tower_data() -> void:
 
 func _process(delta: float) -> void:
 	if GameManager.game_state != GameManager.GameState.COMBAT_PHASE:
+		return
+
+	# Disable mechanic: count down timer and skip all tower behavior while disabled
+	if _is_disabled:
+		_disable_timer -= delta
+		if _disable_timer <= 0.0:
+			_is_disabled = false
+			_disable_timer = 0.0
+			# Restore normal sprite tint
+			if sprite:
+				sprite.modulate = Color.WHITE
 		return
 
 	# Aura passive effects tick independently of attacks
@@ -374,3 +389,18 @@ func _tick_periodic_ability(delta: float) -> void:
 					continue
 				if position.distance_to(enemy.position) <= ability_range_px:
 					enemy.apply_status(StatusEffect.Type.STUN, tower_data.special_duration, 1.0)
+
+
+func disable_for(duration: float) -> void:
+	## Temporarily disable this tower for the given duration (seconds).
+	## While disabled, the tower cannot attack, run auras, or use abilities.
+	## If already disabled, extends to whichever duration is longer.
+	_is_disabled = true
+	_disable_timer = maxf(_disable_timer, duration)
+	# Visual feedback: blue-ish frozen tint
+	if sprite:
+		sprite.modulate = Color(0.5, 0.5, 0.8, 0.7)
+
+
+func is_disabled() -> bool:
+	return _is_disabled

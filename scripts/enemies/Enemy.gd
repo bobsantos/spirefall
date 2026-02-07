@@ -2,6 +2,9 @@ extends Node2D
 
 ## Base enemy script. Follows path, takes damage, triggers death/exit.
 ## Supports behaviors: healer aura, split on death, stealth, elemental immunity/weakness.
+## Boss enemies can have timed abilities (fire trail, tower freeze, element cycling).
+
+signal ground_effect_spawned(effect: Node)
 
 @export var enemy_data: EnemyData
 
@@ -30,6 +33,18 @@ var _is_flying: bool = false
 var _bob_time: float = 0.0
 const BOB_AMPLITUDE: float = 6.0   # Pixels up/down
 const BOB_FREQUENCY: float = 2.5   # Cycles per second
+
+# Boss ability system
+var _boss_ability_timer: float = 0.0
+var _minion_spawn_timer: float = 0.0
+
+# Chaos Elemental cycling state
+var _chaos_element_index: int = 0
+var _chaos_cycle_count: int = 0
+const CHAOS_ELEMENTS: PackedStringArray = ["fire", "water", "earth", "wind", "lightning", "ice"]
+
+# Ground effect scene (lazy-loaded for boss fire trail)
+static var _ground_effect_scene: PackedScene = null
 
 # Element color mapping for elemental enemy tinting
 const ELEMENT_COLORS: Dictionary = {
@@ -131,6 +146,10 @@ func _process(delta: float) -> void:
 	# Stealth reveal check
 	if enemy_data and enemy_data.stealth and not _is_revealed:
 		_check_stealth_reveal()
+
+	# Boss ability system
+	if enemy_data and enemy_data.is_boss and enemy_data.boss_ability_key != "":
+		_tick_boss_ability(delta)
 
 	_move_along_path(delta)
 
@@ -322,9 +341,13 @@ func _process_status_effects(delta: float) -> void:
 
 func _recalculate_speed() -> void:
 	## Recalculate speed from base, applying the strongest active slow, freeze, or stun.
+	## Also accounts for Chaos Elemental soft enrage multiplier.
 	var base: float = _base_speed
 	if enemy_data:
 		base = _base_speed * enemy_data.speed_multiplier
+	# Chaos Elemental soft enrage: 10% speed per cycle
+	if _chaos_cycle_count > 0:
+		base *= (1.0 + 0.1 * _chaos_cycle_count)
 
 	var has_freeze: bool = false
 	var has_stun: bool = false
@@ -436,3 +459,81 @@ func pull_toward(target_pos: Vector2, max_distance_px: float) -> void:
 	position = path_points[_path_index]
 	if path_points.size() > 1:
 		path_progress = float(_path_index) / float(path_points.size() - 1)
+
+
+# -- Boss Ability System ----------------------------------------------------
+
+func _tick_boss_ability(delta: float) -> void:
+	## Runs boss ability timers and triggers abilities when ready.
+	_boss_ability_timer += delta
+	if _boss_ability_timer >= enemy_data.boss_ability_interval:
+		_boss_ability_timer -= enemy_data.boss_ability_interval
+		match enemy_data.boss_ability_key:
+			"fire_trail":
+				_boss_fire_trail()
+			"tower_freeze":
+				_boss_tower_freeze()
+			"element_cycle":
+				_boss_element_cycle()
+
+	# Minion spawning on a separate timer (Glacial Wyrm)
+	if enemy_data.minion_data != null and enemy_data.minion_spawn_interval > 0.0:
+		_minion_spawn_timer += delta
+		if _minion_spawn_timer >= enemy_data.minion_spawn_interval:
+			_minion_spawn_timer -= enemy_data.minion_spawn_interval
+			EnemySystem.spawn_boss_minions(self, enemy_data.minion_data, enemy_data.minion_spawn_count)
+
+
+func _boss_fire_trail() -> void:
+	## Ember Titan: spawn a fire trail ground effect at the boss's current position.
+	## The trail deals burn damage to enemies and disables nearby towers (handled by GroundEffect).
+	if _ground_effect_scene == null:
+		_ground_effect_scene = load("res://scenes/effects/GroundEffect.tscn")
+	if _ground_effect_scene == null:
+		push_error("Enemy: Could not load GroundEffect.tscn for boss fire trail")
+		return
+
+	var effect: Node = _ground_effect_scene.instantiate()
+	effect.global_position = global_position
+	effect.effect_type = "fire_trail"
+	effect.effect_radius_px = GridManager.CELL_SIZE * 1.0  # 1 cell radius (64px)
+	effect.effect_duration = 3.0
+	effect.damage_per_second = 15.0  # Moderate burn damage
+	effect.element = "fire"
+
+	ground_effect_spawned.emit(effect)
+
+
+func _boss_tower_freeze() -> void:
+	## Glacial Wyrm: freeze all towers within 3-cell radius for 3 seconds.
+	var freeze_radius_px: float = 3.0 * GridManager.CELL_SIZE  # 192px
+	var towers: Array[Node] = TowerSystem.get_active_towers()
+
+	for tower: Node in towers:
+		if not is_instance_valid(tower):
+			continue
+		if tower.global_position.distance_to(global_position) <= freeze_radius_px:
+			tower.disable_for(3.0)
+
+
+func _boss_element_cycle() -> void:
+	## Chaos Elemental: cycle to the next element. Becomes immune to the new element
+	## and weak to its counter. Gains 10% speed per cycle (soft enrage).
+	_chaos_element_index = (_chaos_element_index + 1) % CHAOS_ELEMENTS.size()
+	_chaos_cycle_count += 1
+
+	var new_element: String = CHAOS_ELEMENTS[_chaos_element_index]
+	enemy_data.immune_element = new_element
+	if ELEMENT_COUNTERS.has(new_element):
+		enemy_data.weak_element = ELEMENT_COUNTERS[new_element]
+	else:
+		enemy_data.weak_element = ""
+
+	# Soft enrage: 10% speed per cycle (handled by _recalculate_speed)
+	_recalculate_speed()
+
+	# Visual: tint sprite to match current immune element
+	if ELEMENT_COLORS.has(new_element) and sprite:
+		var tint: Color = ELEMENT_COLORS[new_element]
+		sprite.modulate = tint
+		_original_modulate = tint
