@@ -50,3 +50,12 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Pattern: `_create_stub_scene()` packs a Node2D with the stub script, `_make_enemy_stub()` creates individual stub nodes for lifecycle tests
 - Always restore `EnemySystem._enemy_scene` after tests that replace it
 - For lifecycle tests (on_enemy_killed, on_enemy_reached_exit), add the stub to `_active_enemies` and set `_wave_finished_spawning` before calling the method
+
+## Stubbing Tower Nodes for TowerSystem Tests
+- TowerSystem._tower_scene preloads BaseTower.tscn (Area2D with sprites, timers, synergy connections) -- fails in headless mode
+- Tower stub needs: `tower_data: TowerData`, `grid_position: Vector2i`, `apply_tower_data()` method (called by upgrade_tower and fuse_towers)
+- Pattern: save original in `before()`, swap `TowerSystem._tower_scene` with stub scene in `before_test()`, restore in `after_test()`
+- For sell_tower tests: manually place the tower on the grid (`GridManager.grid[x][y] = TOWER`, `_tower_map[pos] = tower`) and add to `_active_towers`
+- For fusion tests: both towers must be on grid and in _active_towers; FusionRegistry.can_fuse checks tier, upgrade_to, and element
+- sell_tower calls `tower.queue_free()` -- use `auto_free()` for test stubs to avoid double-free issues
+- Fusion tests that verify real fusion results (e.g. "Magma Forge") depend on FusionRegistry loading the .tres files at _ready() -- these are real resource loads, not stubs

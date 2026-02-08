@@ -393,7 +393,9 @@ Depends on GridManager being set up with spawn/exit points. Tests should set up 
 
 ---
 
-### Task 8: TowerSystem Tests
+### Task 8: TowerSystem Tests -- COMPLETE
+
+**Status:** All 27 tests implemented and compiling. Covers create_tower (gold, returns node, fails cases, adds to active, signal), upgrade_tower (success, cost, fails cases, signal), sell_tower (refund build/combat phase, removes from active, frees grid cell, signal), fuse_towers (success, cost, removes tower B, replaces tower A, fails cases, signal), fuse_legendary, and get_active_towers.
 
 **File:** `tests/unit/autoload/test_tower_system.gd`
 **Source:** `scripts/autoload/TowerSystem.gd` (116 lines)
