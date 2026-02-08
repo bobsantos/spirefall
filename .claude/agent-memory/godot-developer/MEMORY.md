@@ -17,6 +17,7 @@
 - Task 3 complete: `tests/unit/systems/test_element_matrix.gd` (17 tests)
 - Task 4 complete: `tests/unit/autoload/test_game_manager.gd` (20 tests)
 - Task 5 complete: `tests/unit/autoload/test_grid_manager.gd` (23 tests)
+- Task 6 complete: `tests/unit/autoload/test_pathfinding_system.gd` (13 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks)
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)

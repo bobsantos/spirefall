@@ -312,7 +312,9 @@ GameManager is tightly coupled to EnemySystem (for wave finished checks) and Eco
 
 ---
 
-### Task 6: PathfindingSystem Tests
+### Task 6: PathfindingSystem Tests -- COMPLETE
+
+**Status:** All 13 tests implemented and compiling. File validated with `godot --headless --path . --quit`.
 
 **File:** `tests/unit/autoload/test_pathfinding_system.gd`
 **Source:** `scripts/autoload/PathfindingSystem.gd` (71 lines)
@@ -871,7 +873,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 5 | Task 9: FusionRegistry | 24 | Medium | P1 | Pure lookup, no scene deps |
 | 6 | Task 4: GameManager | 20 | Medium | P0 | State machine, some autoload deps |
 | 7 | Task 5: GridManager | 23 | Medium | P0 | Co-develop with PathfindingSystem |
-| 8 | Task 6: PathfindingSystem | 13 | Medium | P0 | Needs grid setup |
+| 8 | Task 6: PathfindingSystem | 13 | Medium | P0 | Needs grid setup -- COMPLETE |
 | 9 | Task 7: EnemySystem | 30 | Large | P1 | Wave spawning, scaling formulas |
 | 10 | Task 8: TowerSystem | 27 | Medium | P1 | Factory, needs grid + economy |
 | 11 | Task 10: ElementSynergy | 24 | Large | P1 | Needs mock tower objects |
