@@ -42,3 +42,11 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Reset pattern: `_initialize_grid()` + clear `_tower_map`, `spawn_points`, `exit_points`
 - For non-path tests (pure grid logic), no spawn/exit setup needed -- `would_block_path` won't be called if `is_cell_buildable` fails first
 - `is_in_bounds` (public) and `_is_in_bounds` (private) are identical implementations -- the public one was added for external callers
+
+## Stubbing Enemy Nodes for EnemySystem Tests
+- EnemySystem methods (spawn_split_enemies, spawn_boss_minions, on_enemy_killed, etc.) read/write `enemy_data`, `path_points`, `_path_index`, and `position` on enemy nodes
+- The real BaseEnemy.tscn tries to load sprite textures in `_ready()`, which fails in headless mode
+- Solution: create a GDScript dynamically with just the needed properties, use `PackedScene.pack()` to make a stub scene, then swap `EnemySystem._enemy_scene` temporarily
+- Pattern: `_create_stub_scene()` packs a Node2D with the stub script, `_make_enemy_stub()` creates individual stub nodes for lifecycle tests
+- Always restore `EnemySystem._enemy_scene` after tests that replace it
+- For lifecycle tests (on_enemy_killed, on_enemy_reached_exit), add the stub to `_active_enemies` and set `_wave_finished_spawning` before calling the method

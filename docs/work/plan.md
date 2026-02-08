@@ -345,7 +345,9 @@ Depends on GridManager being set up with spawn/exit points. Tests should set up 
 
 ---
 
-### Task 7: EnemySystem Tests
+### Task 7: EnemySystem Tests -- COMPLETE
+
+**Status:** All 30 tests implemented and compiling. Covers wave config loading, enemy template caching, scaling formulas (HP/speed/gold), wave queue building, enemy lifecycle, split enemies, boss minion spawning, and signals.
 
 **File:** `tests/unit/autoload/test_enemy_system.gd`
 **Source:** `scripts/autoload/EnemySystem.gd` (314 lines)
@@ -874,7 +876,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 6 | Task 4: GameManager | 20 | Medium | P0 | State machine, some autoload deps |
 | 7 | Task 5: GridManager | 23 | Medium | P0 | Co-develop with PathfindingSystem |
 | 8 | Task 6: PathfindingSystem | 13 | Medium | P0 | Needs grid setup -- COMPLETE |
-| 9 | Task 7: EnemySystem | 30 | Large | P1 | Wave spawning, scaling formulas |
+| 9 | Task 7: EnemySystem | 30 | Large | P1 | Wave spawning, scaling formulas -- COMPLETE |
 | 10 | Task 8: TowerSystem | 27 | Medium | P1 | Factory, needs grid + economy |
 | 11 | Task 10: ElementSynergy | 24 | Large | P1 | Needs mock tower objects |
 | 12 | Task 11: Enemy | 39 | X-Large | P1 | Scene-based, complex behaviors |
