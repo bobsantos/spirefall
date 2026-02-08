@@ -438,12 +438,13 @@ Depends on GridManager being set up with spawn/exit points. Tests should set up 
 
 ---
 
-### Task 9: FusionRegistry Tests
+### Task 9: FusionRegistry Tests ✅ COMPLETE
 
 **File:** `tests/unit/autoload/test_fusion_registry.gd`
 **Source:** `scripts/autoload/FusionRegistry.gd` (144 lines)
 **Effort:** Medium
 **Priority:** P1 -- fusion lookup correctness is critical
+**Status:** Complete - 24/24 tests implemented
 
 **Test cases:**
 
@@ -874,7 +875,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 2 | Task 2: StatusEffect | 12 | Small | P0 | Pure RefCounted, no scene deps |
 | 3 | Task 3: ElementMatrix | 17 | Small | P0 | Static functions, fully isolated |
 | 4 | Task 15: Resource validation | 19 | Medium | P1 | Catches data errors early |
-| 5 | Task 9: FusionRegistry | 24 | Medium | P1 | Pure lookup, no scene deps |
+| 5 | Task 9: FusionRegistry | 24 | Medium | P1 | Pure lookup, no scene deps -- COMPLETE |
 | 6 | Task 4: GameManager | 20 | Medium | P0 | State machine, some autoload deps |
 | 7 | Task 5: GridManager | 23 | Medium | P0 | Co-develop with PathfindingSystem |
 | 8 | Task 6: PathfindingSystem | 13 | Medium | P0 | Needs grid setup -- COMPLETE |

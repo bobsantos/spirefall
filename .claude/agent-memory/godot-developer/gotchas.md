@@ -59,3 +59,10 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - For fusion tests: both towers must be on grid and in _active_towers; FusionRegistry.can_fuse checks tier, upgrade_to, and element
 - sell_tower calls `tower.queue_free()` -- use `auto_free()` for test stubs to avoid double-free issues
 - Fusion tests that verify real fusion results (e.g. "Magma Forge") depend on FusionRegistry loading the .tres files at _ready() -- these are real resource loads, not stubs
+
+## FusionRegistry Testing Patterns
+- FusionRegistry is a pure lookup autoload -- no scene dependencies, straightforward to test
+- `_make_key` and `_make_legendary_key` are accessible directly (not truly private in GDScript)
+- `get_fusion_partners` and `get_legendary_partners` iterate `TowerSystem.get_active_towers()` -- must add stub towers to `TowerSystem._active_towers` before calling
+- `can_fuse` and `can_fuse_legendary` access `tower.tower_data.tier`, `.upgrade_to`, `.element`, `.fusion_elements` -- stubs need these properties set correctly
+- The 15 dual fusion .tres files and 6 legendary .tres files are loaded via `load()` in `get_fusion_result`/`get_legendary_result` -- these are real resource loads that work in headless mode
