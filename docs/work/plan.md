@@ -603,7 +603,9 @@ Tests require scene instantiation since Enemy extends Node2D with @onready child
 
 ---
 
-### Task 12: Tower Behavior Tests
+### Task 12: Tower Behavior Tests -- COMPLETE
+
+**Status:** All 27 tests implemented and compiling. Covers core attack loop (targeting modes, stealth exclusion, projectile spawning), multi-target / chain attacks, damage calculation (element multiplier, synergy, storm_aoe wave scaling), special abilities (freeze_burn alternation, aura slow, thorn damage, blizzard aura, geyser burst, pure aura), disable mechanic (flag, timer, extensions), and synergy integration (range, speed, reapply).
 
 **File:** `tests/unit/towers/test_tower.gd`
 **Source:** `scripts/towers/Tower.gd` (439 lines)
@@ -886,7 +888,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 10 | Task 8: TowerSystem | 27 | Medium | P1 | Factory, needs grid + economy |
 | 11 | Task 10: ElementSynergy | 24 | Large | P1 | Needs mock tower objects -- COMPLETE |
 | 12 | Task 11: Enemy | 39 | X-Large | P1 | Scene-based, complex behaviors |
-| 13 | Task 12: Tower | 27 | X-Large | P1 | Scene-based, targeting + attacks |
+| 13 | Task 12: Tower | 27 | X-Large | P1 | Scene-based, targeting + attacks -- COMPLETE |
 | 14 | Task 13: Projectile | 23 | Large | P2 | Hit logic, ground effects |
 | 15 | Task 14: GroundEffect | 8 | Small | P2 | Tick-based effects |
 | 16 | Task 16: Integration: combat | 12 | Large | P2 | Multi-system end-to-end |

@@ -76,6 +76,22 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Signal test: `synergy_changed` is only emitted when `_synergy_tiers` dict changes between recalculations (old vs new comparison)
 - For `get_synergy_color()` tests, reference `ElementSynergyClass.ELEMENT_COLORS` (the class_name) for the const, since `ElementSynergy` is the autoload instance
 
+## Testing Tower.gd (Scene-Based Area2D)
+- Tower.gd extends Area2D with `@onready var sprite: Sprite2D = $Sprite2D`, `@onready var collision: CollisionShape2D = $CollisionShape2D`, `@onready var attack_cooldown: Timer = $AttackCooldown`
+- Cannot use BaseTower.tscn in headless mode because `apply_tower_data()` calls `load()` for sprite textures
+- Solution: build Area2D manually with Sprite2D, CollisionShape2D, and Timer children by name, then `set_script()` with real Tower.gd
+- Set `tower_data = null` first to prevent `_ready()` from calling `apply_tower_data()`, then assign tower_data and manually apply stats (range, collision shape, timer wait_time, ability intervals)
+- Must also manually set all `_synergy_*` vars to defaults (1.0/0.0/0/WHITE) to bypass `_refresh_synergy_bonuses()` which queries ElementSynergy autoload
+- Enemy stubs for targeting tests need: `enemy_data` (EnemyData with element, stealth), `current_health`, `path_progress`, `position`, `_is_revealed`
+- Enemy stubs for aura tests need: `apply_status()` and `take_damage()` methods that record calls for assertion
+- Tower.gd `_process()` gates on `GameManager.game_state == COMBAT_PHASE` -- must set game state before calling `_process()`
+- `_tick_aura(delta)` and `_tick_periodic_ability(delta)` can be called directly for isolated tests without going through `_process()`
+- `_find_target()` and `_find_multiple_targets(N)` can be called directly for targeting mode tests
+- `_calculate_damage(target)` can be called directly for damage formula tests
+- `_attack(target)` fires `projectile_spawned` signal -- capture with signal connect or monitor_signals
+- For `_attack()` tests, captured projectiles must be freed manually (they are instantiated PackedScenes)
+- `disable_for()` uses `maxf()` for extending to longer durations; the disable timer only counts down during `_process()` in COMBAT_PHASE
+
 ## Testing Enemy.gd (Scene-Based Node)
 - Enemy.gd extends Node2D with `@onready var sprite: Sprite2D = $Sprite2D` and `@onready var health_bar: ProgressBar = $HealthBar`
 - Cannot use BaseEnemy.tscn in headless mode because `_apply_enemy_data()` calls `load()` for sprite textures which fails
