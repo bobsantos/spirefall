@@ -75,3 +75,18 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - For aura bonus tests (get_attack_speed_bonus, get_range_bonus_cells, etc.), pass a tower node from `_active_towers` -- it reads the tower's elements and checks the synergy tier
 - Signal test: `synergy_changed` is only emitted when `_synergy_tiers` dict changes between recalculations (old vs new comparison)
 - For `get_synergy_color()` tests, reference `ElementSynergyClass.ELEMENT_COLORS` (the class_name) for the const, since `ElementSynergy` is the autoload instance
+
+## Testing Enemy.gd (Scene-Based Node)
+- Enemy.gd extends Node2D with `@onready var sprite: Sprite2D = $Sprite2D` and `@onready var health_bar: ProgressBar = $HealthBar`
+- Cannot use BaseEnemy.tscn in headless mode because `_apply_enemy_data()` calls `load()` for sprite textures which fails
+- Solution: build enemy nodes manually: create Node2D, add Sprite2D and ProgressBar children by name, then `set_script()` with the real Enemy.gd script
+- Set `enemy_data = null` first, manually assign `max_health`, `current_health`, `speed`, `_base_speed`, then set `enemy_data` after -- this avoids `_apply_enemy_data()` texture load while preserving data access for `take_damage`, `_apply_resistance`, etc.
+- For methods that read `path_points` and `_path_index` (movement, push/pull), set them before calling the method under test
+- `_move_along_path()` can be called directly to test movement without full `_process()` overhead
+- `_heal_nearby()` reads `EnemySystem.get_active_enemies()` -- register both healer and allies in `_active_enemies` before calling
+- `_check_stealth_reveal()` reads `TowerSystem.get_active_towers()` -- add tower stubs to `_active_towers`
+- `_boss_fire_trail()` has a static `_ground_effect_scene` var that persists -- must inject a stub PackedScene and restore after test
+- `_boss_tower_freeze()` calls `tower.disable_for(3.0)` on towers -- tower stubs need a `disable_for()` method
+- `_boss_element_cycle()` modifies `enemy_data.immune_element`/`weak_element` directly and calls `_recalculate_speed()`
+- `_tick_boss_ability()` handles both the main ability timer and the separate minion spawn timer in one method
+- For flying bobbing tests, set `_is_flying = true` and `_bob_time = 0.0`, then compute the expected sine offset manually

@@ -522,7 +522,9 @@ Tests require mock tower nodes with tower_data. Create minimal stub tower object
 
 ---
 
-### Task 11: Enemy Behavior Tests
+### Task 11: Enemy Behavior Tests -- COMPLETE
+
+**Status:** All 39 tests implemented and compiling. Covers movement (path following, push/pull), damage/death (resistances, wet/stun bonuses, heal), status effects (burn stacking, movement slot replacement, speed recalculation), special enemy types (healer, split, stealth, elemental), boss abilities (fire trail, tower freeze, element cycling, minion spawn), and flying bobbing.
 
 **File:** `tests/unit/enemies/test_enemy.gd`
 **Source:** `scripts/enemies/Enemy.gd` (517 lines)
