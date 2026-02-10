@@ -135,6 +135,16 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - For expiration test: call `_process()` with cumulative deltas exceeding `effect_duration`, then check `is_queued_for_deletion()`
 - For fade test: advance `_lifetime` to within 0.5s of `effect_duration` via `_process()` calls, then check `modulate.a`
 
+## Integration Test Patterns (Combat Flow)
+- Integration tests in `tests/integration/` test multi-system interactions (Tower + Projectile + Enemy + autoloads)
+- Same manual node construction patterns as unit tests -- no scene_runner needed for combat flow
+- Must save/restore both `TowerSystem._tower_scene` AND `EnemySystem._enemy_scene` in before()/after_test()
+- For tower-kill-awards-gold tests: fire projectile via `_attack()`, capture with signal, then call `proj._apply_single_hit()` to trigger damage -> _die() -> on_enemy_killed -> add_gold chain
+- For wave clear bonus tests: set `_wave_finished_spawning = true`, add one enemy, kill it via `on_enemy_killed()` -> `_remove_enemy` -> `wave_cleared` signal -> `_on_wave_cleared` -> bonus gold
+- Must set `GameManager._enemies_leaked_this_wave` before wave clear to test no-leak bonus vs leaked bonus
+- For sell-tower-reopens-path tests: use `TowerSystem.create_tower()` (with stub scene) then `sell_tower()` to exercise the full GridManager/PathfindingSystem path
+- Unlike unit tests, integration tests exercise the real signal chains between autoloads (e.g. EnemySystem.on_enemy_killed -> EconomyManager.add_gold)
+
 ## Resource Validation Test Patterns
 - Resource .tres files load fine with `load()` in headless mode -- no texture issues since TowerData/EnemyData are pure Resource subclasses (no scene nodes)
 - All tower tiers use `tier = 1` for base/enhanced/superior (upgrade chain is base -> enhanced -> superior via `upgrade_to` references). Fusions are `tier = 2`, legendaries are `tier = 3`

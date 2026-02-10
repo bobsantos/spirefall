@@ -779,14 +779,16 @@ Tests require scene instantiation since Enemy extends Node2D with @onready child
 
 ---
 
-### Task 16: Integration Tests -- Tower-Enemy Combat
+### Task 16: Integration Tests -- Tower-Enemy Combat -- COMPLETE
+
+**Status:** All 12 tests implemented and compiling. Covers tower-kill gold reward, burn DOT, slow speed reduction, AoE multi-hit, chain lightning secondaries, multi-target projectiles, freeze movement stop, tower upgrade damage increase, sell tower path reopen, enemy exit life loss, wave clear bonus, and no-leak 25% bonus.
 
 **File:** `tests/integration/test_combat_flow.gd`
 **Source:** Tower, Projectile, Enemy, EnemySystem, TowerSystem interactions
 **Effort:** Large
 **Priority:** P2
 
-These tests verify that multiple systems work together correctly. They use `scene_runner()` or manually tick `_process()` to simulate real gameplay frames.
+These tests verify that multiple systems work together correctly. They use manual node construction and directly call methods (_attack, _apply_single_hit, _apply_aoe_hit, _apply_chain_hits, _move_along_path, _process_status_effects) to simulate real gameplay interactions without requiring scene_runner or real frame ticking.
 
 **Test cases:**
 
@@ -897,7 +899,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 13 | Task 12: Tower | 27 | X-Large | P1 | Scene-based, targeting + attacks -- COMPLETE |
 | 14 | Task 13: Projectile | 23 | Large | P2 | Hit logic, ground effects -- COMPLETE |
 | 15 | Task 14: GroundEffect | 8 | Small | P2 | Tick-based effects -- COMPLETE |
-| 16 | Task 16: Integration: combat | 12 | Large | P2 | Multi-system end-to-end |
+| 16 | Task 16: Integration: combat | 12 | Large | P2 | Multi-system end-to-end -- COMPLETE |
 | 17 | Task 17: Integration: fusion | 6 | Medium | P2 | Fusion pipeline |
 | 18 | Task 18: Integration: game state | 6 | Medium | P2 | Full lifecycle |
 
