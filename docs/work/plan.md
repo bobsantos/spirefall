@@ -834,12 +834,13 @@ These tests verify that multiple systems work together correctly. They use manua
 
 ---
 
-### Task 18: Integration Tests -- Game State Flow
+### Task 18: Integration Tests -- Game State Flow ✅ COMPLETE
 
-**File:** `tests/integration/test_game_state_flow.gd`
+**File:** `tests/integration/test_game_state.gd`
 **Source:** GameManager, EnemySystem, EconomyManager interactions
 **Effort:** Medium
 **Priority:** P2
+**Status:** Complete - 6/6 tests implemented and compiling. Covers full wave cycle (BUILD -> COMBAT -> wave clear -> BUILD wave+1), income phase every 5 waves (interest applied), game over on zero lives (defeat), victory at wave 30, early wave start bonus gold, and economy reset before restart.
 
 **Test cases:**
 
@@ -902,7 +903,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 15 | Task 14: GroundEffect | 8 | Small | P2 | Tick-based effects -- COMPLETE |
 | 16 | Task 16: Integration: combat | 12 | Large | P2 | Multi-system end-to-end -- COMPLETE |
 | 17 | Task 17: Integration: fusion | 6 | Medium | P2 | Fusion pipeline -- COMPLETE |
-| 18 | Task 18: Integration: game state | 6 | Medium | P2 | Full lifecycle |
+| 18 | Task 18: Integration: game state | 6 | Medium | P2 | Full lifecycle -- COMPLETE |
 
 **Total test cases: ~348**
 

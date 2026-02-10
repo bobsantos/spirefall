@@ -29,7 +29,8 @@
 - Task 15 complete: `tests/unit/test_resource_validation.gd` (19 tests)
 - Task 16 complete: `tests/integration/test_combat_flow.gd` (12 tests)
 - Task 17 complete: `tests/integration/test_fusion_flow.gd` (6 tests)
-- Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks)
+- Task 18 complete: `tests/integration/test_game_state.gd` (6 tests)
+- Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
 
