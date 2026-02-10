@@ -134,3 +134,12 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Fire trail tower disable radius is `GridManager.CELL_SIZE` (64px), NOT `effect_radius_px`
 - For expiration test: call `_process()` with cumulative deltas exceeding `effect_duration`, then check `is_queued_for_deletion()`
 - For fade test: advance `_lifetime` to within 0.5s of `effect_duration` via `_process()` calls, then check `modulate.a`
+
+## Resource Validation Test Patterns
+- Resource .tres files load fine with `load()` in headless mode -- no texture issues since TowerData/EnemyData are pure Resource subclasses (no scene nodes)
+- All tower tiers use `tier = 1` for base/enhanced/superior (upgrade chain is base -> enhanced -> superior via `upgrade_to` references). Fusions are `tier = 2`, legendaries are `tier = 3`
+- Fusion towers have `fusion_elements` array of size 2; legendaries have size 3
+- Superior towers have `upgrade_to == null` (end of upgrade chain)
+- wave_config.json uses `"waves"` top-level key with array of 30 wave entries; boss waves marked with `"is_boss_wave": true`
+- Use `override_failure_message()` in loops to identify which specific resource failed, since GdUnit4 only shows the assertion message
+- `FileAccess.open()` + `JSON.parse_string()` works in headless mode for loading wave_config.json

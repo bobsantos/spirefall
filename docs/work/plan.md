@@ -742,7 +742,9 @@ Tests require scene instantiation since Enemy extends Node2D with @onready child
 
 ---
 
-### Task 15: Data Resource Validation Tests
+### Task 15: Data Resource Validation Tests -- COMPLETE
+
+**Status:** All 19 tests implemented and compiling. Validates all tower .tres (base, enhanced, superior, fusion, legendary), enemy .tres (14 total), boss abilities, special enemy properties, wave_config.json structure, enemy type references, and tower cost/damage scaling across upgrade tiers.
 
 **File:** `tests/unit/test_resource_validation.gd`
 **Source:** All `.tres` files in `resources/`
@@ -883,7 +885,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 1 | Task 1: EconomyManager | 18 | Small | P0 | Easiest, establishes patterns |
 | 2 | Task 2: StatusEffect | 12 | Small | P0 | Pure RefCounted, no scene deps |
 | 3 | Task 3: ElementMatrix | 17 | Small | P0 | Static functions, fully isolated |
-| 4 | Task 15: Resource validation | 19 | Medium | P1 | Catches data errors early |
+| 4 | Task 15: Resource validation | 19 | Medium | P1 | Catches data errors early -- COMPLETE |
 | 5 | Task 9: FusionRegistry | 24 | Medium | P1 | Pure lookup, no scene deps -- COMPLETE |
 | 6 | Task 4: GameManager | 20 | Medium | P0 | State machine, some autoload deps |
 | 7 | Task 5: GridManager | 23 | Medium | P0 | Co-develop with PathfindingSystem |
