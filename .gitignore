@@ -1,0 +1,15 @@
+# Godot
+.godot/
+*.import
+
+# GdUnit4 test reports
+reports/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Export
+export/
+*.apk
+*.aab
