@@ -106,3 +106,18 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - `_boss_element_cycle()` modifies `enemy_data.immune_element`/`weak_element` directly and calls `_recalculate_speed()`
 - `_tick_boss_ability()` handles both the main ability timer and the separate minion spawn timer in one method
 - For flying bobbing tests, set `_is_flying = true` and `_bob_time = 0.0`, then compute the expected sine offset manually
+
+## Testing Projectile.gd (Scene-Based Node2D)
+- Projectile.gd extends Node2D with `@onready var sprite: Sprite2D = $Sprite2D`
+- Cannot use the real Projectile scene in headless mode because `_load_element_sprite()` calls `load()` for PNG textures
+- Solution: build Node2D manually with Sprite2D child by name, then `set_script()` with real Projectile.gd
+- Set `element = ""` initially to prevent `_load_element_sprite()` from attempting texture load in `_ready()`
+- `Projectile._ground_effect_scene` is a static var -- persists across tests. Must reset to `null` in `before_test()` and inject a stub scene for ground effect tests
+- For ground effect tests: create a stub PackedScene with a Node2D that has the expected properties (effect_type, effect_radius_px, effect_duration, element, damage_per_second, slow_fraction)
+- Enemy stubs for Projectile tests need additional methods vs Tower stubs: `pull_toward(target_pos, max_dist)` and `push_back(steps)` for pull_burn and pushback hit paths
+- `_hit()` dispatches to different methods based on `special_key` first, then `is_aoe`, then single hit + chain. Ground effects spawn after damage.
+- `_calculate_damage()` needs `tower_data` to be non-null; without it, returns raw `damage` field (no element multiplier or synergy)
+- For movement tracking tests: call `_process(delta)` directly -- it updates `target_last_pos` from living target, then moves toward `move_target`
+- For hit threshold tests: position projectile within 8px (HIT_THRESHOLD) of target_last_pos, then call `_process()` -- _hit() auto-triggers
+- For queue_free test: add projectile to scene tree (`add_child(proj)`) so queue_free works, then check `is_queued_for_deletion()`
+- Chain radius is hardcoded at `2.0 * GridManager.CELL_SIZE` = 128px (not configurable)

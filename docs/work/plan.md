@@ -675,7 +675,9 @@ Tests require scene instantiation since Enemy extends Node2D with @onready child
 
 ---
 
-### Task 13: Projectile Tests
+### Task 13: Projectile Tests -- COMPLETE
+
+**Status:** All 23 tests implemented and compiling. Covers single hit (damage + specials), AoE hit (radius filtering), chain hits (count limit, damage fraction, chain specials), cone AoE angle check, pull+burn, pushback, earthquake (slow + stun), ground effect spawning (lava_pool, slow_zone, burning_ground), damage calculation (element multiplier, synergy), proc chance, wet/freeze chain specials, movement tracking, last-pos fallback, hit threshold, and queue_free after hit.
 
 **File:** `tests/unit/projectiles/test_projectile.gd`
 **Source:** `scripts/projectiles/Projectile.gd` (370 lines)
@@ -889,7 +891,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 11 | Task 10: ElementSynergy | 24 | Large | P1 | Needs mock tower objects -- COMPLETE |
 | 12 | Task 11: Enemy | 39 | X-Large | P1 | Scene-based, complex behaviors |
 | 13 | Task 12: Tower | 27 | X-Large | P1 | Scene-based, targeting + attacks -- COMPLETE |
-| 14 | Task 13: Projectile | 23 | Large | P2 | Hit logic, ground effects |
+| 14 | Task 13: Projectile | 23 | Large | P2 | Hit logic, ground effects -- COMPLETE |
 | 15 | Task 14: GroundEffect | 8 | Small | P2 | Tick-based effects |
 | 16 | Task 16: Integration: combat | 12 | Large | P2 | Multi-system end-to-end |
 | 17 | Task 17: Integration: fusion | 6 | Medium | P2 | Fusion pipeline |

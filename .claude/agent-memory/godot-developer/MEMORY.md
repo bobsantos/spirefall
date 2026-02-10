@@ -24,6 +24,7 @@
 - Task 10 complete: `tests/unit/systems/test_element_synergy.gd` (24 tests)
 - Task 11 complete: `tests/unit/enemies/test_enemy.gd` (39 tests)
 - Task 12 complete: `tests/unit/towers/test_tower.gd` (27 tests)
+- Task 13 complete: `tests/unit/projectiles/test_projectile.gd` (23 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks)
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
