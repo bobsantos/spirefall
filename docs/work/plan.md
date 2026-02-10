@@ -716,7 +716,9 @@ Tests require scene instantiation since Enemy extends Node2D with @onready child
 
 ---
 
-### Task 14: GroundEffect Tests
+### Task 14: GroundEffect Tests -- COMPLETE
+
+**Status:** All 8 tests implemented and compiling. Covers lava_pool tick damage, slow_zone SLOW status application, fire_trail tower disable (within 64px), burning_ground damage, effect expiration (queue_free after duration), fade in last 0.5s (modulate.a), tick interval enforcement (0.5s), and out-of-radius exclusion.
 
 **File:** `tests/unit/effects/test_ground_effect.gd`
 **Source:** `scripts/effects/GroundEffect.gd` (93 lines)
@@ -892,7 +894,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 12 | Task 11: Enemy | 39 | X-Large | P1 | Scene-based, complex behaviors |
 | 13 | Task 12: Tower | 27 | X-Large | P1 | Scene-based, targeting + attacks -- COMPLETE |
 | 14 | Task 13: Projectile | 23 | Large | P2 | Hit logic, ground effects -- COMPLETE |
-| 15 | Task 14: GroundEffect | 8 | Small | P2 | Tick-based effects |
+| 15 | Task 14: GroundEffect | 8 | Small | P2 | Tick-based effects -- COMPLETE |
 | 16 | Task 16: Integration: combat | 12 | Large | P2 | Multi-system end-to-end |
 | 17 | Task 17: Integration: fusion | 6 | Medium | P2 | Fusion pipeline |
 | 18 | Task 18: Integration: game state | 6 | Medium | P2 | Full lifecycle |

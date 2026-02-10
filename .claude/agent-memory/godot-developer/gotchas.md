@@ -121,3 +121,16 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - For hit threshold tests: position projectile within 8px (HIT_THRESHOLD) of target_last_pos, then call `_process()` -- _hit() auto-triggers
 - For queue_free test: add projectile to scene tree (`add_child(proj)`) so queue_free works, then check `is_queued_for_deletion()`
 - Chain radius is hardcoded at `2.0 * GridManager.CELL_SIZE` = 128px (not configurable)
+
+## Testing GroundEffect.gd (Simple Node2D)
+- GroundEffect.gd extends Node2D with NO @onready children -- simplest scene-based script to test
+- `_ready()` only calls `queue_redraw()` (no texture loads), so creating Node2D + `set_script()` works directly in headless mode
+- No need to suppress `_ready()` behavior -- just create, set script, set properties, and call `_process()` directly
+- `_apply_effect()` reads `EnemySystem.get_active_enemies()` and `TowerSystem.get_active_towers()` -- populate `_active_enemies`/`_active_towers` with stubs
+- Enemy stubs need: `take_damage(amount, element)`, `apply_status(type, duration, value)`, `current_health`, `global_position`
+- Tower stubs need: `disable_for(duration)`, `global_position`
+- Uses `global_position` for distance checks -- equals `position` when node has no parent with transforms
+- Tick damage formula: `max(1, int(damage_per_second * _tick_interval))` where `_tick_interval = 0.5`
+- Fire trail tower disable radius is `GridManager.CELL_SIZE` (64px), NOT `effect_radius_px`
+- For expiration test: call `_process()` with cumulative deltas exceeding `effect_duration`, then check `is_queued_for_deletion()`
+- For fade test: advance `_lifetime` to within 0.5s of `effect_duration` via `_process()` calls, then check `modulate.a`
