@@ -66,3 +66,12 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - `get_fusion_partners` and `get_legendary_partners` iterate `TowerSystem.get_active_towers()` -- must add stub towers to `TowerSystem._active_towers` before calling
 - `can_fuse` and `can_fuse_legendary` access `tower.tower_data.tier`, `.upgrade_to`, `.element`, `.fusion_elements` -- stubs need these properties set correctly
 - The 15 dual fusion .tres files and 6 legendary .tres files are loaded via `load()` in `get_fusion_result`/`get_legendary_result` -- these are real resource loads that work in headless mode
+
+## ElementSynergy Testing Patterns
+- ElementSynergy is an autoload (class_name `ElementSynergyClass`) that reads `TowerSystem.get_active_towers()`
+- Reset pattern in `before_test()`: clear `TowerSystem._active_towers`, `ElementSynergy._element_counts`, `ElementSynergy._synergy_tiers`
+- Tower stubs: same pattern as TowerSystem/FusionRegistry tests -- Node2D with stub script that has `tower_data`, `grid_position`, `apply_tower_data()`
+- `_calculate_tier()` is accessible directly (not truly private in GDScript) for isolated unit testing
+- For aura bonus tests (get_attack_speed_bonus, get_range_bonus_cells, etc.), pass a tower node from `_active_towers` -- it reads the tower's elements and checks the synergy tier
+- Signal test: `synergy_changed` is only emitted when `_synergy_tiers` dict changes between recalculations (old vs new comparison)
+- For `get_synergy_color()` tests, reference `ElementSynergyClass.ELEMENT_COLORS` (the class_name) for the const, since `ElementSynergy` is the autoload instance

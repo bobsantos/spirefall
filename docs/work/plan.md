@@ -479,12 +479,13 @@ Depends on GridManager being set up with spawn/exit points. Tests should set up 
 
 ---
 
-### Task 10: ElementSynergy Tests
+### Task 10: ElementSynergy Tests ✅ COMPLETE
 
 **File:** `tests/unit/systems/test_element_synergy.gd`
 **Source:** `scripts/systems/ElementSynergy.gd` (259 lines)
 **Effort:** Large
 **Priority:** P1 -- synergy bonus calculations affect all tower damage
+**Status:** Complete - 24/24 tests implemented
 
 Tests require mock tower nodes with tower_data. Create minimal stub tower objects with the necessary properties.
 
@@ -517,7 +518,7 @@ Tests require mock tower nodes with tower_data. Create minimal stub tower object
 | 23 | `test_synergy_changed_not_emitted_when_same_tier` | No signal if adding tower doesn't change tier |
 | 24 | `test_recalculate_clears_old_counts` | Selling towers decrements correctly |
 
-**Acceptance:** All synergy tier, bonus, and aura calculations validated. 85%+ coverage.
+**Acceptance:** All synergy tier, bonus, and aura calculations validated. 85%+ coverage. All 24 tests pass compilation.
 
 ---
 
@@ -881,7 +882,7 @@ Task 18 (Integration: game state)     -- depends on Tasks 4, 7, 1
 | 8 | Task 6: PathfindingSystem | 13 | Medium | P0 | Needs grid setup -- COMPLETE |
 | 9 | Task 7: EnemySystem | 30 | Large | P1 | Wave spawning, scaling formulas -- COMPLETE |
 | 10 | Task 8: TowerSystem | 27 | Medium | P1 | Factory, needs grid + economy |
-| 11 | Task 10: ElementSynergy | 24 | Large | P1 | Needs mock tower objects |
+| 11 | Task 10: ElementSynergy | 24 | Large | P1 | Needs mock tower objects -- COMPLETE |
 | 12 | Task 11: Enemy | 39 | X-Large | P1 | Scene-based, complex behaviors |
 | 13 | Task 12: Tower | 27 | X-Large | P1 | Scene-based, targeting + attacks |
 | 14 | Task 13: Projectile | 23 | Large | P2 | Hit logic, ground effects |
