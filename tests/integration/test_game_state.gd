@@ -102,10 +102,10 @@ func _reset_autoloads() -> void:
 	EnemySystem._wave_finished_spawning = false
 	EnemySystem._enemies_to_spawn.clear()
 	EnemySystem._spawn_timer = 0.0
-	# TowerSystem
+	# TowerSystem -- use free() since towers are not in the scene tree
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 	# EconomyManager
 	EconomyManager.reset()
@@ -134,9 +134,13 @@ func before_test() -> void:
 func after_test() -> void:
 	for enemy: Node in EnemySystem._active_enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
-			enemy.queue_free()
+			enemy.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemy_scene = _original_enemy_scene
+
+
+func after() -> void:
+	_enemy_stub_gd = null
 
 
 # ==============================================================================

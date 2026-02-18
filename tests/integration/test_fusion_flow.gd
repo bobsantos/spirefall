@@ -109,7 +109,7 @@ func _reset_autoloads() -> void:
 	# TowerSystem
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 	# GameManager
 	GameManager.game_state = GameManager.GameState.MENU
@@ -145,9 +145,13 @@ func before_test() -> void:
 func after_test() -> void:
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 	TowerSystem._tower_scene = _original_tower_scene
+
+
+func after() -> void:
+	_stub_script = null
 
 
 # ==============================================================================

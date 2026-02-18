@@ -184,6 +184,11 @@ func _reset_autoloads() -> void:
 
 # -- Setup / Teardown ----------------------------------------------------------
 
+func after() -> void:
+	_enemy_stub_script = null
+	_projectile_script = null
+
+
 func before_test() -> void:
 	_reset_autoloads()
 
@@ -555,7 +560,7 @@ func test_ground_effect_spawned_lava_pool() -> void:
 	assert_float(effect.damage_per_second).is_equal(30.0)
 	assert_float(effect.effect_duration).is_equal(5.0)
 	assert_str(effect.element).is_equal("fire")
-	effect.queue_free()
+	effect.free()
 
 
 # -- 13. test_ground_effect_spawned_slow_zone ---------------------------------
@@ -581,7 +586,7 @@ func test_ground_effect_spawned_slow_zone() -> void:
 	assert_float(effect.slow_fraction).is_equal(0.4)
 	assert_float(effect.effect_duration).is_equal(4.0)
 	assert_str(effect.element).is_equal("water")
-	effect.queue_free()
+	effect.free()
 
 
 # -- 14. test_ground_effect_spawned_burning_ground ----------------------------
@@ -606,7 +611,7 @@ func test_ground_effect_spawned_burning_ground() -> void:
 	assert_str(effect.effect_type).is_equal("burning_ground")
 	assert_float(effect.damage_per_second).is_equal(25.0)
 	assert_str(effect.element).is_equal("fire")
-	effect.queue_free()
+	effect.free()
 
 
 # ==============================================================================

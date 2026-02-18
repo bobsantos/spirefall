@@ -94,15 +94,19 @@ func before_test() -> void:
 	# Clear TowerSystem._active_towers so partner tests start clean
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 
 
 func after_test() -> void:
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
+
+
+func after() -> void:
+	_stub_script = null
 
 
 # -- 1. All 15 dual fusions registered ----------------------------------------

@@ -275,10 +275,10 @@ func _reset_autoloads() -> void:
 	EnemySystem._active_enemies.clear()
 	EnemySystem._wave_finished_spawning = false
 	EnemySystem._enemies_to_spawn.clear()
-	# TowerSystem
+	# TowerSystem -- use free() since towers are not in the scene tree
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 	# GameManager
 	GameManager.game_state = GameManager.GameState.MENU
@@ -317,18 +317,27 @@ func before_test() -> void:
 
 
 func after_test() -> void:
-	# Clean up active lists
+	# Clean up active lists -- use free() instead of queue_free() since these
+	# nodes are not in the scene tree (queue_free requires tree frame processing)
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 	for enemy: Node in EnemySystem._active_enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
-			enemy.queue_free()
+			enemy.free()
 	EnemySystem._active_enemies.clear()
 	# Restore original scenes
 	TowerSystem._tower_scene = _original_tower_scene
 	EnemySystem._enemy_scene = _original_enemy_scene
+
+
+func after() -> void:
+	# Clear static script caches to prevent resource leaks at process exit
+	_tower_script = null
+	_enemy_script = null
+	_tower_stub_script = null
+	_enemy_stub_gd = null
 
 
 # ==============================================================================
@@ -372,7 +381,7 @@ func test_tower_kills_enemy_awards_gold() -> void:
 	assert_int(enemy.current_health).is_less_equal(0)
 	assert_int(EconomyManager.gold).is_equal(gold_before + enemy_data.gold_reward)
 
-	proj.queue_free()
+	proj.free()
 
 
 # ==============================================================================
@@ -418,7 +427,7 @@ func test_burn_tower_applies_dot_to_enemy() -> void:
 	# Health should have decreased further from burn DOT
 	assert_int(enemy.current_health).is_less(health_after_hit)
 
-	proj.queue_free()
+	proj.free()
 
 
 # ==============================================================================
@@ -459,7 +468,7 @@ func test_slow_tower_reduces_enemy_speed() -> void:
 	var expected_speed: float = base_speed * 0.7
 	assert_float(enemy.speed).is_equal_approx(expected_speed, 0.01)
 
-	proj.queue_free()
+	proj.free()
 
 
 # ==============================================================================
@@ -509,7 +518,7 @@ func test_aoe_tower_hits_multiple_enemies() -> void:
 	assert_int(e2.current_health).is_less(200)
 	assert_int(e3.current_health).is_less(200)
 
-	proj.queue_free()
+	proj.free()
 
 
 # ==============================================================================
@@ -563,7 +572,7 @@ func test_chain_lightning_chains_to_secondaries() -> void:
 	assert_int(sec1.current_health).is_less(300)
 	assert_int(sec2.current_health).is_less(300)
 
-	proj.queue_free()
+	proj.free()
 
 
 # ==============================================================================
@@ -609,7 +618,7 @@ func test_multi_tower_fires_at_two_targets() -> void:
 	assert_int(captured_projectiles.size()).is_equal(2)
 
 	for proj: Node in captured_projectiles:
-		proj.queue_free()
+		proj.free()
 
 
 # ==============================================================================
@@ -651,7 +660,7 @@ func test_freeze_stops_enemy_movement() -> void:
 	enemy._move_along_path(0.5)
 	assert_vector(enemy.position).is_equal(pos_before)
 
-	proj.queue_free()
+	proj.free()
 
 
 # ==============================================================================

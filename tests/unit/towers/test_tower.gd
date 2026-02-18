@@ -190,6 +190,11 @@ func _reset_autoloads() -> void:
 
 # -- Setup / Teardown ----------------------------------------------------------
 
+func after() -> void:
+	_tower_script = null
+	_enemy_stub_script = null
+
+
 func before_test() -> void:
 	_reset_autoloads()
 
@@ -339,7 +344,7 @@ func test_attack_spawns_projectile() -> void:
 	assert_int(captured_projectiles.size()).is_equal(1)
 	# Cleanup emitted projectile
 	for proj: Node in captured_projectiles:
-		proj.queue_free()
+		proj.free()
 
 
 # ==============================================================================
@@ -371,7 +376,7 @@ func test_multi_attack_spawns_n_projectiles() -> void:
 
 	assert_int(captured_projectiles.size()).is_equal(2)
 	for proj: Node in captured_projectiles:
-		proj.queue_free()
+		proj.free()
 
 
 # -- 9. test_multi_attack_finds_multiple_targets ------------------------------
@@ -420,7 +425,7 @@ func test_chain_projectile_has_chain_data() -> void:
 	# Chain count = special_value(3) + synergy_chain_bonus(0) = 3
 	assert_int(proj.chain_count).is_equal(3)
 	assert_float(proj.chain_damage_fraction).is_equal(0.5)
-	proj.queue_free()
+	proj.free()
 
 
 # ==============================================================================
@@ -528,7 +533,7 @@ func test_freeze_burn_alternates() -> void:
 	assert_str(captured_projectiles[2].special_key).is_equal("freeze")
 
 	for proj: Node in captured_projectiles:
-		proj.queue_free()
+		proj.free()
 
 
 # -- 16. test_aura_slow_applies_to_enemies ------------------------------------

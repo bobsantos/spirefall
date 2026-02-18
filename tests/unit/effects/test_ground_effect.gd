@@ -98,6 +98,12 @@ func _reset_autoloads() -> void:
 
 # -- Setup / Teardown ----------------------------------------------------------
 
+func after() -> void:
+	_enemy_stub_script = null
+	_tower_stub_script = null
+	_ground_effect_script = null
+
+
 func before_test() -> void:
 	_reset_autoloads()
 

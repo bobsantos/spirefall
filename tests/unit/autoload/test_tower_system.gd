@@ -98,10 +98,11 @@ func _setup_minimal_map() -> void:
 
 
 func _reset_tower_system() -> void:
-	# Clean up any tower nodes still referenced
+	# Clean up any tower nodes still referenced -- use free() since these
+	# nodes are not in the scene tree (queue_free requires tree frame processing)
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 
 
@@ -145,6 +146,10 @@ func after_test() -> void:
 	TowerSystem._tower_scene = _original_tower_scene
 
 
+func after() -> void:
+	_stub_script = null
+
+
 # -- 1. create_tower spends gold -----------------------------------------------
 
 func test_create_tower_spends_gold() -> void:
@@ -162,7 +167,6 @@ func test_create_tower_returns_node() -> void:
 	var tower: Node = TowerSystem.create_tower(data, Vector2i(5, 5))
 	assert_object(tower).is_not_null()
 	assert_object(tower.tower_data).is_same(data)
-	tower.queue_free()
 
 
 # -- 3. create_tower fails insufficient gold ------------------------------------
@@ -218,7 +222,6 @@ func test_create_tower_adds_to_active() -> void:
 	var tower: Node = TowerSystem.create_tower(data, Vector2i(5, 5))
 	assert_int(TowerSystem.get_active_towers().size()).is_equal(1)
 	assert_bool(TowerSystem.get_active_towers().has(tower)).is_true()
-	tower.queue_free()
 
 
 # -- 7. create_tower emits signal -----------------------------------------------

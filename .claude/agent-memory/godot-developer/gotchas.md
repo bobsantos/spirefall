@@ -1,5 +1,21 @@
 # Gotchas and Lessons Learned
 
+## queue_free() vs free() for Nodes Not in the Scene Tree
+- `queue_free()` marks a node for deletion at the end of the current frame, but ONLY works when the node is in the SceneTree. If the node is NOT in the tree, the deferred deletion never processes and the node leaks.
+- In tests, most nodes (tower stubs, enemy stubs, projectiles captured via signal) are never added to the scene tree. Always use `free()` for immediate cleanup of these nodes.
+- GdUnit4 exit code 101 = orphan node warnings (leaked nodes). Each leaked Node2D = 1 CanvasItem RID. Projectiles (Node2D + Sprite2D child) = 2 CanvasItems each.
+- Pattern: use `free()` in `before_test()` / `after_test()` cleanup loops, and for manually cleaning up nodes in test bodies. Only use `queue_free()` when the node is actually in the scene tree.
+
+## Static GDScript Variables Leak at Process Exit
+- `static var` on GDScript classes persist for the entire Godot process lifetime. At exit, any GDScript objects still referenced by static vars are reported as "resources still in use."
+- Fix: add an `after()` method (GdUnit4 suite-level teardown, runs once after all tests) that nulls out all static vars:
+  ```gdscript
+  func after() -> void:
+      _stub_script = null
+      _enemy_script = null
+  ```
+- This applies to cached GDScript stubs (`GDScript.new()` with `.reload()`) and loaded scripts (`load()` as GDScript).
+
 ## GdUnit4 Headless Mode
 GdUnit4 v6.1.1 blocks headless execution by default (exit code 103). CI environments MUST pass `--ignoreHeadlessMode`. This is because Godot InputEvents don't work in headless mode, so UI interaction tests will silently fail. Unit tests and logic-only tests work fine.
 

@@ -107,6 +107,10 @@ func before_test() -> void:
 	EconomyManager.reset()
 
 
+func after() -> void:
+	_stub_script = null
+
+
 # -- 1. Wave config loads successfully -----------------------------------------
 
 func test_wave_config_loads_successfully() -> void:
@@ -387,7 +391,7 @@ func test_split_enemies_spawn_two_children() -> void:
 
 	# Clean up spawned children
 	for child: Node in EnemySystem._active_enemies:
-		child.queue_free()
+		child.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemy_scene = original_scene
 
@@ -418,7 +422,7 @@ func test_split_children_continue_from_parent_index() -> void:
 
 	# Clean up
 	for child: Node in EnemySystem._active_enemies:
-		child.queue_free()
+		child.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemy_scene = original_scene
 
@@ -447,7 +451,7 @@ func test_split_awards_parent_gold() -> void:
 
 	# Clean up
 	for child: Node in EnemySystem._active_enemies:
-		child.queue_free()
+		child.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemy_scene = original_scene
 
@@ -487,7 +491,7 @@ func test_boss_minions_spawn_at_boss_position() -> void:
 	for i: int in range(EnemySystem._active_enemies.size() - 1, -1, -1):
 		var e: Node = EnemySystem._active_enemies[i]
 		if e != boss:
-			e.queue_free()
+			e.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemy_scene = original_scene
 
@@ -572,7 +576,7 @@ func test_enemy_spawned_signal() -> void:
 
 	# Clean up spawned enemies
 	for enemy: Node in EnemySystem._active_enemies:
-		enemy.queue_free()
+		enemy.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemies_to_spawn.clear()
 	EnemySystem._enemy_scene = original_scene

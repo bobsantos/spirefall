@@ -74,10 +74,11 @@ func _add_base_towers(element: String, count: int) -> Array[Node2D]:
 # -- Setup / Teardown ----------------------------------------------------------
 
 func before_test() -> void:
-	# Clear TowerSystem active towers
+	# Clear TowerSystem active towers -- use free() since these nodes
+	# are not in the scene tree (queue_free requires tree frame processing)
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 	# Reset ElementSynergy internal state
 	ElementSynergy._element_counts.clear()
@@ -87,10 +88,14 @@ func before_test() -> void:
 func after_test() -> void:
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
-			tower.queue_free()
+			tower.free()
 	TowerSystem._active_towers.clear()
 	ElementSynergy._element_counts.clear()
 	ElementSynergy._synergy_tiers.clear()
+
+
+func after() -> void:
+	_stub_script = null
 
 
 # -- 1. test_calculate_tier_thresholds ----------------------------------------

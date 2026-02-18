@@ -47,6 +47,8 @@
 
 ## Key Gotchas
 - See [gotchas.md](gotchas.md) for detailed notes
+- **Critical**: Use `free()` not `queue_free()` for test nodes not in the scene tree (causes exit code 101 orphan leaks)
+- **Critical**: Null out `static var` GDScript references in `after()` to prevent "resources still in use at exit"
 
 ## UI Panel Patterns
 - See [ui-panels.md](ui-panels.md) for detailed notes

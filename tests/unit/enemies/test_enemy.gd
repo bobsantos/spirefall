@@ -138,6 +138,11 @@ func _reset_autoloads() -> void:
 
 # -- Setup / Teardown ----------------------------------------------------------
 
+func after() -> void:
+	_enemy_script = null
+	_stub_script = null
+
+
 func before_test() -> void:
 	_reset_autoloads()
 
@@ -560,9 +565,10 @@ func test_split_on_death_spawns_children() -> void:
 	assert_bool(EnemySystem._active_enemies.has(parent)).is_false()
 	assert_int(EnemySystem._active_enemies.size()).is_equal(2)
 
-	# Cleanup
+	# Cleanup -- use free() instead of queue_free() because these nodes are not in the scene tree
 	for child: Node in EnemySystem._active_enemies:
-		child.queue_free()
+		if is_instance_valid(child) and not child.is_queued_for_deletion():
+			child.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemy_scene = original_scene
 
@@ -690,9 +696,9 @@ var element: String = ""
 	enemy.ground_effect_spawned.disconnect(_conn)
 	assert_int(signal_count[0]).is_equal(1)
 
-	# Clean up the spawned effect
+	# Clean up the spawned effect -- use free() since it is not in the scene tree
 	if not captured_effect.is_empty():
-		captured_effect[0].queue_free()
+		captured_effect[0].free()
 
 	# Restore
 	enemy._ground_effect_scene = original_ground_scene
@@ -809,11 +815,11 @@ func test_boss_minion_spawn_timer() -> void:
 	# Active enemies: original boss + 2 minions = 3
 	assert_int(EnemySystem._active_enemies.size()).is_equal(3)
 
-	# Cleanup
+	# Cleanup -- use free() instead of queue_free() because these nodes are not in the scene tree
 	for i: int in range(EnemySystem._active_enemies.size() - 1, -1, -1):
 		var e: Node = EnemySystem._active_enemies[i]
-		if e != enemy:
-			e.queue_free()
+		if e != enemy and is_instance_valid(e) and not e.is_queued_for_deletion():
+			e.free()
 	EnemySystem._active_enemies.clear()
 	EnemySystem._enemy_scene = original_scene
 
