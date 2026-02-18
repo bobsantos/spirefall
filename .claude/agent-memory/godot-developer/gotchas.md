@@ -24,6 +24,24 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Signal emission is synchronous: call `monitor_signals()`, then perform the action, then `await assert_signal().wait_until(500).is_emitted("signal_name", args)`
 - `is_emitted()` and `is_not_emitted()` are async (require `await`), they poll the signal collector each process frame
 - `assert_signal()` constructor also calls `register_emitter()`, so previously collected signals are found on the first frame poll
+- **WARNING**: `monitor_signals`/`await assert_signal` is unreliable for synchronous signal emissions on autoload singletons in CI. Prefer direct signal connection with `Array[int]` counter pattern:
+  ```gdscript
+  var signal_count: Array[int] = [0]
+  var _conn: Callable = func(_arg: Node) -> void: signal_count[0] += 1
+  SomeAutoload.some_signal.connect(_conn)
+  SomeAutoload.do_thing()
+  SomeAutoload.some_signal.disconnect(_conn)
+  assert_int(signal_count[0]).is_equal(1)
+  ```
+- **GDScript lambda capture gotcha**: lambdas cannot properly capture and mutate primitive `bool`/`int` variables from enclosing scope. Use `Array[int]` as a mutable container workaround.
+
+## GdUnit4 API: assert_vector (NOT assert_vector2)
+- GdUnit4 provides `assert_vector()` for Vector2/Vector3/Vector4 assertions. There is NO `assert_vector2()` method.
+
+## Godot 4.6 Variant Type Inference Warning
+- `auto_free()` returns `Variant` type. Using `:=` with it causes "Variant type inference" warning treated as error in Godot 4.6.
+- Fix: use explicit type annotation: `var x: Type = auto_free(Node2D.new())` instead of `var x := auto_free(Node2D.new())`
+- Same applies to any expression returning Variant (e.g., `var x = some_dict[key]`)
 
 ## GdUnit4 Script Validation
 - `godot --check-only --script` does NOT load project autoloads/addons, so GdUnitTestSuite won't resolve
@@ -96,8 +114,10 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Enemy.gd extends Node2D with `@onready var sprite: Sprite2D = $Sprite2D` and `@onready var health_bar: ProgressBar = $HealthBar`
 - Cannot use BaseEnemy.tscn in headless mode because `_apply_enemy_data()` calls `load()` for sprite textures which fails
 - Solution: build enemy nodes manually: create Node2D, add Sprite2D and ProgressBar children by name, then `set_script()` with the real Enemy.gd script
+- **Must manually set `enemy.sprite = sprite` and `enemy.health_bar = health_bar` after `set_script()`** because `@onready` only resolves when node enters scene tree via `_ready()`
 - Set `enemy_data = null` first, manually assign `max_health`, `current_health`, `speed`, `_base_speed`, then set `enemy_data` after -- this avoids `_apply_enemy_data()` texture load while preserving data access for `take_damage`, `_apply_resistance`, etc.
 - For methods that read `path_points` and `_path_index` (movement, push/pull), set them before calling the method under test
+- **Movement gotcha**: `_move_along_path()` processes ONE step per call. Enemy starts at `path_points[0]` with `_path_index=0`, so the first call instantly "arrives" at point[0] (already there) and increments index to 1 without actual movement. Need two calls to see position change: first to advance past starting point, second to actually move.
 - `_move_along_path()` can be called directly to test movement without full `_process()` overhead
 - `_heal_nearby()` reads `EnemySystem.get_active_enemies()` -- register both healer and allies in `_active_enemies` before calling
 - `_check_stealth_reveal()` reads `TowerSystem.get_active_towers()` -- add tower stubs to `_active_towers`
@@ -140,8 +160,10 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Same manual node construction patterns as unit tests -- no scene_runner needed for combat flow
 - Must save/restore both `TowerSystem._tower_scene` AND `EnemySystem._enemy_scene` in before()/after_test()
 - For tower-kill-awards-gold tests: fire projectile via `_attack()`, capture with signal, then call `proj._apply_single_hit()` to trigger damage -> _die() -> on_enemy_killed -> add_gold chain
-- For wave clear bonus tests: set `_wave_finished_spawning = true`, add one enemy, kill it via `on_enemy_killed()` -> `_remove_enemy` -> `wave_cleared` signal -> `_on_wave_cleared` -> bonus gold
+- For wave clear bonus tests: set `_wave_finished_spawning = true`, add one enemy, kill it via `on_enemy_killed()` -> `_remove_enemy` -> `wave_cleared` signal. Then call `GameManager._process(0.016)` to detect wave clear and award bonus gold (GameManager polls, not signal-driven).
 - Must set `GameManager._enemies_leaked_this_wave` before wave clear to test no-leak bonus vs leaked bonus
+- **Income phase gotcha**: waves divisible by 5 trigger income phase (`current_wave % 5 == 0`), which applies interest. Use a non-multiple-of-5 wave number (e.g., 4) to avoid unintended interest gold in wave bonus tests.
+- **Floating-point damage truncation**: `_calculate_damage` uses `int()` which truncates. Chained float multiplications like `1.5 * 1.2` yield `1.7999...` due to floating-point precision, so `int(100 * 1.5 * 1.2) = 179` not 180.
 - For sell-tower-reopens-path tests: use `TowerSystem.create_tower()` (with stub scene) then `sell_tower()` to exercise the full GridManager/PathfindingSystem path
 - Unlike unit tests, integration tests exercise the real signal chains between autoloads (e.g. EnemySystem.on_enemy_killed -> EconomyManager.add_gold)
 

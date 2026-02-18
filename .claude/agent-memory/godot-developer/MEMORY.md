@@ -41,7 +41,7 @@
 - JUnit XML reports: auto-generated via `GdUnitXMLReporterTestSessionHook` (built-in)
 - HTML reports: also auto-generated
 - Report output: defaults to `res://reports/` (configurable with `-rd`)
-- Exit codes: 0=success, 1=error, 103=headless not supported
+- Exit codes: 0=success, 100=test failures, 101=warnings only (orphan nodes), 1=error, 103=headless not supported
 - Run command: `godot --headless --path . -s -d res://addons/gdUnit4/bin/GdUnitCmdTool.gd --add tests/ --ignoreHeadlessMode`
 - The `-d` flag on the Godot binary means debug mode (enables breakpoints, not needed for CI but used in runtest.sh)
 

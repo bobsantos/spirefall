@@ -153,16 +153,19 @@ func test_full_wave_cycle() -> void:
 	GameManager.start_wave_early()
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)
 
+	# start_wave_early -> spawn_wave populates _enemies_to_spawn.
+	# Clear the queue so we control exactly which enemies exist for this test.
+	EnemySystem._enemies_to_spawn.clear()
+
 	# Spawn a single enemy and kill it to trigger wave clear
 	var enemy: Node2D = auto_free(_spawn_stub_enemy("WaveMob", 5))
 	EnemySystem._wave_finished_spawning = true
 
 	EnemySystem.on_enemy_killed(enemy)
 
-	# GameManager should detect wave cleared and transition to BUILD_PHASE, wave 2
-	# The wave_cleared signal from EnemySystem triggers _on_wave_cleared in
-	# GameManager via _process(), but on_enemy_killed -> _remove_enemy -> wave_cleared
-	# signal is emitted synchronously. GameManager._process detects the state.
+	# GameManager should detect wave cleared and transition to BUILD_PHASE, wave 2.
+	# on_enemy_killed -> _remove_enemy -> wave_cleared is emitted synchronously, but
+	# GameManager detects state via _process() polling active enemies + is_wave_finished.
 	GameManager._process(0.016)
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.BUILD_PHASE)
 	assert_int(GameManager.current_wave).is_equal(2)

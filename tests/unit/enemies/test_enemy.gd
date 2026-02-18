@@ -82,6 +82,10 @@ func _create_enemy(data: EnemyData, path_pts: PackedVector2Array = PackedVector2
 	# call _ready() yet (that happens when added to the scene tree).
 	enemy.set_script(_enemy_script)
 
+	# Manually set @onready references since the node is not in the scene tree.
+	enemy.sprite = sprite
+	enemy.health_bar = health_bar
+
 	# Set data BEFORE _ready() runs so _apply_enemy_data() works.
 	# We set enemy_data to null first to prevent _apply_enemy_data from running
 	# with the sprite texture load that fails headless. Instead we manually
@@ -147,7 +151,7 @@ func before_test() -> void:
 func test_starts_at_first_path_point() -> void:
 	var path: PackedVector2Array = _make_path(5)
 	var enemy: Node2D = auto_free(_create_enemy(_make_enemy_data(), path))
-	assert_vector2(enemy.position).is_equal(path[0])
+	assert_vector(enemy.position).is_equal(path[0])
 
 
 # -- 2. test_moves_along_path --------------------------------------------------
@@ -156,6 +160,10 @@ func test_moves_along_path() -> void:
 	var path: PackedVector2Array = _make_path(5)
 	var data: EnemyData = _make_enemy_data("Mover", 100, 1.0)
 	var enemy: Node2D = auto_free(_create_enemy(data, path))
+	# The enemy starts at path_points[0] with _path_index=0. The first call to
+	# _move_along_path instantly "arrives" at point[0] (already there) and advances
+	# _path_index to 1. A second call then actually moves toward point[1].
+	enemy._move_along_path(0.001)  # Advance past starting point
 	# Speed = 64 px/s, delta = 0.5s -> moves 32px toward point[1] at (64,0)
 	enemy._move_along_path(0.5)
 	assert_float(enemy.position.x).is_greater(0.0)
@@ -200,8 +208,11 @@ func test_reached_exit_triggers_exit() -> void:
 	GameManager.start_game()
 
 	var lives_before: int = GameManager.lives
-	# Move 1 second -> 64px -> reaches exit point -> _reached_exit called
-	enemy._move_along_path(1.0)
+	# The enemy starts at path_points[0] with _path_index=0. The first call
+	# instantly arrives at point[0] and advances the index. The second call
+	# moves toward point[1] (the exit) and triggers _reached_exit.
+	enemy._move_along_path(0.001)  # Advance past starting point
+	enemy._move_along_path(1.0)    # Move to exit -> _reached_exit called
 	# Enemy should have called _reached_exit -> EnemySystem.on_enemy_reached_exit
 	# which decrements lives
 	assert_int(GameManager.lives).is_equal(lives_before - 1)
@@ -218,7 +229,7 @@ func test_push_back_decrements_index() -> void:
 	enemy.position = path[5]
 	enemy.push_back(2)
 	assert_int(enemy._path_index).is_equal(3)
-	assert_vector2(enemy.position).is_equal(path[3])
+	assert_vector(enemy.position).is_equal(path[3])
 
 
 # -- 7. test_pull_toward_snaps_to_path -----------------------------------------
@@ -234,7 +245,7 @@ func test_pull_toward_snaps_to_path() -> void:
 	enemy.pull_toward(Vector2(128.0, 0.0), 500.0)
 	# Should snap to path index 2 (closest to target)
 	assert_int(enemy._path_index).is_equal(2)
-	assert_vector2(enemy.position).is_equal(path[2])
+	assert_vector(enemy.position).is_equal(path[2])
 
 
 # ==============================================================================
@@ -640,9 +651,6 @@ func test_boss_fire_trail_spawns_ground_effect() -> void:
 		false, null, false, 0.0, "fire_trail", 5.0)
 	var enemy: Node2D = auto_free(_create_enemy(data, _make_path(5)))
 
-	# Monitor the ground_effect_spawned signal
-	monitor_signals(enemy)
-
 	# _boss_fire_trail loads GroundEffect.tscn which may not exist in headless mode.
 	# We test that the method attempts to fire the signal by preloading a stub.
 	# Create a simple stub scene for GroundEffect
@@ -666,12 +674,25 @@ var element: String = ""
 	stub_node.free()
 
 	# Inject the stub scene into the static var
-	var original_ground_scene = enemy._ground_effect_scene
+	var original_ground_scene: PackedScene = enemy._ground_effect_scene
 	enemy._ground_effect_scene = stub_scene
+
+	# Use direct signal connection to capture synchronous emission
+	var signal_count: Array[int] = [0]
+	var captured_effect: Array = []
+	var _conn: Callable = func(effect: Node) -> void:
+		signal_count[0] += 1
+		captured_effect.append(effect)
+	enemy.ground_effect_spawned.connect(_conn)
 
 	enemy._boss_fire_trail()
 
-	await assert_signal(enemy).wait_until(500).is_emitted("ground_effect_spawned")
+	enemy.ground_effect_spawned.disconnect(_conn)
+	assert_int(signal_count[0]).is_equal(1)
+
+	# Clean up the spawned effect
+	if not captured_effect.is_empty():
+		captured_effect[0].queue_free()
 
 	# Restore
 	enemy._ground_effect_scene = original_ground_scene
@@ -698,7 +719,7 @@ func disable_for(duration: float) -> void:
 """
 	tower_script.reload()
 
-	var tower := auto_free(Node2D.new())
+	var tower: Node2D = auto_free(Node2D.new())
 	tower.set_script(tower_script)
 	tower.position = Vector2(250.0, 200.0)  # 50px away -> within 192px
 

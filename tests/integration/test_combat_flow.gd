@@ -152,6 +152,10 @@ func _create_enemy(data: EnemyData, path_pts: PackedVector2Array = PackedVector2
 
 	enemy.set_script(_enemy_script)
 
+	# Manually set @onready references since the node is not in the scene tree.
+	enemy.sprite = sprite
+	enemy.health_bar = health_bar
+
 	# Prevent _apply_enemy_data texture load
 	enemy.enemy_data = null
 	enemy.path_points = path_pts
@@ -645,7 +649,7 @@ func test_freeze_stops_enemy_movement() -> void:
 	# Verify enemy does not move when frozen
 	var pos_before: Vector2 = enemy.position
 	enemy._move_along_path(0.5)
-	assert_vector2(enemy.position).is_equal(pos_before)
+	assert_vector(enemy.position).is_equal(pos_before)
 
 	proj.queue_free()
 
@@ -744,9 +748,12 @@ func test_enemy_reaching_exit_loses_life() -> void:
 	EnemySystem._active_enemies.append(enemy)
 	EnemySystem._wave_finished_spawning = true
 
-	# Move the enemy along the path until it reaches the exit
-	# Path: (0,0) -> (64,0). Speed = 64 px/s. After 1 second, reaches exit.
-	enemy._move_along_path(1.0)
+	# Move the enemy along the path until it reaches the exit.
+	# Path: (0,0) -> (64,0). Speed = 64 px/s. The enemy starts at point[0] with
+	# _path_index=0, so the first call instantly arrives and advances the index.
+	# The second call moves toward point[1] (the exit) and triggers _reached_exit.
+	enemy._move_along_path(0.001)  # Advance past starting point
+	enemy._move_along_path(1.0)    # Move to exit
 
 	# Enemy should have reached exit, causing life loss
 	assert_int(GameManager.lives).is_equal(lives_before - 1)
@@ -759,7 +766,8 @@ func test_enemy_reaching_exit_loses_life() -> void:
 func test_wave_clear_awards_bonus() -> void:
 	GameManager.start_game()
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
-	GameManager.current_wave = 5
+	# Use wave 4 (not divisible by 5) to avoid triggering income phase + interest
+	GameManager.current_wave = 4
 	GameManager._enemies_leaked_this_wave = 2  # Some enemies leaked
 
 	# Create a single enemy and kill it to trigger wave clear
@@ -771,15 +779,19 @@ func test_wave_clear_awards_bonus() -> void:
 
 	var gold_before: int = EconomyManager.gold
 
-	# Kill the enemy -- this triggers on_enemy_killed -> _remove_enemy -> wave_cleared
-	# which triggers GameManager._on_wave_cleared -> EconomyManager.add_gold(bonus)
+	# Kill the enemy -- on_enemy_killed awards kill gold and removes from active list.
+	# GameManager detects wave clear via _process() polling, not via signal.
 	EnemySystem.on_enemy_killed(enemy)
 
+	# Trigger GameManager._process so it detects zero active enemies + wave finished
+	# and calls _on_wave_cleared() which awards the wave bonus.
+	GameManager._process(0.016)
+
 	# Gold should increase by: enemy gold (5) + wave bonus
-	# Wave 5 bonus with 2 leaks: base = 10 + (5 * 3) = 25 (no no-leak bonus)
+	# Wave 4 bonus with 2 leaks: base = 10 + (4 * 3) = 22 (no no-leak bonus)
 	var expected_enemy_gold: int = 5
-	var expected_wave_bonus: int = EconomyManager.calculate_wave_bonus(5, 2)
-	assert_int(expected_wave_bonus).is_equal(25)
+	var expected_wave_bonus: int = EconomyManager.calculate_wave_bonus(4, 2)
+	assert_int(expected_wave_bonus).is_equal(22)
 
 	var total_expected: int = gold_before + expected_enemy_gold + expected_wave_bonus
 	assert_int(EconomyManager.gold).is_equal(total_expected)
@@ -792,7 +804,8 @@ func test_wave_clear_awards_bonus() -> void:
 func test_no_leak_bonus_25_percent() -> void:
 	GameManager.start_game()
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
-	GameManager.current_wave = 5
+	# Use wave 4 (not divisible by 5) to avoid triggering income phase + interest
+	GameManager.current_wave = 4
 	GameManager._enemies_leaked_this_wave = 0  # No leaks
 
 	# Create a single enemy and kill it to trigger wave clear
@@ -804,17 +817,20 @@ func test_no_leak_bonus_25_percent() -> void:
 
 	var gold_before: int = EconomyManager.gold
 
-	# Kill the enemy to trigger wave clear
+	# Kill the enemy -- on_enemy_killed awards kill gold and removes from active list.
 	EnemySystem.on_enemy_killed(enemy)
 
+	# Trigger GameManager._process so it detects wave clear and awards wave bonus.
+	GameManager._process(0.016)
+
 	# Gold should increase by: enemy gold (5) + wave bonus with no-leak 25% bonus
-	# Wave 5 bonus with 0 leaks: base = 10 + (5 * 3) = 25, * 1.25 = 31 (int truncation)
+	# Wave 4 bonus with 0 leaks: base = 10 + (4 * 3) = 22, * 1.25 = 27 (int truncation)
 	var expected_enemy_gold: int = 5
-	var expected_wave_bonus: int = EconomyManager.calculate_wave_bonus(5, 0)
-	assert_int(expected_wave_bonus).is_equal(31)
+	var expected_wave_bonus: int = EconomyManager.calculate_wave_bonus(4, 0)
+	assert_int(expected_wave_bonus).is_equal(27)
 
 	# Verify the no-leak bonus is 25% more than the leaked version
-	var leaked_bonus: int = EconomyManager.calculate_wave_bonus(5, 2)
+	var leaked_bonus: int = EconomyManager.calculate_wave_bonus(4, 2)
 	assert_int(expected_wave_bonus).is_greater(leaked_bonus)
 
 	var total_expected: int = gold_before + expected_enemy_gold + expected_wave_bonus

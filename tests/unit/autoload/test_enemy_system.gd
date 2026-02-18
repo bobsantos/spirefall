@@ -317,9 +317,12 @@ func test_on_enemy_killed_emits_signal() -> void:
 	EnemySystem._active_enemies.append(stub)
 	EnemySystem._wave_finished_spawning = true
 
-	monitor_signals(EnemySystem, false)
+	var signal_count: Array[int] = [0]
+	var _conn: Callable = func(_enemy: Node) -> void: signal_count[0] += 1
+	EnemySystem.enemy_killed.connect(_conn)
 	EnemySystem.on_enemy_killed(stub)
-	await assert_signal(EnemySystem).wait_until(500).is_emitted("enemy_killed")
+	EnemySystem.enemy_killed.disconnect(_conn)
+	assert_int(signal_count[0]).is_equal(1)
 
 
 # -- 22. on_enemy_reached_exit loses life --------------------------------------
@@ -556,13 +559,16 @@ func test_enemy_spawned_signal() -> void:
 	EnemySystem.spawn_wave(1)
 	assert_bool(EnemySystem._enemies_to_spawn.is_empty()).is_false()
 
-	# Monitor for enemy_spawned signal
-	monitor_signals(EnemySystem, false)
+	# Connect directly to capture the synchronous signal emission
+	var signal_count: Array[int] = [0]
+	var _conn: Callable = func(_enemy: Node) -> void: signal_count[0] += 1
+	EnemySystem.enemy_spawned.connect(_conn)
 
 	# Trigger one spawn by calling _spawn_next_enemy directly
 	EnemySystem._spawn_next_enemy()
 
-	await assert_signal(EnemySystem).wait_until(500).is_emitted("enemy_spawned")
+	EnemySystem.enemy_spawned.disconnect(_conn)
+	assert_int(signal_count[0]).is_equal(1)
 
 	# Clean up spawned enemies
 	for enemy: Node in EnemySystem._active_enemies:

@@ -225,9 +225,13 @@ func test_create_tower_adds_to_active() -> void:
 
 func test_create_tower_emits_signal() -> void:
 	var data: TowerData = _make_tower_data("Fire", "fire", 30)
-	monitor_signals(TowerSystem, false)
-	TowerSystem.create_tower(data, Vector2i(5, 5))
-	await assert_signal(TowerSystem).wait_until(500).is_emitted("tower_created")
+	var signal_count: Array[int] = [0]
+	var _conn: Callable = func(_tower: Node) -> void: signal_count[0] += 1
+	TowerSystem.tower_created.connect(_conn)
+	var tower: Node = TowerSystem.create_tower(data, Vector2i(5, 5))
+	TowerSystem.tower_created.disconnect(_conn)
+	assert_object(tower).is_not_null()
+	assert_int(signal_count[0]).is_equal(1)
 
 
 # -- 8. upgrade_tower success ---------------------------------------------------
@@ -289,9 +293,12 @@ func test_upgrade_tower_emits_signal() -> void:
 	var base_data: TowerData = _make_tower_data("Fire", "fire", 30, 1, upgrade_data)
 	var tower: Node2D = auto_free(_make_tower_stub(base_data, Vector2i(5, 5)))
 
-	monitor_signals(TowerSystem, false)
+	var signal_count: Array[int] = [0]
+	var _conn: Callable = func(_t: Node) -> void: signal_count[0] += 1
+	TowerSystem.tower_upgraded.connect(_conn)
 	TowerSystem.upgrade_tower(tower)
-	await assert_signal(TowerSystem).wait_until(500).is_emitted("tower_upgraded")
+	TowerSystem.tower_upgraded.disconnect(_conn)
+	assert_int(signal_count[0]).is_equal(1)
 
 
 # -- 13. sell_tower refund build phase (75%) ------------------------------------
@@ -530,9 +537,12 @@ func test_fuse_towers_emits_signal() -> void:
 	GridManager._tower_map[Vector2i(7, 5)] = tower_b
 
 	EconomyManager.add_gold(500)
-	monitor_signals(TowerSystem, false)
+	var signal_count: Array[int] = [0]
+	var _conn: Callable = func(_t: Node) -> void: signal_count[0] += 1
+	TowerSystem.tower_fused.connect(_conn)
 	TowerSystem.fuse_towers(tower_a, tower_b)
-	await assert_signal(TowerSystem).wait_until(500).is_emitted("tower_fused")
+	TowerSystem.tower_fused.disconnect(_conn)
+	assert_int(signal_count[0]).is_equal(1)
 
 
 # -- 25. fuse_legendary success -------------------------------------------------

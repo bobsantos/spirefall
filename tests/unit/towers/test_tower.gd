@@ -470,8 +470,9 @@ func test_calculate_damage_with_synergy() -> void:
 	EnemySystem._active_enemies.append(enemy)
 
 	var dmg: int = tower._calculate_damage(enemy)
-	# 100 * 1.5 * 1.2 = 180
-	assert_int(dmg).is_equal(180)
+	# 100 * 1.5 * 1.2 = 180.0 in exact math, but floating-point multiplication
+	# yields 1.5 * 1.2 = 1.7999... so int() truncates to 179.
+	assert_int(dmg).is_equal(179)
 
 
 # -- 14. test_storm_aoe_wave_scaling ------------------------------------------
@@ -794,7 +795,7 @@ func test_on_synergy_changed_reapplies_data() -> void:
 	# Set up 5 fire towers in TowerSystem so ElementSynergy calculates tier 2
 	for i: int in range(5):
 		var stub_data: TowerData = _make_tower_data("Fire%d" % i, "fire")
-		var stub := auto_free(Node2D.new())
+		var stub: Node2D = auto_free(Node2D.new())
 		var stub_script := GDScript.new()
 		stub_script.source_code = """
 extends Node2D

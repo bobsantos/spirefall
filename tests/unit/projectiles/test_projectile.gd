@@ -424,7 +424,7 @@ func test_pull_burn_pulls_then_damages() -> void:
 
 	# Enemy should have been pulled toward impact (100, 100)
 	assert_int(enemy._pull_calls.size()).is_equal(1)
-	assert_vector2(enemy._pull_calls[0]["target_pos"]).is_equal(Vector2(100.0, 100.0))
+	assert_vector(enemy._pull_calls[0]["target_pos"]).is_equal(Vector2(100.0, 100.0))
 	assert_float(enemy._pull_calls[0]["max_dist"]).is_equal(64.0)  # PULL_DISTANCE_PX
 
 	# Enemy should also have taken damage
