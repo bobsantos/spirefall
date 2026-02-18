@@ -296,6 +296,8 @@ func test_early_wave_start_bonus() -> void:
 
 	# Start wave early while timer has 20 seconds remaining
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 
 	# Should transition to COMBAT_PHASE
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)

@@ -39,6 +39,17 @@ func before_test() -> void:
 	EconomyManager.reset()
 
 
+func after_test() -> void:
+	# Free any enemy nodes that EnemySystem._process() may have spawned
+	# during tests that call start_wave_early() -> spawn_wave().
+	# These nodes are NOT in the scene tree, so queue_free() would leak them.
+	for enemy: Node in EnemySystem._active_enemies:
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+			enemy.free()
+	EnemySystem._active_enemies.clear()
+	EnemySystem._enemies_to_spawn.clear()
+
+
 # -- 1. Initial State ----------------------------------------------------------
 
 func test_initial_state_is_menu() -> void:
@@ -104,6 +115,8 @@ func test_start_wave_early_from_build_phase() -> void:
 	GameManager.start_game()
 	# Now in BUILD_PHASE, wave 1
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)
 
 
@@ -116,6 +129,8 @@ func test_start_wave_early_bonus_gold() -> void:
 	GameManager._build_timer = 15.0
 	var gold_before: int = EconomyManager.gold
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 	# Bonus = int(15.0) * 10 = 150
 	assert_int(EconomyManager.gold).is_equal(gold_before + 150)
 
@@ -127,6 +142,8 @@ func test_start_wave_early_emits_bonus_signal() -> void:
 	GameManager._build_timer = 10.0
 	monitor_signals(GameManager, false)
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 	# Bonus = int(10.0) * 10 = 100
 	await assert_signal(GameManager).wait_until(500).is_emitted(
 		"early_wave_bonus", [100])
@@ -137,6 +154,8 @@ func test_start_wave_early_emits_bonus_signal() -> void:
 func test_start_wave_early_ignored_in_combat() -> void:
 	GameManager.start_game()
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 	# Now in COMBAT_PHASE
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)
 	var wave_before: int = GameManager.current_wave
@@ -154,6 +173,8 @@ func test_wave_cleared_advances_to_build() -> void:
 	GameManager.start_game()
 	# wave == 1, in BUILD_PHASE -> go to COMBAT
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)
 	# Simulate all enemies cleared
 	_simulate_wave_cleared()
@@ -247,6 +268,8 @@ func test_combat_phase_emits_wave_started() -> void:
 	# wave == 1 after start_game
 	monitor_signals(GameManager, false)
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 	await assert_signal(GameManager).wait_until(500).is_emitted(
 		"wave_started", [1])
 
@@ -256,6 +279,8 @@ func test_combat_phase_emits_wave_started() -> void:
 func test_wave_completed_signal_emitted() -> void:
 	GameManager.start_game()
 	GameManager.start_wave_early()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 	# Now in COMBAT_PHASE, wave == 1
 	monitor_signals(GameManager, false)
 	_simulate_wave_cleared()

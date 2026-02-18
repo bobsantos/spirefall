@@ -107,6 +107,17 @@ func before_test() -> void:
 	EconomyManager.reset()
 
 
+func after_test() -> void:
+	# Free any enemy nodes that EnemySystem._process() may have spawned
+	# during tests that call spawn_wave(). These nodes are NOT in the scene
+	# tree, so queue_free() would leak them as orphans.
+	for enemy: Node in EnemySystem._active_enemies:
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+			enemy.free()
+	EnemySystem._active_enemies.clear()
+	EnemySystem._enemies_to_spawn.clear()
+
+
 func after() -> void:
 	_stub_script = null
 
@@ -269,6 +280,8 @@ func test_spawn_wave_sets_queue() -> void:
 	GameManager.current_wave = 1
 	EnemySystem.spawn_wave(1)
 	assert_bool(EnemySystem._enemies_to_spawn.is_empty()).is_false()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 
 
 # -- 17. is_wave_finished false during spawn -----------------------------------
@@ -277,6 +290,8 @@ func test_is_wave_finished_false_during_spawn() -> void:
 	EnemySystem._wave_finished_spawning = false
 	EnemySystem._enemies_to_spawn = [_make_template()]
 	assert_bool(EnemySystem.is_wave_finished()).is_false()
+	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
+	EnemySystem._enemies_to_spawn.clear()
 
 
 # -- 18. is_wave_finished true when done ---------------------------------------

@@ -6,6 +6,21 @@
 - GdUnit4 exit code 101 = orphan node warnings (leaked nodes). Each leaked Node2D = 1 CanvasItem RID. Projectiles (Node2D + Sprite2D child) = 2 CanvasItems each.
 - Pattern: use `free()` in `before_test()` / `after_test()` cleanup loops, and for manually cleaning up nodes in test bodies. Only use `queue_free()` when the node is actually in the scene tree.
 
+## EnemySystem._process() Autoload Spawning During Tests
+- EnemySystem is a live autoload with `_process(delta)` that spawns enemies from `_enemies_to_spawn` queue every frame.
+- Any test that calls `GameManager.start_wave_early()` or `EnemySystem.spawn_wave()` populates this queue.
+- Between test statements (especially during `await` calls), EnemySystem._process() fires and instantiates real enemy nodes from `_enemy_scene`. These nodes go into `_active_enemies` but are never cleaned up by the test.
+- **Fix**: Immediately clear `EnemySystem._enemies_to_spawn.clear()` after any call to `start_wave_early()` or `spawn_wave()` in tests that don't need actual spawning.
+- **Fix**: Add `after_test()` cleanup that frees all nodes in `EnemySystem._active_enemies` and clears `_enemies_to_spawn`.
+- **Fix**: In test suites that don't directly test EnemySystem (e.g., test_tower_system.gd), add `_reset_enemy_system()` to both `before_test()` and `after_test()` to prevent cross-suite contamination.
+
+## GdUnit4 Orphan Detection Timing
+- GdUnit4 detects orphan nodes BEFORE `after_test()` runs. The execution order is: `before_test()` -> test body -> orphan detection -> `after_test()`.
+- Nodes created during the test must be freed within the test body (or registered via `auto_free()`) to avoid orphan detection.
+- `auto_free(node)` registers the node for cleanup during GdUnit4's internal cleanup phase, which happens before orphan counting.
+- For production functions like `TowerSystem.create_tower()` that return new nodes, wrap with `auto_free()`: `var tower = auto_free(TowerSystem.create_tower(data, pos))`
+- `after_test()` cleanup still needed for array state reset (clearing `_active_towers`, etc.), but node freeing should happen via `auto_free()` or explicit `free()` within the test body.
+
 ## Static GDScript Variables Leak at Process Exit
 - `static var` on GDScript classes persist for the entire Godot process lifetime. At exit, any GDScript objects still referenced by static vars are reported as "resources still in use."
 - Fix: add an `after()` method (GdUnit4 suite-level teardown, runs once after all tests) that nulls out all static vars:

@@ -106,6 +106,17 @@ func _reset_tower_system() -> void:
 	TowerSystem._active_towers.clear()
 
 
+func _reset_enemy_system() -> void:
+	# Free any enemy nodes spawned by EnemySystem._process() from a previous test
+	for enemy: Node in EnemySystem._active_enemies:
+		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
+			enemy.free()
+	EnemySystem._active_enemies.clear()
+	EnemySystem._enemies_to_spawn.clear()
+	EnemySystem._wave_finished_spawning = false
+	EnemySystem._spawn_timer = 0.0
+
+
 func _reset_game_manager() -> void:
 	GameManager.game_state = GameManager.GameState.MENU
 	GameManager.current_wave = 0
@@ -130,6 +141,7 @@ func before_test() -> void:
 	_reset_tower_system()
 	_reset_game_manager()
 	_reset_grid_manager()
+	_reset_enemy_system()
 	EconomyManager.reset()
 	# Replace tower scene with stub for all tests
 	TowerSystem._tower_scene = _create_tower_stub_scene()
@@ -142,6 +154,8 @@ func before_test() -> void:
 func after_test() -> void:
 	# Clean up any towers created during the test
 	_reset_tower_system()
+	# Clean up any enemy nodes spawned by EnemySystem._process()
+	_reset_enemy_system()
 	# Restore the original tower scene
 	TowerSystem._tower_scene = _original_tower_scene
 
@@ -156,7 +170,8 @@ func test_create_tower_spends_gold() -> void:
 	var data: TowerData = _make_tower_data("Fire", "fire", 30)
 	var gold_before: int = EconomyManager.gold
 	# Place at (5, 5) which is BUILDABLE and won't block the spawn-exit path on row 0
-	TowerSystem.create_tower(data, Vector2i(5, 5))
+	var tower: Node = TowerSystem.create_tower(data, Vector2i(5, 5))
+	auto_free(tower)
 	assert_int(EconomyManager.gold).is_equal(gold_before - 30)
 
 
@@ -164,7 +179,7 @@ func test_create_tower_spends_gold() -> void:
 
 func test_create_tower_returns_node() -> void:
 	var data: TowerData = _make_tower_data("Fire", "fire", 30)
-	var tower: Node = TowerSystem.create_tower(data, Vector2i(5, 5))
+	var tower: Node = auto_free(TowerSystem.create_tower(data, Vector2i(5, 5)))
 	assert_object(tower).is_not_null()
 	assert_object(tower.tower_data).is_same(data)
 
@@ -219,7 +234,7 @@ func test_create_tower_fails_blocks_path() -> void:
 func test_create_tower_adds_to_active() -> void:
 	var data: TowerData = _make_tower_data("Fire", "fire", 30)
 	assert_int(TowerSystem.get_active_towers().size()).is_equal(0)
-	var tower: Node = TowerSystem.create_tower(data, Vector2i(5, 5))
+	var tower: Node = auto_free(TowerSystem.create_tower(data, Vector2i(5, 5)))
 	assert_int(TowerSystem.get_active_towers().size()).is_equal(1)
 	assert_bool(TowerSystem.get_active_towers().has(tower)).is_true()
 
@@ -231,7 +246,7 @@ func test_create_tower_emits_signal() -> void:
 	var signal_count: Array[int] = [0]
 	var _conn: Callable = func(_tower: Node) -> void: signal_count[0] += 1
 	TowerSystem.tower_created.connect(_conn)
-	var tower: Node = TowerSystem.create_tower(data, Vector2i(5, 5))
+	var tower: Node = auto_free(TowerSystem.create_tower(data, Vector2i(5, 5)))
 	TowerSystem.tower_created.disconnect(_conn)
 	assert_object(tower).is_not_null()
 	assert_int(signal_count[0]).is_equal(1)
