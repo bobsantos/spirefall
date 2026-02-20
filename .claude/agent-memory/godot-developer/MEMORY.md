@@ -4,7 +4,7 @@
 - Engine: Godot 4.6, GDScript, gl_compatibility renderer
 - Grid: 20x15 cells, 64px each, 1280x960
 - 8 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager
-- Additional autoloads: FusionRegistry, ElementSynergy
+- Additional autoloads: FusionRegistry, ElementSynergy, SceneManager
 - Main scene: `res://scenes/main/Game.tscn`
 - Remote: `git@github.com:bobsantos/spirefall.git`
 
@@ -30,6 +30,7 @@
 - Task 16 complete: `tests/integration/test_combat_flow.gd` (12 tests)
 - Task 17 complete: `tests/integration/test_fusion_flow.gd` (6 tests)
 - Task 18 complete: `tests/integration/test_game_state.gd` (6 tests)
+- Phase 3 Task A1 complete: `tests/unit/autoload/test_scene_manager.gd` (19 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)

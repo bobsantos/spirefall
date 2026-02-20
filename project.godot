@@ -30,6 +30,7 @@ UIManager="*res://scripts/autoload/UIManager.gd"
 AudioManager="*res://scripts/autoload/AudioManager.gd"
 FusionRegistry="*res://scripts/autoload/FusionRegistry.gd"
 ElementSynergy="*res://scripts/systems/ElementSynergy.gd"
+SceneManager="*res://scripts/autoload/SceneManager.gd"
 
 [display]
 
@@ -40,6 +41,14 @@ window/size/window_height_override=960
 window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 window/handheld/orientation=1
+
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
+
+[gdunit4]
+
+report/root_path="res://tests"
 
 [input]
 
@@ -93,14 +102,6 @@ ui_pan_right={
 "events": [Object(InputEventKey,"resource_local_to_scene":false,"resource_name":"","device":-1,"window_id":0,"alt_pressed":false,"shift_pressed":false,"ctrl_pressed":false,"meta_pressed":false,"pressed":false,"keycode":68,"physical_keycode":68,"key_label":68,"unicode":100,"location":0,"echo":false,"script":null)
 ]
 }
-
-[editor_plugins]
-
-enabled=PackedStringArray("res://addons/gdUnit4/plugin.cfg")
-
-[gdunit4]
-
-report/root_path="res://tests"
 
 [rendering]
 

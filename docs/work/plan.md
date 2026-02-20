@@ -55,12 +55,13 @@ The game currently launches directly into gameplay. This group adds a proper men
 
 ---
 
-#### Task A1: SceneManager Autoload
+#### Task A1: SceneManager Autoload ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 10.3
 
 **New files:**
 - `scripts/autoload/SceneManager.gd`
+- `tests/unit/autoload/test_scene_manager.gd` (19 tests)
 
 **Modified files:**
 - `project.godot` (add autoload)
@@ -75,9 +76,9 @@ The game currently launches directly into gameplay. This group adds a proper men
 - Signal: `scene_changing()` so systems can clean up
 
 **Acceptance criteria:**
-- [ ] Calling `SceneManager.change_scene("res://scenes/main/MainMenu.tscn")` fades out, loads scene, fades in
-- [ ] `SceneManager.current_game_config` persists across scene changes
-- [ ] No orphan nodes after transition
+- [x] Calling `SceneManager.change_scene("res://scenes/main/MainMenu.tscn")` fades out, loads scene, fades in
+- [x] `SceneManager.current_game_config` persists across scene changes
+- [x] No orphan nodes after transition (0 orphans in test run)
 
 ---
 
