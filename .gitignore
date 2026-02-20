@@ -1,6 +1,7 @@
 # Godot
 .godot/
 *.import
+*.uid
 
 # GdUnit4 test reports
 reports/
