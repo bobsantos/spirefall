@@ -32,6 +32,7 @@
 - Task 18 complete: `tests/integration/test_game_state.gd` (6 tests)
 - Phase 3 Task A1 complete: `tests/unit/autoload/test_scene_manager.gd` (19 tests)
 - Phase 3 Task A2 complete: `tests/unit/main/test_main_menu.gd` (31 tests)
+- Phase 3 Task A3 complete: `tests/unit/main/test_mode_select.gd` (40 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)

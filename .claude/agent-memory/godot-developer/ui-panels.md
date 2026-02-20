@@ -10,6 +10,18 @@
 - Button connections check `is_connected()` before connecting to be idempotent
 - StyleBox overrides applied via `add_theme_stylebox_override("hover", StyleBoxFlat)` and `"pressed"`
 
+## ModeSelect (Task A3)
+- Root: Control with full-rect anchors, script `scripts/main/ModeSelect.gd`
+- 3 mode cards (Classic/Draft/Endless) as PanelContainer in HBoxContainer
+- Each card: PanelContainer > VBoxContainer > NameLabel + DescriptionLabel + LockLabel + SelectButton
+- Lock system: `unlock_overrides: Dictionary` for test control, `_is_mode_unlocked()` checks overrides then defaults
+- `update_lock_status()` sets button.disabled, lock_label.text, card.modulate.a (0.5 for locked)
+- `_select_mode()` guards with `_is_mode_unlocked()`, clears config, sets mode, navigates to MapSelect
+- Back button uses `SceneManager.go_to_main_menu()` (clears config + navigates)
+- Navigation: ModeSelect -> MapSelect (`res://scenes/main/MapSelect.tscn`)
+- XP thresholds stored as constants: DRAFT_XP_THRESHOLD=500, ENDLESS_XP_THRESHOLD=2000
+- MetaProgression integration point: replace `_is_mode_unlocked()` stub when Task E1 is done
+
 ## Testing UI Scripts Without Scene Tree
 - Build node tree manually in test helper (mirrors .tscn structure)
 - Apply script via `set_script(load(path))`

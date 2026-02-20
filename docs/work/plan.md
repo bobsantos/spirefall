@@ -110,13 +110,14 @@ The game currently launches directly into gameplay. This group adds a proper men
 
 ---
 
-#### Task A3: ModeSelect Scene
+#### Task A3: ModeSelect Scene ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 6, Section 10.3
 
 **New files:**
 - `scenes/main/ModeSelect.tscn`
 - `scripts/main/ModeSelect.gd`
+- `tests/unit/main/test_mode_select.gd` (40 tests)
 
 **Implementation notes:**
 - Display mode cards: Classic (always unlocked), Draft (unlocked at 500 XP), Endless (unlocked at 2000 XP)
@@ -128,12 +129,13 @@ The game currently launches directly into gameplay. This group adds a proper men
   - Classic: "30 waves of increasing difficulty. Build, maze, and survive."
   - Draft: "Start with 1 random element. Draft 2 more across 10 waves."
   - Endless: "Waves never stop. How far can you go?"
+- `unlock_overrides` Dictionary for test-friendly lock control; `_is_mode_unlocked()` ready for MetaProgression (Task E1)
 
 **Acceptance criteria:**
-- [ ] Three mode cards displayed with correct descriptions
-- [ ] Locked modes show requirement and cannot be selected
-- [ ] Selected mode stored in game config, navigates to MapSelect
-- [ ] Back button returns to MainMenu
+- [x] Three mode cards displayed with correct descriptions
+- [x] Locked modes show requirement and cannot be selected
+- [x] Selected mode stored in game config, navigates to MapSelect
+- [x] Back button returns to MainMenu
 
 ---
 
