@@ -198,6 +198,13 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - For sell-tower-reopens-path tests: use `TowerSystem.create_tower()` (with stub scene) then `sell_tower()` to exercise the full GridManager/PathfindingSystem path
 - Unlike unit tests, integration tests exercise the real signal chains between autoloads (e.g. EnemySystem.on_enemy_killed -> EconomyManager.add_gold)
 
+## Godot 4.x Theme Override API
+- There is NO `get_theme_stylebox_override()` method on Control/Button. It does not exist.
+- To CHECK if a stylebox override is set: `btn.has_theme_stylebox_override("hover")` (returns bool)
+- To GET the stylebox (including overrides): `btn.get_theme_stylebox("hover")` (returns the override if set, otherwise the theme default)
+- To SET: `btn.add_theme_stylebox_override("hover", style)` (this one does exist)
+- Same pattern for color/font/font_size/constant overrides: `has_theme_*_override()` to check, `get_theme_*()` to get, `add_theme_*_override()` to set
+
 ## Resource Validation Test Patterns
 - Resource .tres files load fine with `load()` in headless mode -- no texture issues since TowerData/EnemyData are pure Resource subclasses (no scene nodes)
 - All tower tiers use `tier = 1` for base/enhanced/superior (upgrade chain is base -> enhanced -> superior via `upgrade_to` references). Fusions are `tier = 2`, legendaries are `tier = 3`

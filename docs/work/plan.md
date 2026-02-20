@@ -82,13 +82,14 @@ The game currently launches directly into gameplay. This group adds a proper men
 
 ---
 
-#### Task A2: MainMenu Scene
+#### Task A2: MainMenu Scene ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 10.3
 
 **New files:**
 - `scenes/main/MainMenu.tscn`
 - `scripts/main/MainMenu.gd`
+- `tests/unit/main/test_main_menu.gd` (31 tests)
 
 **Implementation notes:**
 - `Control` root node, full-screen, centered layout
@@ -102,10 +103,10 @@ The game currently launches directly into gameplay. This group adds a proper men
 - Update `project.godot` to set `run/main_scene="res://scenes/main/MainMenu.tscn"`
 
 **Acceptance criteria:**
-- [ ] Game launches to MainMenu, not directly into gameplay
-- [ ] Play button navigates to ModeSelect with fade transition
-- [ ] Settings button opens settings overlay
-- [ ] All buttons have hover/press feedback
+- [x] Game launches to MainMenu, not directly into gameplay
+- [x] Play button navigates to ModeSelect with fade transition
+- [x] Settings button opens settings overlay
+- [x] All buttons have hover/press feedback
 
 ---
 
