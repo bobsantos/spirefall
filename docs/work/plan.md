@@ -232,7 +232,7 @@ The game currently launches directly into gameplay. This group adds a proper men
 
 ---
 
-#### Task A7: Update GameOverScreen for Menu Flow
+#### Task A7: Update GameOverScreen for Menu Flow -- ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Small | **GDD Ref:** Section 10.3
 
@@ -249,10 +249,10 @@ The game currently launches directly into gameplay. This group adds a proper men
 - Stats sourced from `GameManager.run_stats` dictionary (added in Task A5)
 
 **Acceptance criteria:**
-- [ ] Game over screen shows run statistics
-- [ ] Play Again restarts with same map/mode
-- [ ] Main Menu returns to MainMenu scene
-- [ ] No more `get_tree().reload_current_scene()` calls
+- [x] Game over screen shows run statistics
+- [x] Play Again restarts with same map/mode
+- [x] Main Menu returns to MainMenu scene
+- [x] No more `get_tree().reload_current_scene()` calls
 
 ---
 
@@ -667,6 +667,36 @@ XP system that unlocks maps, modes, and provides a sense of long-term advancemen
 - [ ] Stats passed to GameOverScreen for display
 - [ ] Stats passed to MetaProgression for XP calculation
 - [ ] Stats include elapsed time (formatted as mm:ss)
+
+---
+
+#### Task E3: XP HUD Display and Kill Rewards
+
+**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 8.3, Section 10.1
+
+**Modified files:**
+- `scripts/ui/HUD.gd`
+- `scenes/ui/HUD.tscn`
+- `scripts/enemies/Enemy.gd` or `scripts/autoload/EnemySystem.gd` (floating text on kill)
+
+**Implementation notes:**
+- Add cumulative XP display to the HUD (similar to gold display), showing total XP earned this run
+- Show floating "+N XP" text when enemies are killed, similar to the existing gold reward floating text
+- XP per kill sourced from MetaProgression's XP formula (1 XP per kill from `kill_bonus = enemies_killed * 1`)
+- Boss kills could show a larger XP reward for visual satisfaction
+- HUD XP display updates in real-time as enemies are killed
+- Wire into `MetaProgression.xp_awarded` signal or track run XP locally and sync
+- Also update GameOverScreen XP placeholder to show real calculated XP (replaces `"XP Earned: --"`)
+- Consider showing next unlock threshold and progress bar (e.g., "1250 / 2000 XP to Endless Mode")
+
+**Dependencies:** E1 (MetaProgression must exist for XP calculations)
+
+**Acceptance criteria:**
+- [ ] HUD shows cumulative XP earned during the current run
+- [ ] Floating "+XP" text appears near enemies when killed
+- [ ] XP display updates in real-time
+- [ ] GameOverScreen shows actual XP earned (not placeholder)
+- [ ] Visual style consistent with existing gold display
 
 ---
 
@@ -1297,7 +1327,7 @@ GROUP D: Save/Load (independent, but feeds into E and A)
 
 GROUP E: Meta Progression (needs D1 for persistence)
   D1 ──> E1 (MetaProgression) ──> E2 (Stats tracking)
-              │
+              │                ──> E3 (XP HUD display & kill rewards)
               └──> feeds into A3 (mode locks), A4 (map locks), A7 (XP display)
 
 GROUP F: Audio (independent, but needs F1 before F2)
@@ -1360,6 +1390,7 @@ Tasks are ordered to maximize shippability at each milestone. After each week, t
 | 14 | B4 | Maps | P0 | Large | Volcanic Caldera map |
 | 15 | E1 | Meta | P1 | Medium | MetaProgression autoload |
 | 16 | E2 | Meta | P1 | Small | GameManager stats tracking |
+| 16.5 | E3 | Meta | P1 | Medium | XP HUD display & kill rewards |
 | 17 | C1 | Draft | P1 | Medium | DraftManager autoload |
 | 18 | C2 | Draft | P1 | Medium | DraftPickPanel UI |
 | 19 | C3 | Draft | P1 | Small | BuildMenu element filtering |
@@ -1404,9 +1435,9 @@ Tasks are ordered to maximize shippability at each milestone. After each week, t
 
 | Metric | Count |
 |--------|-------|
-| Total tasks | 37 |
+| Total tasks | 38 |
 | P0 (must-have) | 15 |
-| P1 (important) | 18 |
+| P1 (important) | 19 |
 | P2 (nice-to-have) | 4 |
 | New files | ~85 (scripts + scenes + resources + 33 tower sprites + 12 enemy sprites) |
 | Modified files | ~20 |

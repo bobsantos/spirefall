@@ -29,6 +29,11 @@ var _combat_timer: float = 0.0
 var _combat_timer_max: float = 0.0
 var _enemies_leaked_this_wave: int = 0
 
+## Run statistics tracked during gameplay. Populated in start_game(),
+## updated on wave completion / enemy kills / gold changes, finalized on game over.
+## GameOverScreen reads these to display end-of-run stats.
+var run_stats: Dictionary = {}
+
 ## Mode string to GameMode enum mapping.
 const _MODE_MAP: Dictionary = {
 	"classic": GameMode.CLASSIC,
@@ -49,6 +54,14 @@ func start_game(mode: String = "classic") -> void:
 		max_waves = 30
 	current_wave = 0
 	lives = starting_lives
+	run_stats = {
+		"waves_survived": 0,
+		"enemies_killed": 0,
+		"total_gold_earned": 0,
+		"start_time": Time.get_ticks_msec(),
+		"elapsed_time": 0,
+		"victory": false,
+	}
 	_transition_to(GameState.BUILD_PHASE)
 
 
@@ -101,8 +114,16 @@ func _transition_to(new_state: GameState) -> void:
 			_transition_to(GameState.BUILD_PHASE)
 		GameState.GAME_OVER:
 			var victory: bool = current_wave >= max_waves
+			_finalize_run_stats(victory)
 			game_over.emit(victory)
 	phase_changed.emit(new_state)
+
+
+func _finalize_run_stats(victory: bool) -> void:
+	run_stats["waves_survived"] = current_wave
+	run_stats["victory"] = victory
+	if run_stats.has("start_time"):
+		run_stats["elapsed_time"] = Time.get_ticks_msec() - run_stats["start_time"]
 
 
 func _on_wave_cleared() -> void:

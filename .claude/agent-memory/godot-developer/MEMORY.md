@@ -36,6 +36,7 @@
 - Phase 3 Task A4 complete: `tests/unit/main/test_map_select.gd` (47 tests)
 - Phase 3 Task A5 complete: `tests/unit/main/test_game_launch.gd` (24 tests)
 - Phase 3 Task A6 complete: `tests/unit/ui/test_pause_menu.gd` (39 tests, adds section 12: PauseMenu._unhandled_input Escape-to-close)
+- Phase 3 Task A7 complete: `tests/unit/ui/test_game_over_screen.gd` (52 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
