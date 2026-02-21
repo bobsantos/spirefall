@@ -35,6 +35,21 @@
 - XP thresholds: MOUNTAIN=1000, RIVER=3000, VOLCANO=6000
 - Map scene paths: ForestClearing, MountainPass, RiverDelta, VolcanicCaldera in `res://scenes/maps/`
 
+## CanvasLayer Z-Order Rule
+- In a CanvasLayer, **later children draw on top** of earlier ones (no explicit z_index needed)
+- To ensure panel A draws over panel B: place A after B in the scene file
+- PauseMenu and CodexPanel order in `Game.tscn > UILayer`: PauseMenu first, CodexPanel last
+  - CodexPanel MUST be the last UILayer child so it always renders above the PauseMenu Dimmer
+
+## PauseMenu + CodexPanel Interaction Pattern
+- PauseMenu hides itself (`visible = false`) and sets `_codex_open = true` before opening Codex
+- `_on_paused_changed` returns early when `_codex_open` is true — this blocks the re-show
+  that would otherwise happen when CodexPanel.toggle() calls GameManager.pause() (emitting
+  paused_changed(true) synchronously during the same call stack)
+- CodexPanel emits `closed` signal; PauseMenu connects with CONNECT_ONE_SHOT to restore itself
+- `_on_codex_closed()` clears `_codex_open` then sets `visible = true`
+- CodexPanel enforces `process_mode = PROCESS_MODE_WHEN_PAUSED` in both .tscn and `_ready()`
+
 ## Testing UI Scripts Without Scene Tree
 - Build node tree manually in test helper (mirrors .tscn structure)
 - Apply script via `set_script(load(path))`

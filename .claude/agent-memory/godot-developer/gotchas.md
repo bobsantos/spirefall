@@ -198,6 +198,27 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - For sell-tower-reopens-path tests: use `TowerSystem.create_tower()` (with stub scene) then `sell_tower()` to exercise the full GridManager/PathfindingSystem path
 - Unlike unit tests, integration tests exercise the real signal chains between autoloads (e.g. EnemySystem.on_enemy_killed -> EconomyManager.add_gold)
 
+## get_viewport() is Null Outside the Scene Tree
+- `get_viewport()` returns `null` when a node has not been added to the scene tree. Calling any method on it (e.g. `set_input_as_handled()`) crashes immediately.
+- Guard all `get_viewport()` calls with `if is_inside_tree():` in scripts that may be exercised outside the tree (unit tests, headless mode).
+- Same rule applies to `get_tree()` (see below).
+
+## Nodes Not in Scene Tree Cannot Call get_tree()
+- Any node that has not been added to the scene tree returns `null` from `get_tree()`. Calling `.paused` on it crashes immediately.
+- Pattern: delegate ALL pause/unpause calls to `GameManager.pause()` / `GameManager.unpause()` / `GameManager.is_paused()`. GameManager is an autoload and always lives in the tree.
+- This is the same reason `PauseMenu.gd` already delegates to GameManager. Apply the same pattern to any UI script that needs to read or modify pause state.
+- When adding `is_paused()` or similar helpers to GameManager, they can safely call `get_tree()` because GameManager is always in the tree.
+
+## Codex Z-order Bug (and Fix Pattern)
+- In Godot `CanvasLayer`, nodes are rendered in child order: later children draw on top. `CodexPanel` was declared before `PauseMenu` in `Game.tscn`, so PauseMenu rendered on top of Codex, making Codex invisible/unusable when opened from the pause menu.
+- **Fix used**: Rather than reordering scene nodes or using z_index (which can cause other issues), PauseMenu hides itself when opening Codex, then restores via CodexPanel's `closed` signal using `CONNECT_ONE_SHOT`.
+- `CodexPanel` gained a `closed` signal (emitted at end of `_close()`) and a `_was_paused_before_open` bool so it knows whether to unpause on close (only if it caused the pause, not when opened from PauseMenu).
+- `CONNECT_ONE_SHOT` flag on `Signal.connect()` auto-disconnects after the first emission — ideal for "restore on close" pattern.
+
+## Typed Array Assignment in Tests
+- CodexPanel.tab_buttons is declared `Array[Button]`. Assigning a plain `Array` literal `[btn1, btn2]` fails at runtime with "Invalid assignment ... value of type 'Array'".
+- Fix: declare a typed local first, then assign: `var typed_tabs: Array[Button] = [btn1 as Button, btn2 as Button]` then `panel.tab_buttons = typed_tabs`.
+
 ## Godot 4.x Theme Override API
 - There is NO `get_theme_stylebox_override()` method on Control/Button. It does not exist.
 - To CHECK if a stylebox override is set: `btn.has_theme_stylebox_override("hover")` (returns bool)

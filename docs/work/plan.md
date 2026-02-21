@@ -197,35 +197,38 @@ The game currently launches directly into gameplay. This group adds a proper men
 
 ---
 
-#### Task A6: Pause Menu
+#### Task A6: Pause Menu ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Small | **GDD Ref:** Section 10.3
 
 **New files:**
 - `scenes/ui/PauseMenu.tscn`
 - `scripts/ui/PauseMenu.gd`
+- `tests/unit/ui/test_pause_menu.gd` (35 tests)
 
 **Modified files:**
 - `scripts/main/Game.gd` (Escape key toggles pause)
-- `scripts/autoload/GameManager.gd` (pause/unpause methods)
+- `scripts/autoload/GameManager.gd` (toggle_pause, pause, unpause methods + paused_changed signal)
 
 **Implementation notes:**
 - `Control` overlay with semi-transparent dark background
 - Buttons: Resume, Restart, Settings, Quit to Menu
 - Resume: unpause and hide
 - Restart: `SceneManager.restart_game()` (reloads Game.tscn with same config)
-- Settings: opens SettingsPanel (shared with MainMenu)
+- Settings: no-op print until Task D3 (SettingsPanel not yet built)
 - Quit to Menu: `SceneManager.go_to_main_menu()` (resets all manager state)
 - `GameManager.toggle_pause()` sets `get_tree().paused` and emits `paused_changed(is_paused: bool)`
-- PauseMenu's `process_mode` set to `PROCESS_MODE_WHEN_PAUSED`
-- Escape key in Game.gd: if not placing/fusing, toggle pause
+- `GameManager.pause()` / `GameManager.unpause()` for explicit state control
+- PauseMenu delegates all tree-pause calls to GameManager (autoload always in tree); safe for unit tests
+- PauseMenu's `process_mode` set to `PROCESS_MODE_WHEN_PAUSED` in `_ready()`
+- Escape key in Game.gd: if placing → cancel placement; if fusing → cancel fusion; else → toggle pause
 
 **Acceptance criteria:**
-- [ ] Pressing Escape during gameplay opens pause menu
-- [ ] Game logic freezes while paused (enemies stop, timers stop)
-- [ ] Resume closes menu and resumes gameplay
-- [ ] Quit to Menu returns to MainMenu with clean state
-- [ ] Restart reloads the same map/mode
+- [x] Pressing Escape during gameplay opens pause menu
+- [x] Game logic freezes while paused (enemies stop, timers stop)
+- [x] Resume closes menu and resumes gameplay
+- [x] Quit to Menu returns to MainMenu with clean state
+- [x] Restart reloads the same map/mode
 
 ---
 

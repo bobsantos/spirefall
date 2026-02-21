@@ -98,8 +98,11 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("ui_cancel"):
 		if _fusing_tower:
 			_cancel_fusion_selection()
-		else:
+		elif _placing_tower:
 			_cancel_placement()
+		else:
+			# No active placement or fusion: toggle pause
+			GameManager.toggle_pause()
 
 	if event.is_action_pressed("ui_start_wave"):
 		GameManager.start_wave_early()

@@ -11,6 +11,7 @@ signal wave_started(wave_number: int)
 signal wave_completed(wave_number: int)
 signal game_over(victory: bool)
 signal early_wave_bonus(amount: int)
+signal paused_changed(is_paused: bool)
 
 @export var max_waves: int = 30
 @export var starting_lives: int = 20
@@ -126,3 +127,30 @@ func lose_life(amount: int = 1) -> void:
 
 func record_enemy_leak() -> void:
 	_enemies_leaked_this_wave += 1
+
+
+## Toggle game pause state and emit paused_changed signal.
+## PauseMenu listens to this signal to show/hide itself.
+func toggle_pause() -> void:
+	get_tree().paused = not get_tree().paused
+	paused_changed.emit(get_tree().paused)
+
+
+## Explicitly pause the game tree and emit paused_changed(true).
+func pause() -> void:
+	get_tree().paused = true
+	paused_changed.emit(true)
+
+
+## Explicitly unpause the game tree and emit paused_changed(false).
+func unpause() -> void:
+	get_tree().paused = false
+	paused_changed.emit(false)
+
+
+## Returns true when the scene tree is currently paused.
+## Delegating this to GameManager (an autoload always in the tree) lets other
+## scripts check pause state without calling get_tree() directly, which fails
+## when nodes are tested outside the scene tree.
+func is_paused() -> bool:
+	return get_tree().paused
