@@ -1003,6 +1003,140 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 
 ---
 
+#### Task I5: Tower Sprites Per Tier
+
+**Priority:** P1 | **Effort:** Large | **GDD Ref:** Section 11.2, Section 12, Section 13.3
+
+**New files:**
+- `assets/sprites/towers/flame_spire_enhanced.png` (programmatic: base shape + glow border)
+- `assets/sprites/towers/flame_spire_superior.png` (programmatic: base shape + star accent)
+- `assets/sprites/towers/frost_sentinel_enhanced.png`
+- `assets/sprites/towers/frost_sentinel_superior.png`
+- `assets/sprites/towers/gale_tower_enhanced.png`
+- `assets/sprites/towers/gale_tower_superior.png`
+- `assets/sprites/towers/stone_bastion_enhanced.png`
+- `assets/sprites/towers/stone_bastion_superior.png`
+- `assets/sprites/towers/thunder_pylon_enhanced.png`
+- `assets/sprites/towers/thunder_pylon_superior.png`
+- `assets/sprites/towers/tidal_obelisk_enhanced.png`
+- `assets/sprites/towers/tidal_obelisk_superior.png`
+- `assets/sprites/towers/fusions/blizzard_tower.png`
+- `assets/sprites/towers/fusions/cryo_volt_array.png`
+- `assets/sprites/towers/fusions/glacier_keep.png`
+- `assets/sprites/towers/fusions/inferno_vortex.png`
+- `assets/sprites/towers/fusions/magma_forge.png`
+- `assets/sprites/towers/fusions/mud_pit.png`
+- `assets/sprites/towers/fusions/permafrost_pillar.png`
+- `assets/sprites/towers/fusions/plasma_cannon.png`
+- `assets/sprites/towers/fusions/sandstorm_citadel.png`
+- `assets/sprites/towers/fusions/seismic_coil.png`
+- `assets/sprites/towers/fusions/steam_engine.png`
+- `assets/sprites/towers/fusions/storm_beacon.png`
+- `assets/sprites/towers/fusions/tempest_spire.png`
+- `assets/sprites/towers/fusions/thermal_shock.png`
+- `assets/sprites/towers/fusions/tsunami_shrine.png`
+- `assets/sprites/towers/legendaries/arctic_maelstrom.png`
+- `assets/sprites/towers/legendaries/crystalline_monolith.png`
+- `assets/sprites/towers/legendaries/primordial_nexus.png`
+- `assets/sprites/towers/legendaries/supercell_obelisk.png`
+- `assets/sprites/towers/legendaries/tectonic_dynamo.png`
+- `assets/sprites/towers/legendaries/volcanic_tempest.png`
+
+**Modified files:**
+- `scripts/towers/Tower.gd` (update `apply_tower_data()` sprite path resolution for fusions/legendaries)
+
+**Implementation notes:**
+- All sprites are 64x64 PNG programmatic placeholders using the pixel-artist agent's element color language
+- Tier visual differentiation system (must be distinguishable at a glance):
+  - **Base (T1)**: Simple solid shape with element color (existing sprites, already done)
+  - **Enhanced (T1 upgraded)**: Base shape with a bright 2px glow/border in a lighter shade of the element color
+  - **Superior (T1 max upgrade)**: Base shape with a 4-point star accent and brighter saturation
+  - **Fusion (T2, dual-element)**: Diamond or hexagonal shape blending both element colors (e.g. Steam Engine = fire + water gradient). Slightly larger visual footprint than T1
+  - **Legendary (T3, tri-element)**: Circular/ornate shape with a 3-color gradient ring. Largest visual footprint. Distinct silhouette from T1/T2
+- Sprite path convention:
+  - Base/Enhanced/Superior: `assets/sprites/towers/{tower_name}.png` (matches existing `tower_data.tower_name` to snake_case logic)
+  - Fusions: `assets/sprites/towers/fusions/{tower_name}.png`
+  - Legendaries: `assets/sprites/towers/legendaries/{tower_name}.png`
+- Update `Tower.apply_tower_data()` to check `tower_data.tier` and look in the correct subdirectory:
+  ```gdscript
+  var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
+  var subdir: String = ""
+  if tower_data.tier == 2:
+      subdir = "fusions/"
+  elif tower_data.tier == 3:
+      subdir = "legendaries/"
+  var texture_path: String = "res://assets/sprites/towers/%s%s.png" % [subdir, texture_name]
+  ```
+- Keep existing fallback logic: if specific tier sprite not found, fall back to base element sprite
+- Use the pixel-artist agent to generate the actual PNG files via SVG-to-PNG pipeline or Godot `Image` scripting
+- Total new sprites: 33 (12 enhanced/superior + 15 fusions + 6 legendaries)
+
+**Acceptance criteria:**
+- [ ] All 6 enhanced tower sprites exist and display correctly (one per base element)
+- [ ] All 6 superior tower sprites exist and are visually distinct from enhanced
+- [ ] All 15 dual-element fusion tower sprites exist with blended element colors
+- [ ] All 6 legendary tower sprites exist with tri-color visual treatment
+- [ ] Tier progression is visually clear: base < enhanced < superior < fusion < legendary
+- [ ] `Tower.apply_tower_data()` correctly resolves sprite paths for all tiers
+- [ ] Fallback to base sprite still works if a specific sprite is missing
+- [ ] All sprites are 64x64 pixels and read clearly on the game grid
+
+---
+
+#### Task I6: Enemy Sprites Per Type
+
+**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 11.2, Section 12, Section 13.3
+
+**New files:**
+- `assets/sprites/enemies/healer.png` (programmatic: green cross shape)
+- `assets/sprites/enemies/split.png` (programmatic: two-lobed shape, dark cyan)
+- `assets/sprites/enemies/stealth.png` (programmatic: diamond/ghost shape, pale purple)
+- `assets/sprites/enemies/elemental.png` (programmatic: multi-colored ring)
+- `assets/sprites/enemies/boss_glacial_wyrm.png` (programmatic: large blue serpent shape)
+- `assets/sprites/enemies/boss_chaos_elemental.png` (programmatic: large multi-colored shape)
+
+**Modified files:**
+- `assets/sprites/enemies/normal.png` (redesign: gray circle -> distinct humanoid silhouette)
+- `assets/sprites/enemies/fast.png` (redesign: gray circle -> sleek arrow/wedge shape)
+- `assets/sprites/enemies/armored.png` (redesign: gray circle -> square/shield shape with metallic gray)
+- `assets/sprites/enemies/flying.png` (redesign: gray circle -> winged shape, light blue)
+- `assets/sprites/enemies/swarm.png` (redesign: gray circle -> small clustered dots shape)
+- `assets/sprites/enemies/boss_ember_titan.png` (redesign: ensure large + visually distinct from normal enemies)
+
+**Implementation notes:**
+- All sprites are 64x64 PNG programmatic placeholders with distinct silhouettes per enemy type
+- Enemy visual differentiation strategy (each type must be identifiable by shape alone, not just color):
+  - **Normal**: Rounded square, neutral gray. Default grunt
+  - **Fast**: Narrow wedge/arrow pointing right, light green. Suggests speed
+  - **Armored**: Thick square with inner border, metallic gray/steel blue. Suggests heaviness
+  - **Flying**: Diamond shape with wing-like extensions, light blue. Elevated look
+  - **Swarm**: Small circle (50% scale of normal), yellow-green. Appears in groups
+  - **Healer**: Circle with a cross/plus overlay, bright green. Clearly a support unit
+  - **Split**: Figure-8 or two-lobed shape, dark cyan. Suggests it divides
+  - **Stealth**: Ghost/diamond shape with transparency gradient, pale purple. Suggests invisibility
+  - **Elemental**: Ring/donut shape, multi-colored (randomized tint applied at runtime via existing `_assign_elemental_affinity()`)
+  - **Boss Ember Titan**: Large (48x48 inner) flame-shaped silhouette, red-orange. 1.5x visual scale of normal enemies
+  - **Boss Glacial Wyrm**: Large serpentine shape, icy blue-white. 1.5x visual scale
+  - **Boss Chaos Elemental**: Large star/chaos shape, rainbow gradient. 1.5x visual scale
+- Sprite loading already works via `_apply_enemy_data()` which converts `enemy_data.enemy_name` to snake_case path -- no code changes needed for basic types
+- Boss sprites use the full `enemy_name` (e.g. "Boss Glacial Wyrm" -> "boss_glacial_wyrm.png") which already matches the naming convention
+- Stealth enemies have `sprite.modulate = Color(1, 1, 1, 0.15)` applied at runtime -- base sprite should be fully opaque
+- Elemental enemies get runtime tint from `ElementMatrix.get_color()` -- base sprite should be white/neutral to accept tinting
+- Consider adding `split_child.png` as a smaller version of `split.png` for the child enemies after splitting
+- Total new sprites: 6 new + 6 redesigned = 12 sprites
+
+**Acceptance criteria:**
+- [ ] All 10 enemy types have unique, visually distinct sprites
+- [ ] Each enemy type is identifiable by silhouette shape alone (not just color)
+- [ ] All 3 boss sprites exist and are visually larger/more imposing than regular enemies
+- [ ] Healer, Split, Stealth, and Elemental sprites load correctly for their respective enemy types
+- [ ] Stealth sprite accepts runtime transparency modulation
+- [ ] Elemental sprite accepts runtime element color tinting
+- [ ] All sprites are 64x64 pixels and read clearly on the game grid
+- [ ] No missing sprite warnings in Godot console for any enemy type
+
+---
+
 ### Group J: Endless Mode (P1)
 
 Endless mode generates waves beyond the 30 defined in wave_config.json.
@@ -1177,6 +1311,8 @@ GROUP I: Visual Polish (independent)
   I2 (Enemy HP bars)
   I3 (Particle effects) ── P2, do last
   I4 (Wave progress indicator)
+  I5 (Tower sprites per tier) ── needs existing tower resources
+  I6 (Enemy sprites per type) ── needs existing enemy resources
 
 GROUP J: Endless Mode (needs A5 for mode parameter)
   A5 ──> J1 (Endless wave generation)
@@ -1251,10 +1387,12 @@ Tasks are ordered to maximize shippability at each milestone. After each week, t
 | 31 | K2 | Export | P1 | Medium | Android export configuration |
 | 32 | K3 | Export | P1 | Medium | Performance profiling pass |
 | 33 | B5 | Maps | P1 | Small | Map-specific tile textures |
-| 34 | F3 | Audio | P2 | Small | Placeholder audio files |
-| 35 | I3 | Visual | P2 | Medium | Particle effects |
+| 34 | I5 | Visual | P1 | Large | Tower sprites per tier |
+| 35 | I6 | Visual | P1 | Medium | Enemy sprites per type |
+| 36 | F3 | Audio | P2 | Small | Placeholder audio files |
+| 37 | I3 | Visual | P2 | Medium | Particle effects |
 
-**Week 4 milestone:** Game exported to HTML5 for itch.io. Android APK builds. Performance validated. Placeholder audio and particles in place.
+**Week 4 milestone:** Game exported to HTML5 for itch.io. Android APK builds. Performance validated. All towers and enemies have visually distinct sprites. Placeholder audio and particles in place.
 
 ---
 
@@ -1262,15 +1400,15 @@ Tasks are ordered to maximize shippability at each milestone. After each week, t
 
 | Metric | Count |
 |--------|-------|
-| Total tasks | 35 |
+| Total tasks | 37 |
 | P0 (must-have) | 15 |
-| P1 (important) | 16 |
+| P1 (important) | 18 |
 | P2 (nice-to-have) | 4 |
-| New files | ~40 (scripts + scenes + resources) |
-| Modified files | ~18 |
+| New files | ~85 (scripts + scenes + resources + 33 tower sprites + 12 enemy sprites) |
+| Modified files | ~20 |
 | New autoloads | 5 (SceneManager, SaveSystem, SettingsManager, MetaProgression, DraftManager) |
 | New scenes | 10 |
-| Estimated effort | Small: 12, Medium: 17, Large: 4, X-Large: 0 |
+| Estimated effort | Small: 12, Medium: 18, Large: 5, X-Large: 0 |
 
 ### P0 Critical Path (minimum viable shipped game)
 
