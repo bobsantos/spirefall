@@ -60,6 +60,23 @@ func _process(_delta: float) -> void:
 			else:
 				countdown_label.visible = false
 				countdown_label.scale = Vector2.ONE
+	elif GameManager.game_state == GameManager.GameState.COMBAT_PHASE:
+		# Show combat timer countdown
+		var t: float = GameManager._combat_timer
+		timer_label.text = "%.0f" % maxf(t, 0.0)
+		timer_label.visible = true
+		# Prominent countdown for last 10 seconds of combat
+		if t <= 10.0 and t > 0.0:
+			countdown_label.text = "%d" % ceili(t)
+			countdown_label.visible = true
+			var urgency: float = 1.0 - (t / 10.0)
+			countdown_label.add_theme_color_override("font_color",
+				Color(1.0, 1.0 - urgency * 0.5, 1.0 - urgency * 0.7, 1.0))
+			var pulse: float = 1.0 + 0.1 * sin(t * TAU * 1.5)
+			countdown_label.scale = Vector2(pulse, pulse)
+		else:
+			countdown_label.visible = false
+			countdown_label.scale = Vector2.ONE
 	else:
 		timer_label.visible = false
 		countdown_label.visible = false

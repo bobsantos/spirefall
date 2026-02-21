@@ -15,6 +15,8 @@ signal early_wave_bonus(amount: int)
 @export var max_waves: int = 30
 @export var starting_lives: int = 20
 @export var build_phase_duration: float = 30.0
+@export var combat_phase_duration: float = 60.0
+@export var boss_combat_phase_duration: float = 90.0
 
 var current_wave: int = 0
 var lives: int = 20
@@ -22,6 +24,8 @@ var game_state: GameState = GameState.MENU
 var current_mode: GameMode = GameMode.CLASSIC
 
 var _build_timer: float = 0.0
+var _combat_timer: float = 0.0
+var _combat_timer_max: float = 0.0
 var _enemies_leaked_this_wave: int = 0
 
 ## Mode string to GameMode enum mapping.
@@ -65,7 +69,12 @@ func _process(delta: float) -> void:
 				if _build_timer <= 0.0:
 					_transition_to(GameState.COMBAT_PHASE)
 		GameState.COMBAT_PHASE:
+			_combat_timer -= delta
 			if EnemySystem.get_active_enemy_count() == 0 and EnemySystem.is_wave_finished():
+				_on_wave_cleared()
+			elif _combat_timer <= 0.0:
+				# Timer expired: auto-advance. Surviving enemies remain on the field
+				# and can still leak lives. The next wave spawns on top of them.
 				_on_wave_cleared()
 
 
@@ -77,6 +86,13 @@ func _transition_to(new_state: GameState) -> void:
 			_build_timer = build_phase_duration
 		GameState.COMBAT_PHASE:
 			_enemies_leaked_this_wave = 0
+			# Boss waves get a longer combat timer
+			var wave_config: Dictionary = EnemySystem.get_wave_config(current_wave)
+			if wave_config.get("is_boss_wave", false):
+				_combat_timer = boss_combat_phase_duration
+			else:
+				_combat_timer = combat_phase_duration
+			_combat_timer_max = _combat_timer
 			wave_started.emit(current_wave)
 			EnemySystem.spawn_wave(current_wave)
 		GameState.INCOME_PHASE:

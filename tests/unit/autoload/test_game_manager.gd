@@ -12,6 +12,8 @@ func _reset_game_manager() -> void:
 	GameManager.current_wave = 0
 	GameManager.lives = GameManager.starting_lives
 	GameManager._build_timer = 0.0
+	GameManager._combat_timer = 0.0
+	GameManager._combat_timer_max = 0.0
 	GameManager._enemies_leaked_this_wave = 0
 
 

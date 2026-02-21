@@ -1,0 +1,2 @@
+- wave should have a timer. i was stuck in wave 10 for a while since i was not able to kill the boss easily. when the timer ends then the next wave should start automatically
+- current placeholder tower projectile effects make the boss almost invisible
