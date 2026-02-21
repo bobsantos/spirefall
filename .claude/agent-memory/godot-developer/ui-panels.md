@@ -22,6 +22,19 @@
 - XP thresholds stored as constants: DRAFT_XP_THRESHOLD=500, ENDLESS_XP_THRESHOLD=2000
 - MetaProgression integration point: replace `_is_mode_unlocked()` stub when Task E1 is done
 
+## MapSelect (Task A4)
+- Root: Control with full-rect anchors, script `scripts/main/MapSelect.gd`
+- 4 map cards in 2x2 GridContainer (columns=2): Forest, Mountain, River, Volcano
+- Each card: PanelContainer > VBoxContainer > PreviewRect + NameLabel + DescriptionLabel + DifficultyLabel + LockLabel + SelectButton
+- Preview thumbnails: ColorRect with distinct colors (green/gray/blue/red-orange)
+- Difficulty: Unicode stars (filled + empty to 4 total)
+- Lock system: same `unlock_overrides` pattern as ModeSelect
+- `_select_map()` preserves existing config (mode), adds map key, calls `go_to_game(config)`
+- Back button uses `SceneManager.change_scene(MODE_SELECT_PATH)` (preserves config, unlike ModeSelect back)
+- Navigation: MapSelect -> Game (via go_to_game), MapSelect <- ModeSelect (back)
+- XP thresholds: MOUNTAIN=1000, RIVER=3000, VOLCANO=6000
+- Map scene paths: ForestClearing, MountainPass, RiverDelta, VolcanicCaldera in `res://scenes/maps/`
+
 ## Testing UI Scripts Without Scene Tree
 - Build node tree manually in test helper (mirrors .tscn structure)
 - Apply script via `set_script(load(path))`

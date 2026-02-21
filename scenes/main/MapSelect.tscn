@@ -1,0 +1,249 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/main/MapSelect.gd" id="1"]
+
+[node name="MapSelect" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.08, 0.08, 0.12, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="TitleLabel" type="Label" parent="CenterContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.9, 0.75, 0.3, 1)
+theme_override_font_sizes/font_size = 48
+text = "Select Map"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(0, 20)
+
+[node name="MapGrid" type="GridContainer" parent="CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_constants/h_separation = 24
+theme_override_constants/v_separation = 24
+columns = 2
+
+[node name="ForestCard" type="PanelContainer" parent="CenterContainer/VBoxContainer/MapGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(320, 260)
+
+[node name="CardVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ForestPreviewRect" type="ColorRect" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+color = Color(0.2, 0.5, 0.2, 1)
+
+[node name="ForestNameLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Forest Clearing"
+horizontal_alignment = 1
+
+[node name="ForestDescriptionLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Open field with a single winding path. Perfect for learning."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ForestDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Difficulty: ★☆☆☆"
+horizontal_alignment = 1
+
+[node name="ForestLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.3, 0.3, 1)
+text = ""
+horizontal_alignment = 1
+
+[node name="ForestSelectButton" type="Button" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Select"
+
+[node name="MountainCard" type="PanelContainer" parent="CenterContainer/VBoxContainer/MapGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(320, 260)
+
+[node name="CardVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="MountainPreviewRect" type="ColorRect" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+color = Color(0.4, 0.4, 0.45, 1)
+
+[node name="MountainNameLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Mountain Pass"
+horizontal_alignment = 1
+
+[node name="MountainDescriptionLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Pre-built walls create an S-curve maze. Less building freedom."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="MountainDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Difficulty: ★★☆☆"
+horizontal_alignment = 1
+
+[node name="MountainLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.3, 0.3, 1)
+text = "Requires 1000 XP"
+horizontal_alignment = 1
+
+[node name="MountainSelectButton" type="Button" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Select"
+
+[node name="RiverCard" type="PanelContainer" parent="CenterContainer/VBoxContainer/MapGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(320, 260)
+
+[node name="CardVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="RiverPreviewRect" type="ColorRect" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+color = Color(0.2, 0.3, 0.5, 1)
+
+[node name="RiverNameLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "River Delta"
+horizontal_alignment = 1
+
+[node name="RiverDescriptionLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "River splits the map into islands connected by bridges."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="RiverDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Difficulty: ★★★☆"
+horizontal_alignment = 1
+
+[node name="RiverLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.3, 0.3, 1)
+text = "Requires 3000 XP"
+horizontal_alignment = 1
+
+[node name="RiverSelectButton" type="Button" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Select"
+
+[node name="VolcanoCard" type="PanelContainer" parent="CenterContainer/VBoxContainer/MapGrid"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(320, 260)
+
+[node name="CardVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="VolcanoPreviewRect" type="ColorRect" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 80)
+color = Color(0.5, 0.2, 0.1, 1)
+
+[node name="VolcanoNameLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 20
+text = "Volcanic Caldera"
+horizontal_alignment = 1
+
+[node name="VolcanoDescriptionLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Enemies spawn from the center and radiate outward to 4 exits."
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="VolcanoDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+text = "Difficulty: ★★★★"
+horizontal_alignment = 1
+
+[node name="VolcanoLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.3, 0.3, 1)
+text = "Requires 6000 XP"
+horizontal_alignment = 1
+
+[node name="VolcanoSelectButton" type="Button" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(0, 36)
+text = "Select"
+
+[node name="BackButton" type="Button" parent="CenterContainer/VBoxContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(280, 50)
+text = "Back"

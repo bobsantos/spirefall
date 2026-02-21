@@ -139,31 +139,33 @@ The game currently launches directly into gameplay. This group adds a proper men
 
 ---
 
-#### Task A4: MapSelect Scene
+#### Task A4: MapSelect Scene ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 9.3, Section 10.3
 
 **New files:**
 - `scenes/main/MapSelect.tscn`
 - `scripts/main/MapSelect.gd`
+- `tests/unit/main/test_map_select.gd` (47 tests)
 
 **Implementation notes:**
-- Grid of map cards (2x2 layout)
-- Each card: map name, gimmick description, difficulty stars (1-4), preview thumbnail
+- Grid of map cards (2x2 GridContainer layout)
+- Each card: map name, gimmick description, difficulty stars (1-4), colored preview rectangle
 - Forest Clearing: always unlocked, 1 star
 - Mountain Pass: unlocked at 1000 XP, 2 stars
 - River Delta: unlocked at 3000 XP, 3 stars
 - Volcanic Caldera: unlocked at 6000 XP, 4 stars
-- Locked maps show silhouette thumbnail + unlock requirement
-- Selecting a map stores `SceneManager.current_game_config["map"]` and starts the game via `SceneManager.go_to_game(config)`
-- Back button returns to ModeSelect
-- Map preview thumbnails: initially use programmatic solid-color rectangles with map name text; replace with screenshots later
+- Locked maps show grayed card (modulate.a = 0.5) + unlock requirement text
+- Selecting a map preserves existing mode in config, adds `"map"` key with scene path, calls `SceneManager.go_to_game(config)`
+- Back button returns to ModeSelect via `SceneManager.change_scene()` (preserves config, does NOT clear mode)
+- Map preview thumbnails: programmatic solid-color ColorRect per map (green/gray/blue/red-orange); replace with screenshots later
+- `unlock_overrides` Dictionary for test-friendly lock control; `_is_map_unlocked()` ready for MetaProgression (Task E1)
 
 **Acceptance criteria:**
-- [ ] Four map cards displayed with names, descriptions, difficulty
-- [ ] Locked maps cannot be selected, show unlock requirement
-- [ ] Selecting a map navigates to Game scene with correct config
-- [ ] Back button returns to ModeSelect
+- [x] Four map cards displayed with names, descriptions, difficulty
+- [x] Locked maps cannot be selected, show unlock requirement
+- [x] Selecting a map navigates to Game scene with correct config
+- [x] Back button returns to ModeSelect
 
 ---
 
