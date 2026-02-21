@@ -169,13 +169,14 @@ The game currently launches directly into gameplay. This group adds a proper men
 
 ---
 
-#### Task A5: Modify Game.gd for Parameterized Launch
+#### Task A5: Modify Game.gd for Parameterized Launch ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 13.3
 
 **Modified files:**
 - `scripts/main/Game.gd`
 - `scripts/autoload/GameManager.gd`
+- `tests/unit/main/test_game_launch.gd` (24 tests)
 
 **Implementation notes:**
 - `Game._ready()` reads `SceneManager.current_game_config` to determine map and mode
@@ -189,10 +190,10 @@ The game currently launches directly into gameplay. This group adds a proper men
 - Fallback: if `SceneManager.current_game_config` is empty (e.g., direct scene launch for testing), default to ForestClearing + Classic
 
 **Acceptance criteria:**
-- [ ] Game loads the map specified in game config
-- [ ] Game mode is passed to GameManager and affects behavior
-- [ ] Direct launch of Game.tscn still works (fallback defaults)
-- [ ] Endless mode does not end at wave 30
+- [x] Game loads the map specified in game config
+- [x] Game mode is passed to GameManager and affects behavior
+- [x] Direct launch of Game.tscn still works (fallback defaults)
+- [x] Endless mode does not end at wave 30
 
 ---
 

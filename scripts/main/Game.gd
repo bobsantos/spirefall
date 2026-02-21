@@ -39,13 +39,19 @@ func _ready() -> void:
 	TowerSystem.tower_created.connect(_on_tower_created)
 	TowerSystem.tower_sold.connect(_on_tower_sold)
 	_load_map()
-	GameManager.start_game()
+	_start_game_from_config()
 
 
 func _load_map() -> void:
-	var map_scene: PackedScene = load("res://scenes/maps/ForestClearing.tscn")
+	var map_path: String = SceneManager.current_game_config.get("map", "res://scenes/maps/ForestClearing.tscn")
+	var map_scene: PackedScene = load(map_path)
 	var map_instance: Node2D = map_scene.instantiate()
 	game_board.add_child(map_instance)
+
+
+func _start_game_from_config() -> void:
+	var mode: String = SceneManager.current_game_config.get("mode", "classic")
+	GameManager.start_game(mode)
 
 
 func _process(delta: float) -> void:

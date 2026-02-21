@@ -4,6 +4,7 @@ extends Node
 ## Controls game state, phase transitions, wave flow, and win/lose conditions.
 
 enum GameState { MENU, BUILD_PHASE, COMBAT_PHASE, INCOME_PHASE, GAME_OVER }
+enum GameMode { CLASSIC, DRAFT, ENDLESS }
 
 signal phase_changed(new_phase: GameState)
 signal wave_started(wave_number: int)
@@ -18,16 +19,29 @@ signal early_wave_bonus(amount: int)
 var current_wave: int = 0
 var lives: int = 20
 var game_state: GameState = GameState.MENU
+var current_mode: GameMode = GameMode.CLASSIC
 
 var _build_timer: float = 0.0
 var _enemies_leaked_this_wave: int = 0
+
+## Mode string to GameMode enum mapping.
+const _MODE_MAP: Dictionary = {
+	"classic": GameMode.CLASSIC,
+	"draft": GameMode.DRAFT,
+	"endless": GameMode.ENDLESS,
+}
 
 
 func _ready() -> void:
 	lives = starting_lives
 
 
-func start_game() -> void:
+func start_game(mode: String = "classic") -> void:
+	current_mode = _MODE_MAP.get(mode, GameMode.CLASSIC)
+	if current_mode == GameMode.ENDLESS:
+		max_waves = 999
+	else:
+		max_waves = 30
 	current_wave = 0
 	lives = starting_lives
 	_transition_to(GameState.BUILD_PHASE)
