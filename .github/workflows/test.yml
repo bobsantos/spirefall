@@ -24,11 +24,19 @@ jobs:
 
       - name: Run unit tests
         run: |
+          set +e
           godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --add tests/ \
             -c \
             --ignoreHeadlessMode \
             -rd res://reports
+          EXIT_CODE=$?
+          # Exit 0 = all passed, 101 = all passed with orphan warnings
+          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 101 ]; then
+            exit 0
+          else
+            exit $EXIT_CODE
+          fi
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
