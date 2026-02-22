@@ -172,3 +172,12 @@ func test_change_scene_with_empty_path_does_not_emit_signal() -> void:
 	SceneManager.change_scene("")
 	SceneManager.scene_changing.disconnect(_conn)
 	assert_int(signal_count[0]).is_equal(0)
+
+
+# -- 10. SceneManager process mode is PROCESS_MODE_ALWAYS ---------------------
+#
+# SceneManager must keep running during pause (game-over, pause-menu transitions)
+# so its tweens and change_scene calls execute while the tree is paused.
+
+func test_scene_manager_process_mode_always() -> void:
+	assert_int(SceneManager.process_mode).is_equal(Node.PROCESS_MODE_ALWAYS)

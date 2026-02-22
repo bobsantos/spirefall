@@ -40,6 +40,9 @@ func _on_paused_changed(is_paused: bool) -> void:
 	# of PauseMenu in the scene tree and must stay fully visible and interactive.
 	if _codex_open:
 		return
+	# Do not show the pause overlay during game over — GameOverScreen owns that state.
+	if GameManager.game_state == GameManager.GameState.GAME_OVER:
+		return
 	visible = is_paused
 
 

@@ -1117,7 +1117,19 @@ func test_unhandled_input_escape_while_visible_hides_menu() -> void:
 	assert_bool(_pause_menu.visible).is_false()
 
 
-# -- 64. _unhandled_input with ui_cancel while hidden does NOT unpause --------
+# -- 64. _on_paused_changed(true) does NOT show menu during GAME_OVER ---------
+#
+# When GameManager transitions to GAME_OVER it pauses the tree and emits
+# paused_changed(true). PauseMenu must not appear — GameOverScreen owns that state.
+
+func test_on_paused_changed_true_skipped_during_game_over() -> void:
+	_pause_menu.visible = false
+	GameManager.game_state = GameManager.GameState.GAME_OVER
+	_pause_menu._on_paused_changed(true)
+	assert_bool(_pause_menu.visible).is_false()
+
+
+# -- 65. _unhandled_input with ui_cancel while hidden does NOT unpause --------
 #
 # When the menu is not visible (e.g. Codex is open on top), the Escape press
 # must be ignored so it doesn't accidentally resume the game.

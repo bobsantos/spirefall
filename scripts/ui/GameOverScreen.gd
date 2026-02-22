@@ -42,10 +42,14 @@ func _on_game_over(victory: bool) -> void:
 
 
 func _on_play_again_pressed() -> void:
+	# Unpause before transitioning so the new scene processes normally
+	GameManager.unpause()
 	SceneManager.restart_game()
 
 
 func _on_main_menu_pressed() -> void:
+	# Unpause before transitioning so the new scene processes normally
+	GameManager.unpause()
 	SceneManager.go_to_main_menu()
 
 

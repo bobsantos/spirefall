@@ -20,6 +20,10 @@ var _last_scene_path: String = ""
 
 
 func _ready() -> void:
+	# SceneManager must keep running even when the tree is paused (e.g. game-over
+	# or pause-menu transitions) so tweens and change_scene calls execute.
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
 	_canvas_layer = CanvasLayer.new()
 	_canvas_layer.layer = 100
 	add_child(_canvas_layer)
@@ -65,6 +69,9 @@ func _perform_transition(scene_path: String) -> void:
 	_tween = create_tween()
 	_tween.tween_property(_overlay, "color:a", 1.0, FADE_DURATION)
 	await _tween.finished
+
+	# Ensure tree is unpaused before switching scenes so the new scene processes normally
+	get_tree().paused = false
 
 	# Change scene
 	get_tree().change_scene_to_file(scene_path)

@@ -115,6 +115,10 @@ func _transition_to(new_state: GameState) -> void:
 		GameState.GAME_OVER:
 			var victory: bool = current_wave >= max_waves
 			_finalize_run_stats(victory)
+			# Pause the tree so gameplay stops. GameOverScreen and SceneManager
+			# use PROCESS_MODE_WHEN_PAUSED / ALWAYS to remain interactive.
+			get_tree().paused = true
+			paused_changed.emit(true)
 			game_over.emit(victory)
 	phase_changed.emit(new_state)
 

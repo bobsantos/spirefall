@@ -154,6 +154,9 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# Always unpause — some tests pause the tree to simulate game-over state
+	if get_tree().paused:
+		get_tree().paused = false
 	if is_instance_valid(_screen):
 		_screen.free()
 	_reset_game_manager()
@@ -480,6 +483,24 @@ func test_main_menu_calls_go_to_main_menu() -> void:
 	_screen._on_main_menu_pressed()
 	# If we reach here, the method exists and doesn't crash
 	assert_bool(true).is_true()
+
+
+# -- 37b. Play Again unpauses tree before transitioning ----------------------
+
+func test_play_again_unpauses_tree() -> void:
+	get_tree().paused = true
+	SceneManager.is_transitioning = true
+	_screen._on_play_again_pressed()
+	assert_bool(get_tree().paused).is_false()
+
+
+# -- 37c. Main Menu unpauses tree before transitioning -----------------------
+
+func test_main_menu_unpauses_tree() -> void:
+	get_tree().paused = true
+	SceneManager.is_transitioning = true
+	_screen._on_main_menu_pressed()
+	assert_bool(get_tree().paused).is_false()
 
 
 # -- 38. _on_play_again_pressed method exists --------------------------------
