@@ -132,6 +132,9 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# GAME_OVER now pauses the tree — always unpause after each test
+	if get_tree().paused:
+		get_tree().paused = false
 	for enemy: Node in EnemySystem._active_enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
 			enemy.free()

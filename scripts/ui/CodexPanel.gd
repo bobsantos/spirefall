@@ -3,6 +3,9 @@ extends PanelContainer
 ## In-game Codex/Encyclopedia. Tabbed overlay with Fusions, Towers, Elements, Enemies.
 ## Opens via HUD button or C key. Self-registers with UIManager.
 
+## Emitted when the Codex panel is closed, so callers (e.g. PauseMenu) can react.
+signal closed
+
 @onready var content_container: VBoxContainer = $VBoxContainer/ScrollContainer/ContentContainer
 @onready var tab_buttons: Array[Button] = [
 	$VBoxContainer/TabBar/TowersTab,
@@ -14,6 +17,9 @@ extends PanelContainer
 
 const TABS: Array[String] = ["Towers", "Elements", "Fusions", "Enemies"]
 var _current_tab: int = 0
+# Tracks whether the scene tree was already paused when we opened,
+# so we only unpause on close if we were the ones who paused it.
+var _was_paused_before_open: bool = false
 
 # Element colors matching the game's visual style
 const ELEMENT_COLORS: Dictionary = {
@@ -45,6 +51,8 @@ const ENEMY_DIR: String = "res://resources/enemies/"
 
 
 func _ready() -> void:
+	# Must process while the tree is paused (opened from HUD or from PauseMenu).
+	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	UIManager.register_codex(self)
 	visible = false
 	_apply_panel_style()
@@ -61,17 +69,24 @@ func _unhandled_input(event: InputEvent) -> void:
 
 
 func toggle() -> void:
-	visible = !visible
 	if visible:
-		get_tree().paused = true
-		_build_tab_content(_current_tab)
+		_close()
 	else:
-		get_tree().paused = false
+		# Record whether the game was already paused (e.g. opened from PauseMenu)
+		# so _close() knows whether to restore the running state.
+		_was_paused_before_open = GameManager.is_paused()
+		GameManager.pause()
+		visible = true
+		_build_tab_content(_current_tab)
 
 
 func _close() -> void:
 	visible = false
-	get_tree().paused = false
+	# Only unpause if we paused the tree ourselves when opening.
+	# If the game was already paused (e.g. opened from PauseMenu), leave it paused.
+	if not _was_paused_before_open:
+		GameManager.unpause()
+	closed.emit()
 
 
 func _on_close_pressed() -> void:

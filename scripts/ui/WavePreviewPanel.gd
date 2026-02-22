@@ -92,11 +92,9 @@ func display_wave(wave_number: int) -> void:
 
 
 func show_combat_message() -> void:
-	## Show a minimal "Wave in progress..." message during combat.
+	## Show "Wave in progress..." alongside existing wave info during combat.
 	combat_label.visible = true
 	combat_label.text = "Wave in progress..."
-	boss_banner.visible = false
-	_clear_enemy_list()
 
 
 func _on_phase_changed(new_phase: GameManager.GameState) -> void:

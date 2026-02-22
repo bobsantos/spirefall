@@ -3,7 +3,9 @@
 [ext_resource type="Script" uid="uid://cygp27j775jfs" path="res://scripts/projectiles/Projectile.gd" id="1"]
 
 [node name="BaseProjectile" type="Node2D"]
+z_index = -1
 script = ExtResource("1")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-scale = Vector2(1.5, 1.5)
+scale = Vector2(0.8, 0.8)
+modulate = Color(1, 1, 1, 0.75)

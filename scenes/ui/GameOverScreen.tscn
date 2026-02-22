@@ -31,11 +31,11 @@ grow_vertical = 2
 
 [node name="PanelContainer" type="PanelContainer" parent="CenterContainer"]
 layout_mode = 2
-custom_minimum_size = Vector2(360, 200)
+custom_minimum_size = Vector2(400, 320)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CenterContainer/PanelContainer"]
 layout_mode = 2
-theme_override_constants/separation = 16
+theme_override_constants/separation = 12
 
 [node name="Spacer" type="Control" parent="CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
@@ -51,14 +51,47 @@ theme_override_font_sizes/font_size = 36
 layout_mode = 2
 text = "Waves Survived: 10 / 10"
 horizontal_alignment = 1
-theme_override_font_sizes/font_size = 18
+theme_override_font_sizes/font_size = 16
+
+[node name="EnemiesKilledLabel" type="Label" parent="CenterContainer/PanelContainer/VBoxContainer"]
+layout_mode = 2
+text = "Enemies Killed: 0"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+
+[node name="GoldEarnedLabel" type="Label" parent="CenterContainer/PanelContainer/VBoxContainer"]
+layout_mode = 2
+text = "Gold Earned: 0"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+
+[node name="TimePlayedLabel" type="Label" parent="CenterContainer/PanelContainer/VBoxContainer"]
+layout_mode = 2
+text = "Time: 00:00"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
+
+[node name="XPEarnedLabel" type="Label" parent="CenterContainer/PanelContainer/VBoxContainer"]
+layout_mode = 2
+text = "XP Earned: --"
+horizontal_alignment = 1
+theme_override_font_sizes/font_size = 16
 
 [node name="SpacerBottom" type="Control" parent="CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 8)
 
-[node name="PlayAgainButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer"]
+[node name="ButtonContainer" type="HBoxContainer" parent="CenterContainer/PanelContainer/VBoxContainer"]
 layout_mode = 2
-custom_minimum_size = Vector2(180, 44)
-size_flags_horizontal = 4
+alignment = 1
+theme_override_constants/separation = 16
+
+[node name="PlayAgainButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 44)
 text = "Play Again"
+
+[node name="MainMenuButton" type="Button" parent="CenterContainer/PanelContainer/VBoxContainer/ButtonContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(150, 44)
+text = "Main Menu"

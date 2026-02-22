@@ -4,8 +4,8 @@
 - Engine: Godot 4.6, GDScript, gl_compatibility renderer
 - Grid: 20x15 cells, 64px each, 1280x960
 - 8 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager
-- Additional autoloads: FusionRegistry, ElementSynergy
-- Main scene: `res://scenes/main/Game.tscn`
+- Additional autoloads: FusionRegistry, ElementSynergy, SceneManager
+- Main scene: `res://scenes/main/MainMenu.tscn` (changed from Game.tscn in Task A2)
 - Remote: `git@github.com:bobsantos/spirefall.git`
 
 ## Testing Setup
@@ -30,6 +30,13 @@
 - Task 16 complete: `tests/integration/test_combat_flow.gd` (12 tests)
 - Task 17 complete: `tests/integration/test_fusion_flow.gd` (6 tests)
 - Task 18 complete: `tests/integration/test_game_state.gd` (6 tests)
+- Phase 3 Task A1 complete: `tests/unit/autoload/test_scene_manager.gd` (19 tests)
+- Phase 3 Task A2 complete: `tests/unit/main/test_main_menu.gd` (31 tests)
+- Phase 3 Task A3 complete: `tests/unit/main/test_mode_select.gd` (40 tests)
+- Phase 3 Task A4 complete: `tests/unit/main/test_map_select.gd` (47 tests)
+- Phase 3 Task A5 complete: `tests/unit/main/test_game_launch.gd` (24 tests)
+- Phase 3 Task A6 complete: `tests/unit/ui/test_pause_menu.gd` (39 tests, adds section 12: PauseMenu._unhandled_input Escape-to-close)
+- Phase 3 Task A7 complete: `tests/unit/ui/test_game_over_screen.gd` (52 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
@@ -49,6 +56,9 @@
 - See [gotchas.md](gotchas.md) for detailed notes
 - **Critical**: Use `free()` not `queue_free()` for test nodes not in the scene tree (causes exit code 101 orphan leaks)
 - **Critical**: Null out `static var` GDScript references in `after()` to prevent "resources still in use at exit"
+- **Critical**: Lambdas in GDScript 4 capture primitive types (`int`, `bool`) by value — use `Array[int]` for mutable counters in signal test closures
+- **Pattern**: Nodes tested outside scene tree cannot call `get_tree()` — delegate tree access to an autoload (e.g., `GameManager.pause()`) so scripts work both in-game and in unit tests
+- **Constant**: `Node.PROCESS_MODE_WHEN_PAUSED == 2` in Godot 4.6 (not 3)
 
 ## UI Panel Patterns
 - See [ui-panels.md](ui-panels.md) for detailed notes

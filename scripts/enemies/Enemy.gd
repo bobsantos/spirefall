@@ -67,6 +67,15 @@ func _apply_enemy_data() -> void:
 	var texture_path: String = "res://assets/sprites/enemies/%s.png" % texture_name
 	sprite.texture = load(texture_path)
 
+	# Boss: render above other entities and scale up for visibility
+	if enemy_data.is_boss:
+		z_index = 5
+		if sprite:
+			sprite.scale = Vector2(2.5, 2.5)
+		# Shift health bar up to clear the larger sprite
+		if health_bar:
+			health_bar.position.y = -60.0
+
 	# Flying: render above ground enemies and enable bobbing
 	if enemy_data.is_flying:
 		_is_flying = true

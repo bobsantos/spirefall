@@ -12,6 +12,8 @@ func _reset_game_manager() -> void:
 	GameManager.current_wave = 0
 	GameManager.lives = GameManager.starting_lives
 	GameManager._build_timer = 0.0
+	GameManager._combat_timer = 0.0
+	GameManager._combat_timer_max = 0.0
 	GameManager._enemies_leaked_this_wave = 0
 
 
@@ -40,6 +42,9 @@ func before_test() -> void:
 
 
 func after_test() -> void:
+	# GAME_OVER now pauses the tree — always unpause after each test
+	if get_tree().paused:
+		get_tree().paused = false
 	# Free any enemy nodes that EnemySystem._process() may have spawned
 	# during tests that call start_wave_early() -> spawn_wave().
 	# These nodes are NOT in the scene tree, so queue_free() would leak them.
@@ -274,7 +279,31 @@ func test_combat_phase_emits_wave_started() -> void:
 		"wave_started", [1])
 
 
-# -- 20. wave_completed signal emitted on wave clear --------------------------
+# -- 20. GAME_OVER pauses the tree so gameplay stops --------------------------
+
+func test_game_over_pauses_tree() -> void:
+	get_tree().paused = false
+	GameManager.start_game()
+	GameManager.lose_life(20)
+	assert_int(GameManager.game_state).is_equal(GameManager.GameState.GAME_OVER)
+	assert_bool(get_tree().paused).is_true()
+
+
+# -- 21. GAME_OVER emits paused_changed(true) ---------------------------------
+
+func test_game_over_emits_paused_changed_true() -> void:
+	get_tree().paused = false
+	GameManager.start_game()
+	var emitted: Array[bool] = []
+	var conn: Callable = func(v: bool) -> void: emitted.append(v)
+	GameManager.paused_changed.connect(conn)
+	GameManager.lose_life(20)
+	GameManager.paused_changed.disconnect(conn)
+	assert_int(emitted.size()).is_greater_equal(1)
+	assert_bool(emitted[0]).is_true()
+
+
+# -- 22. wave_completed signal emitted on wave clear --------------------------
 
 func test_wave_completed_signal_emitted() -> void:
 	GameManager.start_game()
