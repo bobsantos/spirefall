@@ -11,7 +11,7 @@
 ## Testing Setup
 - GdUnit4 v6.1.1 installed at `addons/gdUnit4/`
 - Test root configured: `res://tests` (in project.godot under `[gdunit4]`)
-- Test directories exist: `tests/unit/{autoload,effects,enemies,projectiles,systems,towers}`, `tests/integration/`, `tests/resources/`
+- Test directories exist: `tests/unit/{autoload,effects,enemies,maps,projectiles,systems,towers}`, `tests/integration/`, `tests/resources/`
 - Task 1 complete: `tests/unit/autoload/test_economy_manager.gd` (18 tests)
 - Task 2 complete: `tests/unit/enemies/test_status_effect.gd` (12 tests)
 - Task 3 complete: `tests/unit/systems/test_element_matrix.gd` (17 tests)
@@ -37,6 +37,10 @@
 - Phase 3 Task A5 complete: `tests/unit/main/test_game_launch.gd` (24 tests)
 - Phase 3 Task A6 complete: `tests/unit/ui/test_pause_menu.gd` (39 tests, adds section 12: PauseMenu._unhandled_input Escape-to-close)
 - Phase 3 Task A7 complete: `tests/unit/ui/test_game_over_screen.gd` (52 tests)
+- Phase 3 Task B1 complete: `tests/unit/maps/test_map_base.gd` (34 tests)
+- Phase 3 Task B2 complete: `tests/unit/maps/test_mountain_pass.gd` (35 tests)
+- Phase 3 Task B3 complete: `tests/unit/maps/test_river_delta.gd` (45 tests)
+- Phase 3 Task B4 complete: `tests/unit/maps/test_volcanic_caldera.gd` (37 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
@@ -59,6 +63,14 @@
 - **Critical**: Lambdas in GDScript 4 capture primitive types (`int`, `bool`) by value — use `Array[int]` for mutable counters in signal test closures
 - **Pattern**: Nodes tested outside scene tree cannot call `get_tree()` — delegate tree access to an autoload (e.g., `GameManager.pause()`) so scripts work both in-game and in unit tests
 - **Constant**: `Node.PROCESS_MODE_WHEN_PAUSED == 2` in Godot 4.6 (not 3)
+
+## Map Architecture
+- `MapBase` (class_name) extends Node2D -- base class for all maps at `scripts/maps/MapBase.gd`
+- Subclasses override: `_setup_grid()`, `get_map_name()`, `get_spawn_points()`, `get_exit_points()`
+- Optional override: `_get_custom_tile_textures()` for map-specific tile textures
+- `ForestClearing.gd` extends MapBase (first map, open field, path at y=7)
+- Scene file `scenes/maps/ForestClearing.tscn` references `scripts/maps/ForestClearing.gd`
+- New class_name scripts require `--import --quit` before tests can resolve them
 
 ## UI Panel Patterns
 - See [ui-panels.md](ui-panels.md) for detailed notes
