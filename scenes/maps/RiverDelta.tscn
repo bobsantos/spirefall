@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://map_river_delta"]
+
+[ext_resource type="Script" path="res://scripts/maps/RiverDelta.gd" id="1"]
+
+[node name="RiverDelta" type="Node2D"]
+script = ExtResource("1")

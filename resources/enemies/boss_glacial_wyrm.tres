@@ -6,7 +6,7 @@
 [resource]
 script = ExtResource("1")
 enemy_name = "Glacial Wyrm"
-base_health = 12000
+base_health = 1300
 speed_multiplier = 0.4
 gold_reward = 250
 element = "ice"

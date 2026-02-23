@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 enemy_name = "Ember Titan"
-base_health = 5000
+base_health = 800
 speed_multiplier = 0.5
 gold_reward = 100
 element = "fire"

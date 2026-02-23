@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1")
 enemy_name = "Chaos Elemental"
-base_health = 25000
+base_health = 1650
 speed_multiplier = 0.3
 gold_reward = 500
 element = "none"
