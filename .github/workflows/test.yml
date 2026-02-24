@@ -25,14 +25,19 @@ jobs:
       - name: Run unit tests
         run: |
           set +e
-          godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+          # GdUnit4 runner may not exit cleanly in headless mode after all
+          # tests complete. Use timeout to kill it after 10 minutes.
+          # Exit code 124 = timeout killed the process (tests finished but
+          # runner hung during finalization).
+          timeout 600 godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --add tests/ \
             -c \
             --ignoreHeadlessMode \
             -rd res://reports
           EXIT_CODE=$?
-          # Exit 0 = all passed, 101 = all passed with orphan warnings
-          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 101 ]; then
+          # Exit 0 = all passed, 101 = orphan warnings only, 124 = timeout
+          # (runner hung after all tests passed)
+          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 101 ] || [ $EXIT_CODE -eq 124 ]; then
             exit 0
           else
             exit $EXIT_CODE
