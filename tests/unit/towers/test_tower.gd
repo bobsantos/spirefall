@@ -214,8 +214,10 @@ func test_only_attacks_during_combat() -> void:
 	var enemy: Node2D = auto_free(_make_enemy_stub(100, "earth", 0.5, Vector2(210.0, 200.0)))
 	EnemySystem._active_enemies.append(enemy)
 
-	# Monitor projectile_spawned signal
-	monitor_signals(tower)
+	# Track projectile_spawned synchronously (emits inline during _process)
+	var spawned_count: Array[int] = [0]
+	var conn: Callable = func(_p: Variant) -> void: spawned_count[0] += 1
+	tower.projectile_spawned.connect(conn)
 
 	# Game state is MENU -- _process should skip everything
 	GameManager.game_state = GameManager.GameState.MENU
@@ -225,8 +227,9 @@ func test_only_attacks_during_combat() -> void:
 	GameManager.game_state = GameManager.GameState.BUILD_PHASE
 	tower._process(1.0)
 
+	tower.projectile_spawned.disconnect(conn)
 	# No projectile should have been spawned in either case
-	await assert_signal(tower).wait_until(200).is_not_emitted("projectile_spawned")
+	assert_int(spawned_count[0]).is_equal(0)
 
 
 # -- 2. test_find_target_first_mode -------------------------------------------
@@ -657,15 +660,18 @@ func test_pure_aura_skips_projectile() -> void:
 	var enemy: Node2D = auto_free(_make_enemy_stub(100, "none", 0.5, Vector2(210.0, 200.0)))
 	EnemySystem._active_enemies.append(enemy)
 
-	# Monitor signal
-	monitor_signals(tower)
+	# Track projectile_spawned synchronously
+	var spawned_count: Array[int] = [0]
+	var conn: Callable = func(_p: Variant) -> void: spawned_count[0] += 1
+	tower.projectile_spawned.connect(conn)
 
 	# Simulate combat phase process tick
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
 	tower._process(1.0)
 
+	tower.projectile_spawned.disconnect(conn)
 	# No projectile should have been spawned (attack_speed == 0)
-	await assert_signal(tower).wait_until(200).is_not_emitted("projectile_spawned")
+	assert_int(spawned_count[0]).is_equal(0)
 
 
 # ==============================================================================
@@ -696,15 +702,18 @@ func test_disabled_tower_skips_attacks() -> void:
 	# Disable the tower
 	tower.disable_for(5.0)
 
-	# Monitor for projectile_spawned
-	monitor_signals(tower)
+	# Track projectile_spawned synchronously
+	var spawned_count: Array[int] = [0]
+	var conn: Callable = func(_p: Variant) -> void: spawned_count[0] += 1
+	tower.projectile_spawned.connect(conn)
 
 	# Put game in combat phase and process
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
 	tower._process(0.016)  # One frame
 
+	tower.projectile_spawned.disconnect(conn)
 	# Tower is disabled -> should not fire
-	await assert_signal(tower).wait_until(200).is_not_emitted("projectile_spawned")
+	assert_int(spawned_count[0]).is_equal(0)
 
 
 # -- 23. test_disable_timer_expires -------------------------------------------

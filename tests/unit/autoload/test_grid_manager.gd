@@ -286,10 +286,13 @@ func test_tower_placed_signal_emitted() -> void:
 	_setup_minimal_map()
 	var tower_node: Node = auto_free(Node.new())
 	var pos := Vector2i(5, 5)
-	monitor_signals(GridManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(grid_pos: Vector2i) -> void: emitted_args.append(grid_pos)
+	GridManager.tower_placed.connect(conn)
 	GridManager.place_tower(pos, tower_node)
-	await assert_signal(GridManager).wait_until(500).is_emitted(
-		"tower_placed", [pos])
+	GridManager.tower_placed.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_that(emitted_args[0]).is_equal(pos)
 
 
 # -- 22. tower_removed signal emitted on removal ----------------------------
@@ -299,10 +302,13 @@ func test_tower_removed_signal_emitted() -> void:
 	var tower_node: Node = auto_free(Node.new())
 	var pos := Vector2i(5, 5)
 	GridManager.place_tower(pos, tower_node)
-	monitor_signals(GridManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(grid_pos: Vector2i) -> void: emitted_args.append(grid_pos)
+	GridManager.tower_removed.connect(conn)
 	GridManager.remove_tower(pos)
-	await assert_signal(GridManager).wait_until(500).is_emitted(
-		"tower_removed", [pos])
+	GridManager.tower_removed.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_that(emitted_args[0]).is_equal(pos)
 
 
 # -- 23. grid_updated signal emitted on placement and removal ----------------
@@ -313,11 +319,17 @@ func test_grid_updated_signal_emitted() -> void:
 	var pos := Vector2i(5, 5)
 
 	# Test signal on placement
-	monitor_signals(GridManager, false)
+	var emitted_place: Array[bool] = []
+	var conn_place: Callable = func() -> void: emitted_place.append(true)
+	GridManager.grid_updated.connect(conn_place)
 	GridManager.place_tower(pos, tower_node)
-	await assert_signal(GridManager).wait_until(500).is_emitted("grid_updated")
+	GridManager.grid_updated.disconnect(conn_place)
+	assert_int(emitted_place.size()).is_greater_equal(1)
 
 	# Test signal on removal
-	monitor_signals(GridManager, false)
+	var emitted_remove: Array[bool] = []
+	var conn_remove: Callable = func() -> void: emitted_remove.append(true)
+	GridManager.grid_updated.connect(conn_remove)
 	GridManager.remove_tower(pos)
-	await assert_signal(GridManager).wait_until(500).is_emitted("grid_updated")
+	GridManager.grid_updated.disconnect(conn_remove)
+	assert_int(emitted_remove.size()).is_greater_equal(1)

@@ -73,10 +73,13 @@ func test_start_game_transitions_to_build() -> void:
 # -- 3. start_game emits phase_changed ----------------------------------------
 
 func test_start_game_emits_phase_changed() -> void:
-	monitor_signals(GameManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(new_phase: int) -> void: emitted_args.append(new_phase)
+	GameManager.phase_changed.connect(conn)
 	GameManager.start_game()
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"phase_changed", [GameManager.GameState.BUILD_PHASE])
+	GameManager.phase_changed.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_int(emitted_args[0]).is_equal(GameManager.GameState.BUILD_PHASE)
 
 
 # -- 4. lose_life decrements --------------------------------------------------
@@ -145,13 +148,16 @@ func test_start_wave_early_bonus_gold() -> void:
 func test_start_wave_early_emits_bonus_signal() -> void:
 	GameManager.start_game()
 	GameManager._build_timer = 10.0
-	monitor_signals(GameManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(amount: int) -> void: emitted_args.append(amount)
+	GameManager.early_wave_bonus.connect(conn)
 	GameManager.start_wave_early()
 	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
 	EnemySystem._enemies_to_spawn.clear()
+	GameManager.early_wave_bonus.disconnect(conn)
 	# Bonus = int(10.0) * 10 = 100
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"early_wave_bonus", [100])
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_int(emitted_args[0]).is_equal(100)
 
 
 # -- 11. start_wave_early ignored in COMBAT -----------------------------------
@@ -228,21 +234,27 @@ func test_game_over_victory_true_at_max() -> void:
 	GameManager.start_game()
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
 	GameManager.current_wave = GameManager.max_waves
-	monitor_signals(GameManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(victory: bool) -> void: emitted_args.append(victory)
+	GameManager.game_over.connect(conn)
 	_simulate_wave_cleared()
 	GameManager._process(0.016)
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"game_over", [true])
+	GameManager.game_over.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_bool(emitted_args[0]).is_true()
 
 
 # -- 16. game_over victory=false on death -------------------------------------
 
 func test_game_over_victory_false_on_death() -> void:
 	GameManager.start_game()
-	monitor_signals(GameManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(victory: bool) -> void: emitted_args.append(victory)
+	GameManager.game_over.connect(conn)
 	GameManager.lose_life(20)
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"game_over", [false])
+	GameManager.game_over.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_bool(emitted_args[0]).is_false()
 
 
 # -- 17. build timer set on BUILD_PHASE entry ---------------------------------
@@ -271,12 +283,15 @@ func test_wave_1_no_auto_start() -> void:
 func test_combat_phase_emits_wave_started() -> void:
 	GameManager.start_game()
 	# wave == 1 after start_game
-	monitor_signals(GameManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(wave_number: int) -> void: emitted_args.append(wave_number)
+	GameManager.wave_started.connect(conn)
 	GameManager.start_wave_early()
 	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
 	EnemySystem._enemies_to_spawn.clear()
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"wave_started", [1])
+	GameManager.wave_started.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_int(emitted_args[0]).is_equal(1)
 
 
 # -- 20. GAME_OVER pauses the tree so gameplay stops --------------------------
@@ -311,8 +326,11 @@ func test_wave_completed_signal_emitted() -> void:
 	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
 	EnemySystem._enemies_to_spawn.clear()
 	# Now in COMBAT_PHASE, wave == 1
-	monitor_signals(GameManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(wave_number: int) -> void: emitted_args.append(wave_number)
+	GameManager.wave_completed.connect(conn)
 	_simulate_wave_cleared()
 	GameManager._process(0.016)
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"wave_completed", [1])
+	GameManager.wave_completed.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_int(emitted_args[0]).is_equal(1)

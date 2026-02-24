@@ -118,12 +118,20 @@ func test_wave_bonus_wave_1() -> void:
 # -- Signals -------------------------------------------------------------------
 
 func test_gold_changed_signal_on_add() -> void:
-	monitor_signals(EconomyManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(new_amount: int) -> void: emitted_args.append(new_amount)
+	EconomyManager.gold_changed.connect(conn)
 	EconomyManager.add_gold(25)
-	await assert_signal(EconomyManager).wait_until(500).is_emitted("gold_changed", 125)
+	EconomyManager.gold_changed.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_int(emitted_args[-1]).is_equal(125)
 
 
 func test_insufficient_funds_signal() -> void:
-	monitor_signals(EconomyManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(cost: int) -> void: emitted_args.append(cost)
+	EconomyManager.insufficient_funds.connect(conn)
 	EconomyManager.spend_gold(999)
-	await assert_signal(EconomyManager).wait_until(500).is_emitted("insufficient_funds", 999)
+	EconomyManager.insufficient_funds.disconnect(conn)
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_int(emitted_args[-1]).is_equal(999)
