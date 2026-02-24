@@ -26,22 +26,44 @@ jobs:
         run: |
           set +e
           # GdUnit4 runner may not exit cleanly in headless mode after all
-          # tests complete. Use timeout to kill it after 10 minutes.
-          # Exit code 124 = timeout killed the process (tests finished but
-          # runner hung during finalization).
-          timeout 600 godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+          # tests complete. Use timeout to kill it after 5 minutes.
+          timeout 300 godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --add tests/ \
             -c \
             --ignoreHeadlessMode \
             -rd res://reports
           EXIT_CODE=$?
-          # Exit 0 = all passed, 101 = orphan warnings only, 124 = timeout
-          # (runner hung after all tests passed)
-          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 101 ] || [ $EXIT_CODE -eq 124 ]; then
+
+          # Exit 0 = all passed, 101 = orphan warnings only (not failures)
+          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 101 ]; then
             exit 0
-          else
-            exit $EXIT_CODE
           fi
+
+          # Exit 124 = timeout killed the process. This happens when GdUnit4
+          # hangs during finalization after tests complete. Verify the XML
+          # reports contain no failures before accepting as success.
+          if [ $EXIT_CODE -eq 124 ]; then
+            echo "GdUnit4 runner was killed by timeout (likely finalization hang)."
+            echo "Checking test reports for failures..."
+            if ls reports/*.xml 1>/dev/null 2>&1; then
+              FAILURES=$(grep -l 'failures="[1-9]' reports/*.xml || true)
+              ERRORS=$(grep -l 'errors="[1-9]' reports/*.xml || true)
+              if [ -n "$FAILURES" ] || [ -n "$ERRORS" ]; then
+                echo "Test failures or errors found in reports:"
+                echo "$FAILURES"
+                echo "$ERRORS"
+                exit 1
+              fi
+              echo "All reports show 0 failures and 0 errors. Accepting timeout as success."
+              exit 0
+            else
+              echo "No test reports found — cannot verify results. Failing."
+              exit 1
+            fi
+          fi
+
+          # Any other exit code is a real failure
+          exit $EXIT_CODE
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
