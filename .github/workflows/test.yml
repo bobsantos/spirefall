@@ -23,11 +23,12 @@ jobs:
           godot --headless --import --quit 2>/dev/null || true
 
       - name: Run unit tests
+        shell: bash
         run: |
           set +e
-          # GdUnit4 runner may not exit cleanly in headless mode after all
-          # tests complete. Use timeout to kill it after 5 minutes.
-          # Capture stdout to verify results if timeout occurs.
+          # GdUnit4 runner hangs during finalization in headless mode.
+          # Use timeout to kill it after 5 minutes.
+          # Pipe through tee to capture output for validation.
           timeout 300 godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --add tests/ \
             -c \
@@ -36,29 +37,23 @@ jobs:
           EXIT_CODE=${PIPESTATUS[0]}
 
           # Exit 0 = all passed, 101 = orphan warnings only (not failures)
-          if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 101 ]; then
+          if [ "$EXIT_CODE" -eq 0 ] || [ "$EXIT_CODE" -eq 101 ]; then
             exit 0
           fi
 
-          # Exit 124 = timeout killed the process. This happens when GdUnit4
-          # hangs during finalization after tests complete. Parse the captured
-          # output to verify no test failures occurred.
-          if [ $EXIT_CODE -eq 124 ]; then
+          # Exit 124 = timeout killed the process. Verify no test failures
+          # in the captured output before accepting as success.
+          if [ "$EXIT_CODE" -eq 124 ]; then
             echo "GdUnit4 runner was killed by timeout (likely finalization hang)."
             echo "Checking test output for failures..."
-            # Look for any per-suite Statistics line with failures > 0
-            if grep -q '[0-9] failures' /tmp/gdunit_output.log; then
-              FAILURE_LINES=$(grep '[1-9][0-9]* failures' /tmp/gdunit_output.log || true)
-              if [ -n "$FAILURE_LINES" ]; then
-                echo "Test failures found in output:"
-                echo "$FAILURE_LINES"
-                exit 1
-              fi
-            fi
-            # Also check for FAILED markers on individual tests
             if grep -q 'FAILED' /tmp/gdunit_output.log; then
               echo "FAILED tests found in output:"
               grep 'FAILED' /tmp/gdunit_output.log
+              exit 1
+            fi
+            if grep -q '[1-9][0-9]* failures' /tmp/gdunit_output.log; then
+              echo "Test failures found in output:"
+              grep '[1-9][0-9]* failures' /tmp/gdunit_output.log
               exit 1
             fi
             echo "All test suites show 0 failures. Accepting timeout as success."
