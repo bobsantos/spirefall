@@ -234,3 +234,15 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - wave_config.json uses `"waves"` top-level key with array of 30 wave entries; boss waves marked with `"is_boss_wave": true`
 - Use `override_failure_message()` in loops to identify which specific resource failed, since GdUnit4 only shows the assertion message
 - `FileAccess.open()` + `JSON.parse_string()` works in headless mode for loading wave_config.json
+
+## Typed Array Mismatch in GDScript 4
+- `["fire", "water"]` creates an untyped `Array`, NOT `Array[String]`. Passing it to a function expecting `Array[String]` causes a runtime crash: "The array of argument N does not have the same element type as the expected typed array argument."
+- Fix: declare a typed local first: `var choices: Array[String] = ["fire", "water"]` then pass `choices`
+- Or use a helper: `func _choices(arr: Array) -> Array[String]` that copies elements into a typed array
+- This is a common issue in tests where array literals are passed directly to implementation methods
+
+## Cannot Free a Locked Object (Signal Emission)
+- Freeing a node while its signal is still being emitted causes: "Attempted to free a locked object (calling or emitting)."
+- Common case: Button.pressed signal handler calls a method that frees the button itself
+- Fix: use `call_deferred("_clear_cards")` to defer cleanup until after signal emission completes
+- Tests that emit `button.pressed.emit()` then check synchronous state cannot verify deferred cleanup -- test the deferred method separately

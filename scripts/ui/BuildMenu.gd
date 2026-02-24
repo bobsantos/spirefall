@@ -3,6 +3,8 @@ extends Control
 ## Bottom panel: scrollable row of tower build buttons grouped by element.
 ## Each button shows tower name, cost, element color, sprite thumbnail, and
 ## provides a tooltip with stats on hover.
+## When DraftManager is active, only towers whose elements have been drafted
+## are shown. A draft indicator at the top displays currently drafted elements.
 
 signal tower_build_selected(tower_data: TowerData)
 
@@ -10,6 +12,8 @@ signal tower_build_selected(tower_data: TowerData)
 
 var _tower_buttons: Array[Button] = []
 var _available_towers: Array[TowerData] = []
+var _draft_indicator: HBoxContainer
+var _element_group_nodes: Dictionary = {}  # element -> Array[Node] (headers + separators)
 
 # Canonical element order for build menu button layout
 const ELEMENT_ORDER: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
@@ -38,7 +42,9 @@ const ELEMENT_BG_COLORS: Dictionary = {
 func _ready() -> void:
 	UIManager.register_build_menu(self)
 	_load_available_towers()
+	_create_draft_indicator()
 	_create_buttons()
+	_connect_draft_signals()
 
 
 func _load_available_towers() -> void:
@@ -66,23 +72,71 @@ func _load_available_towers() -> void:
 	)
 
 
+func _create_draft_indicator() -> void:
+	_draft_indicator = HBoxContainer.new()
+	_draft_indicator.name = "DraftIndicator"
+	_draft_indicator.add_theme_constant_override("separation", 4)
+	_draft_indicator.visible = false
+	button_container.add_child(_draft_indicator)
+	_update_draft_indicator()
+
+
+func _update_draft_indicator() -> void:
+	# Clear existing indicator children
+	for child: Node in _draft_indicator.get_children():
+		child.free()
+
+	if not DraftManager.is_draft_active:
+		_draft_indicator.visible = false
+		return
+
+	_draft_indicator.visible = true
+
+	# "Draft:" label
+	var label := Label.new()
+	label.text = "Draft:"
+	label.add_theme_font_size_override("font_size", 10)
+	label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_draft_indicator.add_child(label)
+
+	# Colored dots for each drafted element
+	var dots_hbox := HBoxContainer.new()
+	dots_hbox.add_theme_constant_override("separation", 2)
+	dots_hbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	for el: String in DraftManager.drafted_elements:
+		var dot := _create_element_icon(el, 6)
+		dots_hbox.add_child(dot)
+	_draft_indicator.add_child(dots_hbox)
+
+
 func _create_buttons() -> void:
 	var last_element: String = ""
+	_element_group_nodes.clear()
 
 	for tower: TowerData in _available_towers:
 		# Add a colored separator + element label between element groups
 		if tower.element != last_element:
 			if last_element != "":
-				_add_separator()
-			_add_element_header(tower.element)
+				var sep: VSeparator = _add_separator()
+				# Track separator with the NEW element group it precedes
+				if not _element_group_nodes.has(tower.element):
+					_element_group_nodes[tower.element] = []
+				_element_group_nodes[tower.element].append(sep)
+			var header: VBoxContainer = _add_element_header(tower.element)
+			if not _element_group_nodes.has(tower.element):
+				_element_group_nodes[tower.element] = []
+			_element_group_nodes[tower.element].append(header)
 			last_element = tower.element
 
 		var btn := _create_tower_button(tower)
 		button_container.add_child(btn)
 		_tower_buttons.append(btn)
 
+	_refresh_draft_filter()
 
-func _add_element_header(element: String) -> void:
+
+func _add_element_header(element: String) -> VBoxContainer:
 	var header := VBoxContainer.new()
 	header.custom_minimum_size = Vector2(14, 0)
 	header.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -101,12 +155,14 @@ func _add_element_header(element: String) -> void:
 	header.add_child(label)
 
 	button_container.add_child(header)
+	return header
 
 
-func _add_separator() -> void:
+func _add_separator() -> VSeparator:
 	var sep := VSeparator.new()
 	sep.custom_minimum_size = Vector2(4, 0)
 	button_container.add_child(sep)
+	return sep
 
 
 func _create_tower_button(tower: TowerData) -> Button:
@@ -226,6 +282,45 @@ func _build_tooltip(tower: TowerData) -> String:
 func _on_tower_selected(tower_data: TowerData) -> void:
 	UIManager.request_build(tower_data)
 	tower_build_selected.emit(tower_data)
+
+
+## Connect to DraftManager signals for live updates when new elements are drafted.
+func _connect_draft_signals() -> void:
+	if not DraftManager.element_drafted.is_connected(_on_element_drafted):
+		DraftManager.element_drafted.connect(_on_element_drafted)
+
+
+## Disconnect from DraftManager signals (used in cleanup and tests).
+func _disconnect_draft_signals() -> void:
+	if DraftManager.element_drafted.is_connected(_on_element_drafted):
+		DraftManager.element_drafted.disconnect(_on_element_drafted)
+
+
+func _on_element_drafted(_element: String) -> void:
+	_refresh_draft_filter()
+
+
+## Update button and group header visibility based on current draft state.
+func _refresh_draft_filter() -> void:
+	_update_draft_indicator()
+
+	# Track which elements have at least one visible tower
+	var visible_elements: Dictionary = {}
+
+	for i: int in range(_available_towers.size()):
+		if i < _tower_buttons.size():
+			var tower: TowerData = _available_towers[i]
+			var tower_visible: bool = DraftManager.is_tower_available(tower)
+			_tower_buttons[i].visible = tower_visible
+			if tower_visible:
+				visible_elements[tower.element] = true
+
+	# Show/hide element group headers and separators
+	for element: String in _element_group_nodes:
+		var nodes: Array = _element_group_nodes[element]
+		var element_visible: bool = visible_elements.has(element)
+		for node: Node in nodes:
+			node.visible = element_visible
 
 
 func _process(_delta: float) -> void:

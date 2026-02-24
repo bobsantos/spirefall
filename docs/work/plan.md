@@ -398,12 +398,13 @@ Implements the element drafting mechanic where players start with 1 random eleme
 
 ---
 
-#### Task C1: DraftManager Autoload
+#### Task C1: DraftManager Autoload ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 6.2
 
 **New files:**
 - `scripts/autoload/DraftManager.gd`
+- `tests/unit/autoload/test_draft_manager.gd` (42 tests)
 
 **Modified files:**
 - `project.godot` (add autoload)
@@ -422,55 +423,61 @@ Implements the element drafting mechanic where players start with 1 random eleme
 - On `GameManager.wave_completed`, if wave is in DRAFT_WAVES and picks_remaining > 0, emit `draft_pick_available`
 
 **Acceptance criteria:**
-- [ ] Starting a draft assigns 1 random element
-- [ ] Draft picks trigger at waves 5 and 10
-- [ ] 3 choices presented, excluding already-drafted elements
-- [ ] `is_tower_available()` correctly filters by drafted elements
-- [ ] Dual-element fusion towers require both elements to be drafted
+- [x] Starting a draft assigns 1 random element
+- [x] Draft picks trigger at waves 5 and 10
+- [x] 3 choices presented, excluding already-drafted elements
+- [x] `is_tower_available()` correctly filters by drafted elements
+- [x] Dual-element fusion towers require both elements to be drafted
 
 ---
 
-#### Task C2: DraftPickPanel UI
+#### Task C2: DraftPickPanel UI ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 6.2
 
 **New files:**
 - `scenes/ui/DraftPickPanel.tscn`
 - `scripts/ui/DraftPickPanel.gd`
+- `tests/unit/ui/test_draft_pick_panel.gd` (44 tests)
 
 **Implementation notes:**
 - Full-screen overlay (pauses game while draft is active)
 - Shows 3 element cards with: element name, color, icon, list of towers that element unlocks
 - Clicking a card calls `DraftManager.pick_element(element)`
 - Panel hides after pick, game resumes
-- Animate cards in with a slide/fade
+- Uses `call_deferred("_clear_cards")` to avoid freeing buttons mid-signal
 - `process_mode = PROCESS_MODE_WHEN_PAUSED`
+- `ELEMENT_TOWERS` const maps elements to tier-1 tower names
 
 **Acceptance criteria:**
-- [ ] Panel appears at correct waves during draft mode
-- [ ] 3 element choices displayed with correct info
-- [ ] Selecting an element adds it to drafted set and closes panel
-- [ ] Game pauses while panel is open
+- [x] Panel appears at correct waves during draft mode
+- [x] 3 element choices displayed with correct info
+- [x] Selecting an element adds it to drafted set and closes panel
+- [x] Game pauses while panel is open
 
 ---
 
-#### Task C3: BuildMenu Element Filtering
+#### Task C3: BuildMenu Element Filtering ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 6.2
 
 **Modified files:**
 - `scripts/ui/BuildMenu.gd`
 
+**New files:**
+- `tests/unit/ui/test_build_menu_draft.gd` (22 tests)
+
 **Implementation notes:**
-- When `DraftManager.is_draft_active` is true, filter `_available_towers` through `DraftManager.is_tower_available()`
-- Re-call `_create_buttons()` whenever `DraftManager.element_drafted` fires (new towers become available)
-- Gray out / hide towers whose elements have not been drafted
-- Show a "Draft: [element icons]" indicator at the top of the build menu showing currently drafted elements
+- When `DraftManager.is_draft_active` is true, filter towers through `DraftManager.is_tower_available()`
+- Connected to `DraftManager.element_drafted` signal to call `_refresh_draft_filter()` when new elements are picked
+- Added "Draft: [colored dots]" indicator at the top of the build menu showing currently drafted elements
+- Element group headers/separators hidden when all towers in that element are filtered out
+- No existing functionality broken -- when draft not active, all towers remain visible
 
 **Acceptance criteria:**
-- [ ] In draft mode, only towers matching drafted elements appear
-- [ ] New towers appear in build menu after each draft pick
-- [ ] Non-draft mode shows all towers as before
+- [x] In draft mode, only towers matching drafted elements appear
+- [x] New towers appear in build menu after each draft pick
+- [x] Non-draft mode shows all towers as before
 
 ---
 

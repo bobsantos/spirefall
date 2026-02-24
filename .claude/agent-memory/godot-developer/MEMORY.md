@@ -4,7 +4,7 @@
 - Engine: Godot 4.6, GDScript, gl_compatibility renderer
 - Grid: 20x15 cells, 64px each, 1280x960
 - 8 autoload managers: GameManager, GridManager, PathfindingSystem, TowerSystem, EnemySystem, EconomyManager, UIManager, AudioManager
-- Additional autoloads: FusionRegistry, ElementSynergy, SceneManager
+- Additional autoloads: FusionRegistry, ElementSynergy, SceneManager, DraftManager
 - Main scene: `res://scenes/main/MainMenu.tscn` (changed from Game.tscn in Task A2)
 - Remote: `git@github.com:bobsantos/spirefall.git`
 
@@ -41,6 +41,9 @@
 - Phase 3 Task B2 complete: `tests/unit/maps/test_mountain_pass.gd` (35 tests)
 - Phase 3 Task B3 complete: `tests/unit/maps/test_river_delta.gd` (45 tests)
 - Phase 3 Task B4 complete: `tests/unit/maps/test_volcanic_caldera.gd` (37 tests)
+- Phase 3 Task C1 complete: `tests/unit/autoload/test_draft_manager.gd` (42 tests)
+- Phase 3 Task C2 complete: `tests/unit/ui/test_draft_pick_panel.gd` (44 tests)
+- Phase 3 Task C3 complete: `tests/unit/ui/test_build_menu_draft.gd` (22 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
