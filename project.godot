@@ -20,6 +20,8 @@ config/features=PackedStringArray("4.6")
 
 [autoload]
 
+SaveSystem="*res://scripts/autoload/SaveSystem.gd"
+SettingsManager="*res://scripts/autoload/SettingsManager.gd"
 GameManager="*res://scripts/autoload/GameManager.gd"
 GridManager="*res://scripts/autoload/GridManager.gd"
 PathfindingSystem="*res://scripts/autoload/PathfindingSystem.gd"

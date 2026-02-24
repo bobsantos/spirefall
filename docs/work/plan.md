@@ -524,11 +524,11 @@ Persistent data storage for settings, meta progression, and optionally mid-game 
 - Error handling: if file is corrupt, reset to defaults and warn
 
 **Acceptance criteria:**
-- [ ] Save file created at `user://save_data.json` on first run
-- [ ] Settings persist across game restarts
-- [ ] Progression data persists across game restarts
-- [ ] Corrupt save file handled gracefully (reset to defaults)
-- [ ] `has_save()` returns false on first launch
+- [x] Save file created at `user://save_data.json` on first run
+- [x] Settings persist across game restarts
+- [x] Progression data persists across game restarts
+- [x] Corrupt save file handled gracefully (reset to defaults)
+- [x] `has_save()` returns false on first launch
 
 ---
 
@@ -553,9 +553,9 @@ Persistent data storage for settings, meta progression, and optionally mid-game 
 - On any change, calls `SaveSystem.update_settings()` and emits signal
 
 **Acceptance criteria:**
-- [ ] Volume sliders affect audio bus volumes
-- [ ] Settings persist via SaveSystem
-- [ ] Applying settings on startup restores previous values
+- [x] Volume sliders affect audio bus volumes
+- [x] Settings persist via SaveSystem
+- [x] Applying settings on startup restores previous values
 
 ---
 
@@ -576,10 +576,36 @@ Persistent data storage for settings, meta progression, and optionally mid-game 
 - Layout: VBoxContainer with labeled rows
 
 **Acceptance criteria:**
-- [ ] Three volume sliders that control audio in real-time
-- [ ] Toggle switches for display options
-- [ ] Settings save automatically when changed
-- [ ] Panel works when accessed from both MainMenu and PauseMenu
+- [x] Three volume sliders that control audio in real-time
+- [x] Toggle switches for display options
+- [x] Settings save automatically when changed
+- [x] Panel works when accessed from both MainMenu and PauseMenu
+
+---
+
+#### Task D4: Reset to Defaults Button
+
+**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.3
+
+**Modified files:**
+- `scripts/ui/SettingsPanel.gd`
+- `scenes/ui/SettingsPanel.tscn`
+- `scripts/autoload/SettingsManager.gd`
+
+**Implementation notes:**
+- Add a "Reset to Defaults" Button at the bottom of SettingsPanel, above the Close button
+- On press, call `SettingsManager.reset_to_defaults()` which restores all settings to their default values
+- `reset_to_defaults()` resets: master_volume=1.0, sfx_volume=1.0, music_volume=0.8, screen_shake=true, show_damage_numbers=true
+- After reset, update all sliders and toggles in SettingsPanel to reflect new values
+- Persist the reset via `SaveSystem.update_settings()` (already handled by SettingsManager setters)
+- Style the button to be visually distinct (muted/secondary style) to avoid accidental clicks
+
+**Acceptance criteria:**
+- [x] "Reset to Defaults" button visible in SettingsPanel
+- [x] Clicking resets all settings to default values
+- [x] Sliders and toggles update to reflect defaults immediately
+- [x] Reset persists via SaveSystem
+- [x] Audio buses update immediately on reset
 
 ---
 
@@ -699,6 +725,44 @@ XP system that unlocks maps, modes, and provides a sense of long-term advancemen
 - [ ] XP display updates in real-time
 - [ ] GameOverScreen shows actual XP earned (not placeholder)
 - [ ] Visual style consistent with existing gold display
+
+---
+
+### Group E+: Game Speed Control (P1)
+
+In-game speed toggle on the HUD so players can fast-forward through repetitive waves or slow down for precise tower placement.
+
+---
+
+#### Task E4: Game Speed HUD Button
+
+**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 10.1
+
+**Modified files:**
+- `scripts/ui/HUD.gd`
+- `scenes/ui/HUD.tscn`
+- `scripts/autoload/GameManager.gd`
+
+**Implementation notes:**
+- Add a speed toggle button to the HUD TopBar (right side, near CodexButton)
+- Cycle through speeds on press: 1x → 1.5x → 2x → 0.5x → 1x
+- Display current speed on the button text (e.g., "1x", "1.5x", "2x", "0.5x")
+- GameManager gets a `game_speed: float` property and a `set_game_speed(speed: float)` method
+- `set_game_speed()` calls `Engine.time_scale = speed` and emits `speed_changed(speed: float)` signal
+- Reset speed to 1x on game over and when returning to menu
+- Speed affects: build timer, combat timer, enemy movement, projectile travel, spawn intervals
+- Speed does NOT affect: UI animations, audio pitch (keep AudioServer pitch_scale at 1.0)
+- Keyboard shortcut: consider `+`/`-` keys or a single toggle key
+- Visual feedback: highlight button when speed != 1x (tint or color change)
+
+**Acceptance criteria:**
+- [ ] Speed button visible on HUD during gameplay
+- [ ] Clicking cycles through 1x → 1.5x → 2x → 0.5x → 1x
+- [ ] `Engine.time_scale` updates to match selected speed
+- [ ] Button displays current speed multiplier
+- [ ] Speed resets to 1x on game over
+- [ ] Visual indicator when speed is not 1x
+- [ ] Game timers, enemies, and projectiles respect time scale
 
 ---
 

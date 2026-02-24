@@ -246,3 +246,15 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Common case: Button.pressed signal handler calls a method that frees the button itself
 - Fix: use `call_deferred("_clear_cards")` to defer cleanup until after signal emission completes
 - Tests that emit `button.pressed.emit()` then check synchronous state cannot verify deferred cleanup -- test the deferred method separately
+
+## JSON Parses All Numbers as Float
+- `JSON.parse_string()` in Godot 4.x returns ALL numeric values as `float`, even integers like `0`, `1`, `100`
+- This means after loading JSON save data, `assert_int()` will fail with "unexpected type <float>"
+- Fix: normalize integer fields after parsing with `int()` casts on known integer keys
+- Pattern: add a `_normalize_int_fields()` step after `_merge_with_defaults()` in SaveSystem
+- Same applies to any system that round-trips integer data through JSON
+
+## AudioServer Bus Layout
+- Audio buses ("Master", "SFX", "Music") must be defined in `default_bus_layout.tres` at project root
+- Without this file, only "Master" bus exists. AudioManager sets `player.bus = "SFX"` which silently fails
+- `AudioServer.get_bus_index("SFX")` returns -1 if bus doesn't exist -- always check before using

@@ -50,6 +50,18 @@
 - `_on_codex_closed()` clears `_codex_open` then sets `visible = true`
 - CodexPanel enforces `process_mode = PROCESS_MODE_WHEN_PAUSED` in both .tscn and `_ready()`
 
+## SettingsPanel (Task D3)
+- Root: PanelContainer, script `scripts/ui/SettingsPanel.gd`, class_name `SettingsPanel`
+- `process_mode = PROCESS_MODE_WHEN_PAUSED` so it works in pause menu
+- Layout: VBoxContainer with Title, Audio section (3 HSlider rows), Display section (2 CheckButton rows), Close button
+- Each slider row: HBoxContainer > Label + HSlider + Label(value)
+- Sliders: range 0-100, step 5, values map to SettingsManager linear [0.0, 1.0]
+- `setup()` public method: configures sliders, loads from SettingsManager, connects signals (idempotent)
+- Signal: `close_requested` emitted by Close button
+- Used in MainMenu (embedded in SettingsOverlay via .tscn sub-instance) and PauseMenu (instantiated dynamically)
+- PauseMenu: `_on_settings_pressed()` instantiates SettingsPanel as sibling, hides pause overlay; `_on_settings_closed()` frees panel, restores overlay
+- MainMenu: SettingsOverlay is a Control containing a SettingsPanel instance; `_on_settings_pressed()` toggles overlay visibility
+
 ## Testing UI Scripts Without Scene Tree
 - Build node tree manually in test helper (mirrors .tscn structure)
 - Apply script via `set_script(load(path))`

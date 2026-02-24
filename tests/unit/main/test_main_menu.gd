@@ -12,6 +12,7 @@ var _scene_change_paths: Array[String] = []
 var _music_tracks: Array[String] = []
 var _scene_change_conn: Callable
 var _original_transitioning: bool
+static var _panel_stub_script: GDScript
 
 
 # -- Helpers -------------------------------------------------------------------
@@ -74,30 +75,22 @@ func _build_menu() -> Control:
 	leaderboards_btn.disabled = true
 	button_box.add_child(leaderboards_btn)
 
-	# Settings overlay (hidden by default)
-	var settings_overlay := PanelContainer.new()
+	# Settings overlay (hidden by default) -- now a Control wrapping a SettingsPanel
+	var settings_overlay := Control.new()
 	settings_overlay.name = "SettingsOverlay"
 	settings_overlay.visible = false
 	root.add_child(settings_overlay)
 
-	var settings_vbox := VBoxContainer.new()
-	settings_vbox.name = "SettingsVBox"
-	settings_overlay.add_child(settings_vbox)
-
-	var settings_title := Label.new()
-	settings_title.name = "SettingsTitle"
-	settings_title.text = "Settings"
-	settings_vbox.add_child(settings_title)
-
-	var settings_placeholder := Label.new()
-	settings_placeholder.name = "SettingsPlaceholder"
-	settings_placeholder.text = "Settings coming soon..."
-	settings_vbox.add_child(settings_placeholder)
-
-	var settings_close := Button.new()
-	settings_close.name = "SettingsCloseButton"
-	settings_close.text = "Close"
-	settings_vbox.add_child(settings_close)
+	# Build a minimal SettingsPanel stub (enough for MainMenu to find and connect)
+	var settings_panel := PanelContainer.new()
+	settings_panel.name = "SettingsPanel"
+	settings_overlay.add_child(settings_panel)
+	# Add close_requested signal via script
+	if _panel_stub_script == null:
+		_panel_stub_script = GDScript.new()
+		_panel_stub_script.source_code = "extends PanelContainer\nsignal close_requested()\nfunc setup() -> void:\n\tpass\n"
+		_panel_stub_script.reload()
+	settings_panel.set_script(_panel_stub_script)
 
 	# Credits overlay (hidden by default)
 	var credits_overlay := PanelContainer.new()
@@ -142,7 +135,6 @@ func _apply_script(node: Control) -> void:
 	node.leaderboards_button = node.get_node("CenterContainer/VBoxContainer/ButtonContainer/LeaderboardsButton")
 	node.settings_overlay = node.get_node("SettingsOverlay")
 	node.credits_overlay = node.get_node("CreditsOverlay")
-	node.settings_close_button = node.get_node("SettingsOverlay/SettingsVBox/SettingsCloseButton")
 	node.credits_close_button = node.get_node("CreditsOverlay/CreditsVBox/CreditsCloseButton")
 	node.title_label = node.get_node("CenterContainer/VBoxContainer/TitleLabel")
 
@@ -178,6 +170,10 @@ func after_test() -> void:
 		_menu = null
 
 
+func after() -> void:
+	_panel_stub_script = null
+
+
 # -- 1. Script loads and has expected properties -------------------------------
 
 func test_script_exists_and_loads() -> void:
@@ -202,7 +198,7 @@ func test_menu_has_credits_button() -> void:
 
 func test_menu_has_settings_overlay() -> void:
 	assert_object(_menu.settings_overlay).is_not_null()
-	assert_bool(_menu.settings_overlay is PanelContainer).is_true()
+	assert_bool(_menu.settings_overlay is Control).is_true()
 
 
 func test_menu_has_credits_overlay() -> void:
@@ -241,7 +237,7 @@ func test_settings_button_toggles_overlay() -> void:
 	assert_bool(_menu.settings_overlay.visible).is_false()
 
 
-func test_settings_close_button_hides_overlay() -> void:
+func test_settings_close_hides_overlay() -> void:
 	_menu.settings_overlay.visible = true
 	_menu._on_settings_close_pressed()
 	assert_bool(_menu.settings_overlay.visible).is_false()
@@ -320,9 +316,11 @@ func test_connect_buttons_wires_credits() -> void:
 	assert_bool(_menu.credits_button.pressed.is_connected(_menu._on_credits_pressed)).is_true()
 
 
-func test_connect_buttons_wires_settings_close() -> void:
+func test_connect_buttons_wires_settings_panel_close() -> void:
 	_menu.connect_buttons()
-	assert_bool(_menu.settings_close_button.pressed.is_connected(_menu._on_settings_close_pressed)).is_true()
+	var sp: Node = _menu.settings_overlay.get_node_or_null("SettingsPanel")
+	assert_object(sp).is_not_null()
+	assert_bool(sp.close_requested.is_connected(_menu._on_settings_close_pressed)).is_true()
 
 
 func test_connect_buttons_wires_credits_close() -> void:
