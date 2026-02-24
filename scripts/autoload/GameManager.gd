@@ -21,13 +21,18 @@ signal paused_changed(is_paused: bool)
 
 var current_wave: int = 0
 var lives: int = 20
-var game_state: GameState = GameState.MENU
+var game_state: GameState = GameState.MENU:
+	set(value):
+		game_state = value
+		if value == GameState.MENU:
+			_game_running = false
 var current_mode: GameMode = GameMode.CLASSIC
 
 var _build_timer: float = 0.0
 var _combat_timer: float = 0.0
 var _combat_timer_max: float = 0.0
 var _enemies_leaked_this_wave: int = 0
+var _game_running: bool = false
 
 ## Run statistics tracked during gameplay. Populated in start_game(),
 ## updated on wave completion / enemy kills / gold changes, finalized on game over.
@@ -47,6 +52,7 @@ func _ready() -> void:
 
 
 func start_game(mode: String = "classic") -> void:
+	_game_running = true
 	current_mode = _MODE_MAP.get(mode, GameMode.CLASSIC)
 	if current_mode == GameMode.ENDLESS:
 		max_waves = 999
@@ -75,6 +81,8 @@ func start_wave_early() -> void:
 
 
 func _process(delta: float) -> void:
+	if not _game_running:
+		return
 	match game_state:
 		GameState.BUILD_PHASE:
 			# Wave 1: no auto-start, player must click Start Wave
@@ -113,6 +121,7 @@ func _transition_to(new_state: GameState) -> void:
 			EconomyManager.apply_interest()
 			_transition_to(GameState.BUILD_PHASE)
 		GameState.GAME_OVER:
+			_game_running = false
 			var victory: bool = current_wave >= max_waves
 			_finalize_run_stats(victory)
 			# Pause the tree so gameplay stops. GameOverScreen and SceneManager

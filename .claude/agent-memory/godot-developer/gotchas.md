@@ -258,3 +258,12 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Audio buses ("Master", "SFX", "Music") must be defined in `default_bus_layout.tres` at project root
 - Without this file, only "Master" bus exists. AudioManager sets `player.bus = "SFX"` which silently fails
 - `AudioServer.get_bus_index("SFX")` returns -1 if bus doesn't exist -- always check before using
+
+## CI Hang: Autoload _process() Cascading Through Game States
+- GameManager._process() runs every frame and autonomously transitions through waves (build timer -> combat -> wave clear -> next wave)
+- If tests leave GameManager in BUILD_PHASE/COMBAT_PHASE without resetting to MENU, _process() will cascade through all waves
+- When wave 30 is reached, _transition_to(GAME_OVER) calls get_tree().paused = true
+- GdUnit4's test runner uses default PROCESS_MODE_INHERIT -- pausing the tree stops the runner, causing CI to hang until timeout
+- On Linux CI (ext4), test execution order differs from macOS (alphabetical) due to DirAccess.list_dir_begin() returning OS-dependent order
+- Fix: added `_game_running: bool = false` flag to GameManager, guarding `_process()`. Only `start_game()` sets it to true; GAME_OVER and MENU setter clear it
+- This prevents any autonomous wave progression when tests manipulate game_state directly without calling start_game()

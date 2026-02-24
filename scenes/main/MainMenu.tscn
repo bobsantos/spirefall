@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://mainmenu"]
 
 [ext_resource type="Script" path="res://scripts/main/MainMenu.gd" id="1"]
-[ext_resource type="PackedScene" uid="uid://settingspanel" path="res://scenes/ui/SettingsPanel.tscn" id="2"]
+[ext_resource type="PackedScene" uid="uid://cw7c5frsgg5dj" path="res://scenes/ui/SettingsPanel.tscn" id="2"]
 
 [node name="MainMenu" type="Control"]
 layout_mode = 3
