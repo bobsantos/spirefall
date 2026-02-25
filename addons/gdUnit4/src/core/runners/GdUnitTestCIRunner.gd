@@ -133,6 +133,12 @@ func get_exit_code() -> int:
 func quit(code: int) -> void:
 	_state = EXIT
 	GdUnitTools.dispose_all()
+	# In headless mode, the await calls in gc_on_guarded_instances() and
+	# the parent quit() stall indefinitely (process_frame/physics_frame
+	# never resolve). Skip GC and quit directly.
+	if DisplayServer.get_name() == "headless":
+		get_tree().quit(code)
+		return
 	await GdUnitMemoryObserver.gc_on_guarded_instances()
 	await super(code)
 
