@@ -15,6 +15,8 @@ var _original_current_wave: int
 var _original_lives: int
 var _original_transitioning: bool
 var _original_run_stats: Dictionary
+var _original_meta_xp: int
+var _original_meta_unlocked: Array[String]
 
 
 # -- Helpers -------------------------------------------------------------------
@@ -76,6 +78,12 @@ func _build_game_over_screen() -> Control:
 	xp_label.text = "XP Earned: --"
 	vbox.add_child(xp_label)
 
+	var unlocks_label := Label.new()
+	unlocks_label.name = "UnlocksLabel"
+	unlocks_label.text = ""
+	unlocks_label.visible = false
+	vbox.add_child(unlocks_label)
+
 	var spacer_bottom := Control.new()
 	spacer_bottom.name = "SpacerBottom"
 	vbox.add_child(spacer_bottom)
@@ -109,6 +117,7 @@ func _apply_script(node: Control) -> void:
 	node.gold_earned_label = node.get_node("CenterContainer/PanelContainer/VBoxContainer/GoldEarnedLabel")
 	node.time_played_label = node.get_node("CenterContainer/PanelContainer/VBoxContainer/TimePlayedLabel")
 	node.xp_earned_label = node.get_node("CenterContainer/PanelContainer/VBoxContainer/XPEarnedLabel")
+	node.unlocks_label = node.get_node("CenterContainer/PanelContainer/VBoxContainer/UnlocksLabel")
 	node.play_again_button = node.get_node("CenterContainer/PanelContainer/VBoxContainer/ButtonContainer/PlayAgainButton")
 	node.main_menu_button = node.get_node("CenterContainer/PanelContainer/VBoxContainer/ButtonContainer/MainMenuButton")
 
@@ -143,12 +152,16 @@ func before() -> void:
 	_original_lives = GameManager.lives
 	_original_transitioning = SceneManager.is_transitioning
 	_original_run_stats = GameManager.run_stats.duplicate() if GameManager.get("run_stats") != null else {}
+	_original_meta_xp = MetaProgression._total_xp
+	_original_meta_unlocked = MetaProgression._unlocked.duplicate()
 
 
 func before_test() -> void:
 	_reset_game_manager()
 	SceneManager.is_transitioning = false
 	GameManager.run_stats = _make_run_stats()
+	MetaProgression._total_xp = 0
+	MetaProgression._unlocked = []
 	_screen = auto_free(_build_game_over_screen())
 	_apply_script(_screen)
 
@@ -160,6 +173,8 @@ func after_test() -> void:
 	_screen = null
 	_reset_game_manager()
 	SceneManager.is_transitioning = _original_transitioning
+	MetaProgression._total_xp = _original_meta_xp
+	MetaProgression._unlocked = _original_meta_unlocked.duplicate()
 	if GameManager.get("run_stats") != null:
 		GameManager.run_stats = _original_run_stats.duplicate()
 
@@ -439,12 +454,14 @@ func test_time_played_label_large_time() -> void:
 	assert_str(_screen.time_played_label.text).is_equal("Time: 61:01")
 
 
-# -- 34. XP earned label shows placeholder ----------------------------------
+# -- 34. XP earned label shows calculated XP (no longer placeholder) ---------
 
-func test_xp_earned_label_shows_placeholder() -> void:
-	GameManager.run_stats = _make_run_stats()
+func test_xp_earned_label_shows_calculated_xp() -> void:
+	var stats: Dictionary = _make_run_stats()
+	GameManager.run_stats = stats
 	_screen._on_game_over(false)
-	assert_str(_screen.xp_earned_label.text).is_equal("XP Earned: --")
+	var expected_xp: int = MetaProgression.calculate_run_xp(stats)
+	assert_str(_screen.xp_earned_label.text).is_equal("XP Earned: %d" % expected_xp)
 
 
 # ==============================================================================

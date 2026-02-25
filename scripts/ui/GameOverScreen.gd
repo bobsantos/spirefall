@@ -11,6 +11,7 @@ extends Control
 @onready var gold_earned_label: Label = $CenterContainer/PanelContainer/VBoxContainer/GoldEarnedLabel
 @onready var time_played_label: Label = $CenterContainer/PanelContainer/VBoxContainer/TimePlayedLabel
 @onready var xp_earned_label: Label = $CenterContainer/PanelContainer/VBoxContainer/XPEarnedLabel
+@onready var unlocks_label: Label = $CenterContainer/PanelContainer/VBoxContainer/UnlocksLabel
 @onready var play_again_button: Button = $CenterContainer/PanelContainer/VBoxContainer/ButtonContainer/PlayAgainButton
 @onready var main_menu_button: Button = $CenterContainer/PanelContainer/VBoxContainer/ButtonContainer/MainMenuButton
 
@@ -36,8 +37,23 @@ func _on_game_over(victory: bool) -> void:
 	enemies_killed_label.text = "Enemies Killed: %d" % stats.get("enemies_killed", 0)
 	gold_earned_label.text = "Gold Earned: %d" % stats.get("total_gold_earned", 0)
 	time_played_label.text = "Time: %s" % _format_time(stats.get("elapsed_time", 0))
-	# XP placeholder until MetaProgression (Task E1) is implemented
-	xp_earned_label.text = "XP Earned: --"
+
+	# Show actual XP earned from MetaProgression formula
+	var xp: int = MetaProgression.calculate_run_xp(stats)
+	xp_earned_label.text = "XP Earned: %d" % xp
+
+	# Show new unlocks if any were earned this run
+	var xp_before: int = MetaProgression.get_total_xp() - xp
+	var new_unlocks: Array[String] = MetaProgression.get_new_unlocks(xp_before, MetaProgression.get_total_xp())
+	if new_unlocks.is_empty():
+		unlocks_label.visible = false
+	else:
+		var unlock_names: PackedStringArray = PackedStringArray()
+		for id: String in new_unlocks:
+			unlock_names.append(_format_unlock_name(id))
+		unlocks_label.text = "New Unlock: %s" % ", ".join(unlock_names)
+		unlocks_label.visible = true
+
 	visible = true
 
 
@@ -59,3 +75,14 @@ func _format_time(ms: int) -> String:
 	var minutes: int = total_seconds / 60
 	var seconds: int = total_seconds % 60
 	return "%02d:%02d" % [minutes, seconds]
+
+
+## Convert unlock ID (e.g. "mode_draft") to display name (e.g. "Draft Mode").
+func _format_unlock_name(unlock_id: String) -> String:
+	match unlock_id:
+		"mode_draft": return "Draft Mode"
+		"mode_endless": return "Endless Mode"
+		"map_mountain_pass": return "Mountain Pass"
+		"map_river_delta": return "River Delta"
+		"map_volcanic_caldera": return "Volcanic Caldera"
+		_: return unlock_id.replace("_", " ").capitalize()

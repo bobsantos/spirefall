@@ -91,19 +91,22 @@ func _update_card_lock(map_key: String, card: PanelContainer, btn: Button, lock_
 		lock_label.text = ""
 		card.modulate.a = 1.0
 	else:
-		lock_label.text = "Requires %d XP" % xp_threshold
+		var current_xp: int = MetaProgression.get_total_xp()
+		lock_label.text = "%d / %d XP" % [current_xp, xp_threshold]
 		card.modulate.a = 0.5
 
 
 func _is_map_unlocked(map_key: String) -> bool:
-	# Check test overrides first
 	if unlock_overrides.has(map_key):
 		return unlock_overrides[map_key]
-	# Forest is always unlocked
 	if map_key == "forest":
 		return true
-	# When MetaProgression is implemented, check XP here.
-	# For now, non-forest maps are locked by default.
+	if map_key == "mountain":
+		return MetaProgression.is_unlocked("map_mountain_pass")
+	if map_key == "river":
+		return MetaProgression.is_unlocked("map_river_delta")
+	if map_key == "volcano":
+		return MetaProgression.is_unlocked("map_volcanic_caldera")
 	return false
 
 

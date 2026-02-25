@@ -34,6 +34,7 @@ FusionRegistry="*res://scripts/autoload/FusionRegistry.gd"
 ElementSynergy="*res://scripts/systems/ElementSynergy.gd"
 SceneManager="*res://scripts/autoload/SceneManager.gd"
 DraftManager="*res://scripts/autoload/DraftManager.gd"
+MetaProgression="*res://scripts/autoload/MetaProgression.gd"
 
 [display]
 

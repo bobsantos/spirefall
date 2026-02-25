@@ -4,6 +4,7 @@ extends Node
 ## Tracks gold, income, interest, and all economic transactions.
 
 signal gold_changed(new_amount: int)
+signal gold_earned(amount: int)
 signal insufficient_funds(cost: int)
 
 const STARTING_GOLD: int = 100
@@ -25,6 +26,7 @@ func reset() -> void:
 
 func add_gold(amount: int) -> void:
 	gold += amount
+	gold_earned.emit(amount)
 	gold_changed.emit(gold)
 
 
