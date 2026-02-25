@@ -155,7 +155,7 @@ func before_test() -> void:
 		_scene_change_paths.append(SceneManager._last_scene_path)
 	SceneManager.scene_changing.connect(_scene_change_conn)
 
-	_menu = _build_menu()
+	_menu = auto_free(_build_menu())
 	_apply_script(_menu)
 
 
@@ -165,9 +165,7 @@ func after_test() -> void:
 	SceneManager.is_transitioning = _original_transitioning
 	SceneManager._last_scene_path = ""
 
-	if is_instance_valid(_menu):
-		_menu.free()
-		_menu = null
+	_menu = null
 
 
 func after() -> void:

@@ -149,7 +149,7 @@ func before_test() -> void:
 	_reset_game_manager()
 	SceneManager.is_transitioning = false
 	GameManager.run_stats = _make_run_stats()
-	_screen = _build_game_over_screen()
+	_screen = auto_free(_build_game_over_screen())
 	_apply_script(_screen)
 
 
@@ -157,8 +157,7 @@ func after_test() -> void:
 	# Always unpause — some tests pause the tree to simulate game-over state
 	if get_tree().paused:
 		get_tree().paused = false
-	if is_instance_valid(_screen):
-		_screen.free()
+	_screen = null
 	_reset_game_manager()
 	SceneManager.is_transitioning = _original_transitioning
 	if GameManager.get("run_stats") != null:

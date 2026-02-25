@@ -131,7 +131,7 @@ func before_test() -> void:
 	SceneManager.is_transitioning = false
 	_scene_change_paths.clear()
 	# Build a fresh PauseMenu for each test
-	_pause_menu = _build_pause_menu()
+	_pause_menu = auto_free(_build_pause_menu())
 	var script: GDScript = load(PAUSE_MENU_SCRIPT_PATH)
 	_pause_menu.set_script(script)
 	# Wire up @onready refs manually (no scene tree, no _ready())
@@ -146,8 +146,7 @@ func after_test() -> void:
 	# Always unpause so subsequent tests aren't affected
 	if get_tree().paused:
 		get_tree().paused = false
-	if is_instance_valid(_pause_menu):
-		_pause_menu.free()
+	_pause_menu = null
 	for enemy: Node in EnemySystem._active_enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
 			enemy.free()
@@ -434,7 +433,7 @@ func test_on_codex_pressed_calls_toggle_codex() -> void:
 		+ "\ttoggle_count += 1\n"
 	)
 	stub_script.reload()
-	var stub_panel := Control.new()
+	var stub_panel: Control = auto_free(Control.new())
 	stub_panel.set_script(stub_script)
 
 	var original_panel: Control = UIManager.codex_panel
@@ -442,7 +441,6 @@ func test_on_codex_pressed_calls_toggle_codex() -> void:
 	_pause_menu._on_codex_pressed()
 	var count: int = stub_panel.toggle_count
 	UIManager.codex_panel = original_panel
-	stub_panel.free()
 
 	assert_int(count).is_equal(1)
 
@@ -482,13 +480,12 @@ func test_hide_pause_menu_hides_and_unpauses() -> void:
 
 func test_pause_menu_starts_hidden() -> void:
 	# Build a fresh one via the script's initializer logic — visible defaults to false
-	var fresh: Control = _build_pause_menu()
+	var fresh: Control = auto_free(_build_pause_menu())
 	var script: GDScript = load(PAUSE_MENU_SCRIPT_PATH)
 	fresh.set_script(script)
 	# Manually set the initial state that _ready() would set
 	fresh.visible = false
 	assert_bool(fresh.visible).is_false()
-	fresh.free()
 
 
 # ==============================================================================
@@ -498,7 +495,7 @@ func test_pause_menu_starts_hidden() -> void:
 # -- 30. Game._unhandled_input with ui_cancel while placing cancels placement -
 
 func test_game_escape_while_placing_cancels_placement() -> void:
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 	game_node.game_board = game_node.get_node("GameBoard")
@@ -521,13 +518,12 @@ func test_game_escape_while_placing_cancels_placement() -> void:
 	assert_bool(get_tree().paused).is_false()
 
 	EnemySystem._enemies_to_spawn.clear()
-	game_node.free()
 
 
 # -- 31. Game._unhandled_input with ui_cancel while fusing cancels fusion ----
 
 func test_game_escape_while_fusing_cancels_fusion() -> void:
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 	game_node.game_board = game_node.get_node("GameBoard")
@@ -535,7 +531,7 @@ func test_game_escape_while_fusing_cancels_fusion() -> void:
 	game_node.camera = game_node.get_node("Camera2D")
 
 	# Simulate a fusion in progress
-	var fake_tower := Node.new()
+	var fake_tower: Node = auto_free(Node.new())
 	game_node._fusing_tower = fake_tower
 
 	var event := InputEventKey.new()
@@ -548,16 +544,14 @@ func test_game_escape_while_fusing_cancels_fusion() -> void:
 	# Tree should NOT be paused
 	assert_bool(get_tree().paused).is_false()
 
-	fake_tower.free()
 	EnemySystem._enemies_to_spawn.clear()
-	game_node.free()
 
 
 # -- 32. Game._unhandled_input with ui_cancel while idle toggles pause -------
 
 func test_game_escape_while_idle_toggles_pause() -> void:
 	get_tree().paused = false
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 	game_node.game_board = game_node.get_node("GameBoard")
@@ -573,14 +567,13 @@ func test_game_escape_while_idle_toggles_pause() -> void:
 	assert_bool(get_tree().paused).is_true()
 
 	EnemySystem._enemies_to_spawn.clear()
-	game_node.free()
 
 
 # -- 33. Game escape when already paused unpauses ----------------------------
 
 func test_game_escape_when_paused_unpauses() -> void:
 	get_tree().paused = true
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 	game_node.game_board = game_node.get_node("GameBoard")
@@ -595,7 +588,6 @@ func test_game_escape_when_paused_unpauses() -> void:
 	assert_bool(get_tree().paused).is_false()
 
 	EnemySystem._enemies_to_spawn.clear()
-	game_node.free()
 
 
 # ==============================================================================
@@ -730,7 +722,7 @@ func _build_codex_stub() -> Control:
 # -- 42. _on_codex_pressed() hides the PauseMenu so the Codex is unobstructed -
 
 func test_on_codex_pressed_hides_pause_menu() -> void:
-	var stub := _build_codex_stub()
+	var stub: Control = auto_free(_build_codex_stub())
 	var original_panel: Control = UIManager.codex_panel
 	UIManager.codex_panel = stub
 
@@ -739,7 +731,6 @@ func test_on_codex_pressed_hides_pause_menu() -> void:
 	var is_hidden: bool = not _pause_menu.visible
 
 	UIManager.codex_panel = original_panel
-	stub.free()
 
 	assert_bool(is_hidden).is_true()
 
@@ -755,7 +746,7 @@ func test_on_codex_closed_restores_pause_menu() -> void:
 # -- 44. _on_codex_pressed() connects closed signal; menu reappears on close --
 
 func test_codex_closed_signal_restores_pause_menu() -> void:
-	var stub := _build_codex_stub()
+	var stub: Control = auto_free(_build_codex_stub())
 	var original_panel: Control = UIManager.codex_panel
 	UIManager.codex_panel = stub
 
@@ -766,7 +757,6 @@ func test_codex_closed_signal_restores_pause_menu() -> void:
 	var restored: bool = _pause_menu.visible
 
 	UIManager.codex_panel = original_panel
-	stub.free()
 
 	assert_bool(restored).is_true()
 
@@ -850,17 +840,16 @@ func _build_codex_panel() -> PanelContainer:
 # -- 47. CodexPanel has a `closed` signal ------------------------------------
 
 func test_codex_panel_has_closed_signal() -> void:
-	var panel := _build_codex_panel()
+	var panel: PanelContainer = auto_free(_build_codex_panel())
 	var script: GDScript = load(CODEX_PANEL_SCRIPT_PATH)
 	panel.set_script(script)
 	assert_bool(panel.has_signal("closed")).is_true()
-	panel.free()
 
 
 # -- 48. CodexPanel._close() emits `closed` ----------------------------------
 
 func test_codex_panel_close_emits_closed_signal() -> void:
-	var panel := _build_codex_panel()
+	var panel: PanelContainer = auto_free(_build_codex_panel())
 	var script: GDScript = load(CODEX_PANEL_SCRIPT_PATH)
 	panel.set_script(script)
 	# Wire @onready refs manually.
@@ -881,14 +870,13 @@ func test_codex_panel_close_emits_closed_signal() -> void:
 	panel._close()
 	panel.closed.disconnect(conn)
 
-	panel.free()
 	assert_int(emitted[0]).is_equal(1)
 
 
 # -- 49. CodexPanel._close() does NOT unpause when _was_paused_before_open ---
 
 func test_codex_panel_close_does_not_unpause_when_was_paused() -> void:
-	var panel := _build_codex_panel()
+	var panel: PanelContainer = auto_free(_build_codex_panel())
 	var script: GDScript = load(CODEX_PANEL_SCRIPT_PATH)
 	panel.set_script(script)
 	panel.content_container = panel.get_node("VBoxContainer/ScrollContainer/ContentContainer")
@@ -907,16 +895,13 @@ func test_codex_panel_close_does_not_unpause_when_was_paused() -> void:
 	panel.visible = true
 	panel._close()
 
-	var still_paused: bool = get_tree().paused
-	panel.free()
-
-	assert_bool(still_paused).is_true()
+	assert_bool(get_tree().paused).is_true()
 
 
 # -- 50. CodexPanel._close() unpauses when it paused the tree itself ----------
 
 func test_codex_panel_close_unpauses_when_it_paused_tree() -> void:
-	var panel := _build_codex_panel()
+	var panel: PanelContainer = auto_free(_build_codex_panel())
 	var script: GDScript = load(CODEX_PANEL_SCRIPT_PATH)
 	panel.set_script(script)
 	panel.content_container = panel.get_node("VBoxContainer/ScrollContainer/ContentContainer")
@@ -935,20 +920,16 @@ func test_codex_panel_close_unpauses_when_it_paused_tree() -> void:
 	panel.visible = true
 	panel._close()
 
-	var unpaused: bool = not get_tree().paused
-	panel.free()
-
-	assert_bool(unpaused).is_true()
+	assert_bool(get_tree().paused).is_false()
 
 
 # -- 51. CodexPanel has _was_paused_before_open variable ----------------------
 
 func test_codex_panel_has_was_paused_before_open_var() -> void:
-	var panel := _build_codex_panel()
+	var panel: PanelContainer = auto_free(_build_codex_panel())
 	var script: GDScript = load(CODEX_PANEL_SCRIPT_PATH)
 	panel.set_script(script)
 	assert_bool(panel.get("_was_paused_before_open") != null).is_true()
-	panel.free()
 
 
 # ==============================================================================
@@ -973,7 +954,7 @@ func test_pause_menu_codex_open_defaults_false() -> void:
 # -- 54. _on_codex_pressed() sets _codex_open = true -------------------------
 
 func test_on_codex_pressed_sets_codex_open_true() -> void:
-	var stub := _build_codex_stub()
+	var stub: Control = auto_free(_build_codex_stub())
 	var original_panel: Control = UIManager.codex_panel
 	UIManager.codex_panel = stub
 
@@ -982,7 +963,6 @@ func test_on_codex_pressed_sets_codex_open_true() -> void:
 	var flag: bool = _pause_menu._codex_open
 
 	UIManager.codex_panel = original_panel
-	stub.free()
 
 	assert_bool(flag).is_true()
 
