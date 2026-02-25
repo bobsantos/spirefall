@@ -1,2 +1,11 @@
-- wave should have a timer. i was stuck in wave 10 for a while since i was not able to kill the boss easily. when the timer ends then the next wave should start automatically
-- current placeholder tower projectile effects make the boss almost invisible
+- fuse cost is not indicated in the upgrade panel
+- upgrade panel should be closer to the tower being upgraded
+- selected tower should have a more visible selected indicator
+- fusing the same tower type should be possible at least on the first tier
+- it's good that we have the timer in the middle of the screen when there's 10 seconds left, but i think we should add it to the top part of the hud permanently as well. maybe beside the wave indicator?
+- boss escaping costs only 1 life
+- there are times when i cannot see the enemy and all i see is their health bar
+- there are enemis in wave 13 which is difficult to kill
+- there are enemis in wave 17 which is difficult to kill
+- seems like healers are impossible to defeat and they are not visible
+- draft mode is exciting, but then you would always want to draft Stone Bastion because that's the base tower with many legendary fusion capabilities

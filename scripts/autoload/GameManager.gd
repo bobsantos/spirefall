@@ -66,6 +66,10 @@ func start_game(mode: String = "classic") -> void:
 	set_game_speed(1.0)
 	_game_running = true
 	current_mode = _MODE_MAP.get(mode, GameMode.CLASSIC)
+	if current_mode == GameMode.DRAFT:
+		DraftManager.start_draft()
+	else:
+		DraftManager.reset()
 	if current_mode == GameMode.ENDLESS:
 		max_waves = 999
 	else:

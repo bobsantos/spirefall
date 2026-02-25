@@ -1,4 +1,4 @@
-[gd_scene load_steps=9 format=3 uid="uid://game_main"]
+[gd_scene load_steps=10 format=3 uid="uid://game_main"]
 
 [ext_resource type="Script" path="res://scripts/main/Game.gd" id="1"]
 [ext_resource type="PackedScene" uid="uid://hud" path="res://scenes/ui/HUD.tscn" id="2"]
@@ -8,6 +8,7 @@
 [ext_resource type="PackedScene" uid="uid://wavepreviewpanel" path="res://scenes/ui/WavePreviewPanel.tscn" id="6"]
 [ext_resource type="PackedScene" uid="uid://codexpanel" path="res://scenes/ui/CodexPanel.tscn" id="7"]
 [ext_resource type="PackedScene" uid="uid://pause_menu_spirefall" path="res://scenes/ui/PauseMenu.tscn" id="8"]
+[ext_resource type="PackedScene" uid="uid://draft_pick_panel_spirefall" path="res://scenes/ui/DraftPickPanel.tscn" id="9"]
 
 [node name="Game" type="Node2D"]
 script = ExtResource("1")
@@ -28,6 +29,8 @@ layer = 10
 [node name="GameOverScreen" parent="UILayer" instance=ExtResource("5")]
 
 [node name="PauseMenu" parent="UILayer" instance=ExtResource("8")]
+
+[node name="DraftPickPanel" parent="UILayer" instance=ExtResource("9")]
 
 [node name="CodexPanel" parent="UILayer" instance=ExtResource("7")]
 
