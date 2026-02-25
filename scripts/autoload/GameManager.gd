@@ -12,6 +12,7 @@ signal wave_completed(wave_number: int)
 signal game_over(victory: bool)
 signal early_wave_bonus(amount: int)
 signal paused_changed(is_paused: bool)
+signal speed_changed(speed: float)
 
 @export var max_waves: int = 30
 @export var starting_lives: int = 20
@@ -33,6 +34,8 @@ var _combat_timer: float = 0.0
 var _combat_timer_max: float = 0.0
 var _enemies_leaked_this_wave: int = 0
 var _game_running: bool = false
+var game_speed: float = 1.0
+var _previous_gold: int = 0
 
 ## Run statistics tracked during gameplay. Populated in start_game(),
 ## updated on wave completion / enemy kills / gold changes, finalized on game over.
@@ -49,21 +52,40 @@ const _MODE_MAP: Dictionary = {
 
 func _ready() -> void:
 	lives = starting_lives
+	EnemySystem.enemy_killed.connect(_on_stat_enemy_killed)
+	EconomyManager.gold_earned.connect(_on_stat_gold_earned)
+
+
+func set_game_speed(speed: float) -> void:
+	game_speed = speed
+	Engine.time_scale = speed
+	speed_changed.emit(speed)
 
 
 func start_game(mode: String = "classic") -> void:
+	set_game_speed(1.0)
 	_game_running = true
 	current_mode = _MODE_MAP.get(mode, GameMode.CLASSIC)
+	if current_mode == GameMode.DRAFT:
+		DraftManager.start_draft()
+	else:
+		DraftManager.reset()
 	if current_mode == GameMode.ENDLESS:
 		max_waves = 999
 	else:
 		max_waves = 30
 	current_wave = 0
 	lives = starting_lives
+	_previous_gold = EconomyManager.gold
 	run_stats = {
 		"waves_survived": 0,
 		"enemies_killed": 0,
+		"enemies_leaked": 0,
 		"total_gold_earned": 0,
+		"towers_built": 0,
+		"fusions_made": 0,
+		"mode": mode,
+		"map": "",
 		"start_time": Time.get_ticks_msec(),
 		"elapsed_time": 0,
 		"victory": false,
@@ -133,10 +155,19 @@ func _transition_to(new_state: GameState) -> void:
 
 
 func _finalize_run_stats(victory: bool) -> void:
+	Engine.time_scale = 1.0
+	game_speed = 1.0
 	run_stats["waves_survived"] = current_wave
 	run_stats["victory"] = victory
 	if run_stats.has("start_time"):
 		run_stats["elapsed_time"] = Time.get_ticks_msec() - run_stats["start_time"]
+
+	# Award XP via MetaProgression
+	var xp: int = MetaProgression.calculate_run_xp(run_stats)
+	MetaProgression.award_xp(xp)
+
+	# Record the run in SaveSystem
+	SaveSystem.record_run(run_stats)
 
 
 func _on_wave_cleared() -> void:
@@ -161,6 +192,8 @@ func lose_life(amount: int = 1) -> void:
 
 func record_enemy_leak() -> void:
 	_enemies_leaked_this_wave += 1
+	if run_stats.has("enemies_leaked"):
+		run_stats["enemies_leaked"] += 1
 
 
 ## Toggle game pause state and emit paused_changed signal.
@@ -188,3 +221,21 @@ func unpause() -> void:
 ## when nodes are tested outside the scene tree.
 func is_paused() -> bool:
 	return get_tree().paused
+
+
+## Set the current map identifier in run_stats.
+func set_current_map(map_name: String) -> void:
+	if run_stats.has("map"):
+		run_stats["map"] = map_name
+
+
+## Increment enemies_killed in run_stats. Connected to EnemySystem.enemy_killed.
+func _on_stat_enemy_killed(_enemy: Node) -> void:
+	if run_stats.has("enemies_killed"):
+		run_stats["enemies_killed"] += 1
+
+
+## Track earned gold in run_stats. Connected to EconomyManager.gold_earned.
+func _on_stat_gold_earned(amount: int) -> void:
+	if run_stats.has("total_gold_earned"):
+		run_stats["total_gold_earned"] += amount

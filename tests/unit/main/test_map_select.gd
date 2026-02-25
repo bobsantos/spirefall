@@ -182,6 +182,7 @@ func _apply_script(node: Control) -> void:
 
 func before_test() -> void:
 	_scene_change_paths.clear()
+	MetaProgression.reset()
 
 	# Block SceneManager from doing real scene transitions
 	_original_transitioning = SceneManager.is_transitioning

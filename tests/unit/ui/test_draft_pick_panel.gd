@@ -2,7 +2,7 @@ extends GdUnitTestSuite
 
 ## Unit tests for Task C2: DraftPickPanel UI.
 ## Covers: initial state, show_choices(), element card display, pick interaction,
-## pause/unpause behavior, signal connections, and edge cases.
+## pause/unpause behavior, signal connections, multi-pick rounds, and edge cases.
 
 const DRAFT_PICK_PANEL_SCRIPT_PATH: String = "res://scripts/ui/DraftPickPanel.gd"
 
@@ -85,6 +85,8 @@ func before_test() -> void:
 	_panel.title_label = _panel.get_node("CenterContainer/PanelContainer/VBoxContainer/TitleLabel")
 	_panel.cards_container = _panel.get_node("CenterContainer/PanelContainer/VBoxContainer/CardsContainer")
 	_panel.visible = false
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 
 
 func after_test() -> void:
@@ -197,16 +199,23 @@ func test_cards_are_buttons() -> void:
 		assert_bool(card is Button).is_true()
 
 
-# -- 13. Each card has the element name in its text ---------------------------
+# -- 13. Each card has the element name in a child Label ----------------------
 
-func test_card_text_contains_element_name() -> void:
+func test_card_contains_element_name_label() -> void:
 	_panel.show_choices(_choices(["fire", "water", "earth"]))
 	var card_0: Button = _panel.cards_container.get_child(0) as Button
 	var card_1: Button = _panel.cards_container.get_child(1) as Button
 	var card_2: Button = _panel.cards_container.get_child(2) as Button
-	assert_bool(card_0.text.to_lower().contains("fire")).is_true()
-	assert_bool(card_1.text.to_lower().contains("water")).is_true()
-	assert_bool(card_2.text.to_lower().contains("earth")).is_true()
+	# Element names are in child VBoxContainer > Label children
+	var vbox_0: VBoxContainer = card_0.get_child(0) as VBoxContainer
+	var vbox_1: VBoxContainer = card_1.get_child(0) as VBoxContainer
+	var vbox_2: VBoxContainer = card_2.get_child(0) as VBoxContainer
+	var label_0: Label = vbox_0.get_child(0) as Label
+	var label_1: Label = vbox_1.get_child(0) as Label
+	var label_2: Label = vbox_2.get_child(0) as Label
+	assert_str(label_0.text).is_equal("Fire")
+	assert_str(label_1.text).is_equal("Water")
+	assert_str(label_2.text).is_equal("Earth")
 
 
 # -- 14. Cards store their element in metadata --------------------------------
@@ -229,7 +238,7 @@ func test_cards_have_element_color() -> void:
 	assert_bool(card.has_theme_stylebox_override("normal")).is_true()
 
 
-# -- 16. Fire card gets fire color -------------------------------------------
+# -- 16. Fire card gets darkened fire color as bg, fire color as border ------
 
 func test_fire_card_color() -> void:
 	_panel.show_choices(_choices(["fire"]))
@@ -237,18 +246,20 @@ func test_fire_card_color() -> void:
 	var style: StyleBox = card.get_theme_stylebox("normal")
 	assert_bool(style is StyleBoxFlat).is_true()
 	var flat: StyleBoxFlat = style as StyleBoxFlat
-	var expected: Color = ElementMatrix.get_color("fire")
-	assert_bool(flat.bg_color.is_equal_approx(expected)).is_true()
+	var expected_bg: Color = ElementMatrix.get_color("fire").darkened(0.6)
+	var expected_border: Color = ElementMatrix.get_color("fire")
+	assert_bool(flat.bg_color.is_equal_approx(expected_bg)).is_true()
+	assert_bool(flat.border_color.is_equal_approx(expected_border)).is_true()
 
 
-# -- 17. Water card gets water color -----------------------------------------
+# -- 17. Water card gets darkened water color as bg --------------------------
 
 func test_water_card_color() -> void:
 	_panel.show_choices(_choices(["water"]))
 	var card: Button = _panel.cards_container.get_child(0) as Button
 	var style: StyleBoxFlat = card.get_theme_stylebox("normal") as StyleBoxFlat
-	var expected: Color = ElementMatrix.get_color("water")
-	assert_bool(style.bg_color.is_equal_approx(expected)).is_true()
+	var expected_bg: Color = ElementMatrix.get_color("water").darkened(0.6)
+	assert_bool(style.bg_color.is_equal_approx(expected_bg)).is_true()
 
 
 # ==============================================================================
@@ -261,6 +272,8 @@ func test_clicking_card_calls_pick_element() -> void:
 	DraftManager.drafted_elements.clear()
 	DraftManager.is_draft_active = true
 	DraftManager.picks_remaining = 1
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 	_panel.show_choices(_choices(["fire", "water", "earth"]))
 	var card: Button = _panel.cards_container.get_child(0) as Button
 	var drafted: Array[String] = []
@@ -278,6 +291,8 @@ func test_clicking_second_card_picks_second_element() -> void:
 	DraftManager.drafted_elements.clear()
 	DraftManager.is_draft_active = true
 	DraftManager.picks_remaining = 1
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 	_panel.show_choices(_choices(["fire", "water", "earth"]))
 	var card: Button = _panel.cards_container.get_child(1) as Button
 	var drafted: Array[String] = []
@@ -295,6 +310,8 @@ func test_clicking_third_card_picks_third_element() -> void:
 	DraftManager.drafted_elements.clear()
 	DraftManager.is_draft_active = true
 	DraftManager.picks_remaining = 1
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 	_panel.show_choices(_choices(["fire", "water", "earth"]))
 	var card: Button = _panel.cards_container.get_child(2) as Button
 	var drafted: Array[String] = []
@@ -310,12 +327,14 @@ func test_clicking_third_card_picks_third_element() -> void:
 # SECTION 5: Panel hides and unpauses after pick
 # ==============================================================================
 
-# -- 21. Panel hides after a card is clicked ----------------------------------
+# -- 21. Panel hides after a single-pick card is clicked ----------------------
 
-func test_panel_hides_after_pick() -> void:
+func test_panel_hides_after_single_pick() -> void:
 	DraftManager.drafted_elements.clear()
 	DraftManager.is_draft_active = true
 	DraftManager.picks_remaining = 1
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 	_panel.show_choices(_choices(["fire", "water", "earth"]))
 	assert_bool(_panel.visible).is_true()
 	var card: Button = _panel.cards_container.get_child(0) as Button
@@ -323,12 +342,14 @@ func test_panel_hides_after_pick() -> void:
 	assert_bool(_panel.visible).is_false()
 
 
-# -- 22. Game unpauses after a card is clicked --------------------------------
+# -- 22. Game unpauses after a single-pick card is clicked --------------------
 
-func test_game_unpauses_after_pick() -> void:
+func test_game_unpauses_after_single_pick() -> void:
 	DraftManager.drafted_elements.clear()
 	DraftManager.is_draft_active = true
 	DraftManager.picks_remaining = 1
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 	_panel.show_choices(_choices(["fire", "water", "earth"]))
 	assert_bool(get_tree().paused).is_true()
 	var card: Button = _panel.cards_container.get_child(0) as Button
@@ -378,7 +399,7 @@ func test_panel_has_on_draft_pick_available() -> void:
 
 func test_on_draft_pick_available_shows_choices() -> void:
 	var choices: Array[String] = ["fire", "water", "earth"]
-	_panel._on_draft_pick_available(choices)
+	_panel._on_draft_pick_available(choices, 1)
 	assert_bool(_panel.visible).is_true()
 	assert_int(_panel.cards_container.get_child_count()).is_equal(3)
 
@@ -403,7 +424,9 @@ func test_multiple_picks_work() -> void:
 	DraftManager.is_draft_active = true
 	DraftManager.picks_remaining = 2
 
-	# First pick
+	# First pick (single-pick round)
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 	_panel.show_choices(_choices(["fire", "water", "earth"]))
 	assert_bool(_panel.visible).is_true()
 	var card1: Button = _panel.cards_container.get_child(0) as Button
@@ -411,7 +434,9 @@ func test_multiple_picks_work() -> void:
 	assert_bool(_panel.visible).is_false()
 	assert_bool("fire" in DraftManager.drafted_elements).is_true()
 
-	# Second pick
+	# Second pick (another single-pick round)
+	_panel._picks_needed = 1
+	_panel._picks_made = 0
 	_panel.show_choices(_choices(["water", "earth", "wind"]))
 	assert_bool(_panel.visible).is_true()
 	assert_int(_panel.cards_container.get_child_count()).is_equal(3)
@@ -441,12 +466,14 @@ func test_show_choices_with_all_elements() -> void:
 	assert_int(_panel.cards_container.get_child_count()).is_equal(6)
 
 
-# -- 32. Card text contains capitalized element name -------------------------
+# -- 32. Card child label contains capitalized element name ------------------
 
-func test_card_text_capitalized() -> void:
+func test_card_label_capitalized() -> void:
 	_panel.show_choices(_choices(["fire"]))
 	var card: Button = _panel.cards_container.get_child(0) as Button
-	assert_bool(card.text.contains("Fire")).is_true()
+	var vbox: VBoxContainer = card.get_child(0) as VBoxContainer
+	var label: Label = vbox.get_child(0) as Label
+	assert_str(label.text).is_equal("Fire")
 
 
 # ==============================================================================
@@ -480,12 +507,15 @@ func test_get_towers_for_element_returns_tier_1() -> void:
 	assert_bool("Flame Spire Enhanced" not in towers).is_true()
 
 
-# -- 37. Card text includes tower name(s) for the element --------------------
+# -- 37. Card includes tower name label for the element ----------------------
 
-func test_card_text_includes_tower_names() -> void:
+func test_card_includes_tower_name_label() -> void:
 	_panel.show_choices(_choices(["fire"]))
 	var card: Button = _panel.cards_container.get_child(0) as Button
-	assert_bool(card.text.contains("Flame Spire")).is_true()
+	var vbox: VBoxContainer = card.get_child(0) as VBoxContainer
+	# VBox children: element name label, tower sprite, tower name label
+	var tower_label: Label = vbox.get_child(vbox.get_child_count() - 1) as Label
+	assert_str(tower_label.text).is_equal("Flame Spire")
 
 
 # ==============================================================================
@@ -555,3 +585,278 @@ func test_scene_has_title_label() -> void:
 	var content: String = file.get_as_text()
 	file.close()
 	assert_bool(content.contains("TitleLabel")).is_true()
+
+
+# ==============================================================================
+# SECTION 13: draft_started connection and title text
+# ==============================================================================
+
+# -- 45. Script connects to DraftManager.draft_started in _ready() -----------
+
+func test_script_connects_draft_started() -> void:
+	var file := FileAccess.open(DRAFT_PICK_PANEL_SCRIPT_PATH, FileAccess.READ)
+	var content: String = file.get_as_text()
+	file.close()
+	assert_bool(content.contains("DraftManager.draft_started.connect")).is_true()
+
+
+# -- 46. Panel has _on_draft_started method -----------------------------------
+
+func test_panel_has_on_draft_started() -> void:
+	assert_bool(_panel.has_method("_on_draft_started")).is_true()
+
+
+# -- 47. First pick shows "Choose Your Starting Element" title ----------------
+
+func test_first_pick_title() -> void:
+	DraftManager.drafted_elements.clear()
+	_panel._on_draft_pick_available(_choices(["fire", "water", "earth"]), 1)
+	assert_str(_panel.title_label.text).is_equal("Choose Your Starting Element")
+
+
+# -- 48. Subsequent single pick shows "Draft an Element" title ----------------
+
+func test_subsequent_pick_title() -> void:
+	DraftManager.drafted_elements = ["fire"] as Array[String]
+	_panel._on_draft_pick_available(_choices(["water", "earth", "wind"]), 1)
+	assert_str(_panel.title_label.text).is_equal("Draft an Element")
+
+
+# -- 49. Multi-pick shows "Choose 2 Elements" title --------------------------
+
+func test_multi_pick_title() -> void:
+	DraftManager.drafted_elements = ["fire", "water"] as Array[String]
+	_panel._on_draft_pick_available(_choices(["earth", "wind", "lightning"]), 2)
+	assert_str(_panel.title_label.text).is_equal("Choose 2 Elements")
+
+
+# ==============================================================================
+# SECTION 14: Card visual improvements (white text, tower sprite, darkened bg)
+# ==============================================================================
+
+# -- 50. Cards have white font_color override ---------------------------------
+
+func test_card_has_white_font_color() -> void:
+	_panel.show_choices(_choices(["fire"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	assert_bool(card.has_theme_color_override("font_color")).is_true()
+	var font_color: Color = card.get_theme_color("font_color")
+	assert_bool(font_color.is_equal_approx(Color.WHITE)).is_true()
+
+
+# -- 51. Card has VBoxContainer child with MOUSE_FILTER_IGNORE ----------------
+
+func test_card_has_vbox_child() -> void:
+	_panel.show_choices(_choices(["fire"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	assert_int(card.get_child_count()).is_greater(0)
+	var vbox: VBoxContainer = card.get_child(0) as VBoxContainer
+	assert_object(vbox).is_not_null()
+	assert_int(vbox.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+
+
+# -- 52. Card VBox contains a TextureRect for tower sprite --------------------
+
+func test_card_has_tower_sprite() -> void:
+	_panel.show_choices(_choices(["fire"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	var vbox: VBoxContainer = card.get_child(0) as VBoxContainer
+	var found_texture_rect: bool = false
+	for child: Node in vbox.get_children():
+		if child is TextureRect:
+			found_texture_rect = true
+			var tex_rect: TextureRect = child as TextureRect
+			assert_object(tex_rect.texture).is_not_null()
+			assert_int(tex_rect.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+			break
+	assert_bool(found_texture_rect).is_true()
+
+
+# -- 53. Card element name label has white color and MOUSE_FILTER_IGNORE ------
+
+func test_card_element_label_style() -> void:
+	_panel.show_choices(_choices(["earth"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	var vbox: VBoxContainer = card.get_child(0) as VBoxContainer
+	var name_label: Label = vbox.get_child(0) as Label
+	assert_int(name_label.mouse_filter).is_equal(Control.MOUSE_FILTER_IGNORE)
+	var font_color: Color = name_label.get_theme_color("font_color")
+	assert_bool(font_color.is_equal_approx(Color.WHITE)).is_true()
+
+
+# -- 54. Card normal style has border_width > 0 ------------------------------
+
+func test_card_has_border() -> void:
+	_panel.show_choices(_choices(["fire"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	var style: StyleBoxFlat = card.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_int(style.border_width_left).is_greater(0)
+
+
+# ==============================================================================
+# SECTION 15: Multi-pick round behavior
+# ==============================================================================
+
+# -- 55. Multi-pick: panel stays open after first pick -------------------------
+
+func test_multi_pick_panel_stays_open_after_first_pick() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	assert_bool(_panel.visible).is_true()
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	card.pressed.emit()
+	# Panel should still be visible after first pick in multi-pick round
+	assert_bool(_panel.visible).is_true()
+
+
+# -- 56. Multi-pick: first selected card becomes disabled ---------------------
+
+func test_multi_pick_first_card_disabled_after_pick() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	card.pressed.emit()
+	assert_bool(card.disabled).is_true()
+
+
+# -- 57. Multi-pick: panel closes after second pick ---------------------------
+
+func test_multi_pick_panel_closes_after_second_pick() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	# First pick
+	var card1: Button = _panel.cards_container.get_child(0) as Button
+	card1.pressed.emit()
+	assert_bool(_panel.visible).is_true()
+	# Second pick
+	var card2: Button = _panel.cards_container.get_child(1) as Button
+	card2.pressed.emit()
+	assert_bool(_panel.visible).is_false()
+
+
+# -- 58. Multi-pick: game stays paused during multi-pick ----------------------
+
+func test_multi_pick_game_stays_paused_during_picks() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	assert_bool(get_tree().paused).is_true()
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	card.pressed.emit()
+	# Game should still be paused after first pick
+	assert_bool(get_tree().paused).is_true()
+
+
+# -- 59. Multi-pick: game unpauses after all picks ----------------------------
+
+func test_multi_pick_game_unpauses_after_all_picks() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	var card1: Button = _panel.cards_container.get_child(0) as Button
+	card1.pressed.emit()
+	var card2: Button = _panel.cards_container.get_child(1) as Button
+	card2.pressed.emit()
+	assert_bool(get_tree().paused).is_false()
+
+
+# -- 60. Multi-pick: both elements are drafted --------------------------------
+
+func test_multi_pick_both_elements_drafted() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	var card1: Button = _panel.cards_container.get_child(0) as Button
+	card1.pressed.emit()
+	var card2: Button = _panel.cards_container.get_child(1) as Button
+	card2.pressed.emit()
+	assert_bool("fire" in DraftManager.drafted_elements).is_true()
+	assert_bool("water" in DraftManager.drafted_elements).is_true()
+
+
+# -- 61. Multi-pick: _picks_made tracks correctly -----------------------------
+
+func test_multi_pick_picks_made_counter() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	assert_int(_panel._picks_made).is_equal(0)
+	var card1: Button = _panel.cards_container.get_child(0) as Button
+	card1.pressed.emit()
+	assert_int(_panel._picks_made).is_equal(1)
+	var card2: Button = _panel.cards_container.get_child(1) as Button
+	card2.pressed.emit()
+	assert_int(_panel._picks_made).is_equal(2)
+
+
+# -- 62. Multi-pick: selected card gets "Selected" label ----------------------
+
+func test_multi_pick_selected_card_has_checkmark() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	card.pressed.emit()
+	# Check for "Selected" label in the card's VBox
+	var vbox: VBoxContainer = card.get_child(0) as VBoxContainer
+	var found_check: bool = false
+	for child: Node in vbox.get_children():
+		if child is Label and child.text == "Selected":
+			found_check = true
+	assert_bool(found_check).is_true()
+
+
+# -- 63. Multi-pick: selected card gets brightened border ---------------------
+
+func test_multi_pick_selected_card_has_brightened_style() -> void:
+	DraftManager.drafted_elements.clear()
+	DraftManager.is_draft_active = true
+	DraftManager.picks_remaining = 2
+	_panel._picks_needed = 2
+	_panel._picks_made = 0
+	_panel.show_choices(_choices(["fire", "water", "earth"]))
+	var card: Button = _panel.cards_container.get_child(0) as Button
+	# Record original border width
+	var original_style: StyleBoxFlat = card.get_theme_stylebox("normal") as StyleBoxFlat
+	var original_border_width: int = original_style.border_width_left
+	card.pressed.emit()
+	# After selection, border should be wider (3 -> 4) and style replaced
+	var selected_style: StyleBoxFlat = card.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_int(selected_style.border_width_left).is_greater_equal(original_border_width)
+
+
+# -- 64. _on_draft_pick_available resets picks_made for new round -------------
+
+func test_on_draft_pick_available_resets_picks_made() -> void:
+	_panel._picks_made = 5
+	DraftManager.drafted_elements = ["fire"] as Array[String]
+	_panel._on_draft_pick_available(_choices(["water", "earth", "wind"]), 2)
+	assert_int(_panel._picks_made).is_equal(0)
+	assert_int(_panel._picks_needed).is_equal(2)

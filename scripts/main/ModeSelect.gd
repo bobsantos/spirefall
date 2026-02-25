@@ -68,19 +68,20 @@ func _update_card_lock(mode_key: String, card: PanelContainer, btn: Button, lock
 		lock_label.text = ""
 		card.modulate.a = 1.0
 	else:
-		lock_label.text = "Requires %d XP" % xp_threshold
+		var current_xp: int = MetaProgression.get_total_xp()
+		lock_label.text = "%d / %d XP" % [current_xp, xp_threshold]
 		card.modulate.a = 0.5
 
 
 func _is_mode_unlocked(mode_key: String) -> bool:
-	# Check test overrides first
 	if unlock_overrides.has(mode_key):
 		return unlock_overrides[mode_key]
-	# Classic is always unlocked
 	if mode_key == "classic":
 		return true
-	# When MetaProgression is implemented, check XP here.
-	# For now, non-classic modes are locked by default.
+	if mode_key == "draft":
+		return MetaProgression.is_unlocked("mode_draft")
+	if mode_key == "endless":
+		return MetaProgression.is_unlocked("mode_endless")
 	return false
 
 

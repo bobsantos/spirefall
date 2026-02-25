@@ -5,14 +5,22 @@ extends Control
 @onready var wave_label: Label = $TopBar/WaveLabel
 @onready var lives_label: Label = $TopBar/LivesLabel
 @onready var gold_label: Label = $TopBar/GoldLabel
+@onready var xp_label: Label = $TopBar/XPLabel
 @onready var timer_label: Label = $WaveControls/TimerLabel
+@onready var speed_button: Button = $TopBar/SpeedButton
 @onready var codex_button: Button = $TopBar/CodexButton
 @onready var start_wave_button: Button = $WaveControls/StartWaveButton
 @onready var wave_controls: HBoxContainer = $WaveControls
 @onready var bonus_label: Label = $BonusLabel
 @onready var countdown_label: Label = $CountdownLabel
+@onready var xp_notif_label: Label = $XPNotifLabel
 
+const SPEEDS: Array[float] = [1.0, 1.5, 2.0, 0.5]
+const SPEED_LABELS: Array[String] = ["1x", "1.5x", "2x", "0.5x"]
+
+var _speed_index: int = 0
 var _countdown_tween: Tween = null
+var _run_xp: int = 0
 
 
 func _ready() -> void:
@@ -22,9 +30,15 @@ func _ready() -> void:
 	GameManager.wave_started.connect(_on_wave_started)
 	GameManager.wave_completed.connect(_on_wave_completed)
 	GameManager.early_wave_bonus.connect(_on_early_wave_bonus)
+	EnemySystem.enemy_killed.connect(_on_enemy_killed)
+	GameManager.wave_completed.connect(_on_xp_wave_completed)
 	codex_button.pressed.connect(_on_codex_pressed)
+	speed_button.pressed.connect(_on_speed_pressed)
 	start_wave_button.pressed.connect(_on_start_wave_pressed)
+	GameManager.speed_changed.connect(_on_speed_changed)
 	countdown_label.visible = false
+	xp_notif_label.visible = false
+	_update_speed_display()
 	update_display()
 
 
@@ -32,6 +46,7 @@ func update_display() -> void:
 	wave_label.text = "Wave %d/%d" % [GameManager.current_wave, GameManager.max_waves]
 	lives_label.text = "Lives: %d" % GameManager.lives
 	gold_label.text = "Gold: %d" % EconomyManager.gold
+	xp_label.text = "XP: %d" % _run_xp
 	wave_controls.visible = GameManager.game_state == GameManager.GameState.BUILD_PHASE
 
 
@@ -88,6 +103,9 @@ func _on_gold_changed(_new_amount: int) -> void:
 
 
 func _on_phase_changed(_new_phase: GameManager.GameState) -> void:
+	# Reset XP tally at the start of a new game (wave 1, build phase)
+	if _new_phase == GameManager.GameState.BUILD_PHASE and GameManager.current_wave == 1:
+		_run_xp = 0
 	update_display()
 
 
@@ -118,6 +136,27 @@ func _show_bonus_notification(text: String) -> void:
 	tween.chain().tween_callback(func() -> void: bonus_label.visible = false)
 
 
+func _on_enemy_killed(_enemy: Node) -> void:
+	_run_xp += 1
+	xp_label.text = "XP: %d" % _run_xp
+	_show_xp_notification()
+
+
+func _on_xp_wave_completed(wave_number: int) -> void:
+	_run_xp += wave_number * 10
+	xp_label.text = "XP: %d" % _run_xp
+
+
+func _show_xp_notification() -> void:
+	xp_notif_label.text = "+1 XP"
+	xp_notif_label.visible = true
+	xp_notif_label.modulate = Color(1, 1, 1, 1)
+	if is_inside_tree():
+		var tween: Tween = create_tween()
+		tween.tween_property(xp_notif_label, "modulate:a", 0.0, 0.8)
+		tween.tween_callback(func() -> void: xp_notif_label.visible = false)
+
+
 func _on_early_wave_bonus(amount: int) -> void:
 	_show_bonus_notification("+%dg Early Start!" % amount)
 
@@ -128,3 +167,25 @@ func _on_codex_pressed() -> void:
 
 func _on_start_wave_pressed() -> void:
 	GameManager.start_wave_early()
+
+
+func _on_speed_pressed() -> void:
+	_speed_index = (_speed_index + 1) % SPEEDS.size()
+	GameManager.set_game_speed(SPEEDS[_speed_index])
+
+
+func _on_speed_changed(speed: float) -> void:
+	# Sync index to match the speed (handles external resets like start_game)
+	for i: int in range(SPEEDS.size()):
+		if is_equal_approx(SPEEDS[i], speed):
+			_speed_index = i
+			break
+	_update_speed_display()
+
+
+func _update_speed_display() -> void:
+	speed_button.text = SPEED_LABELS[_speed_index]
+	if is_equal_approx(SPEEDS[_speed_index], 1.0):
+		speed_button.self_modulate = Color.WHITE
+	else:
+		speed_button.self_modulate = Color.YELLOW

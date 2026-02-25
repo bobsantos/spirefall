@@ -500,7 +500,37 @@ func test_multiple_towers_same_element_all_filtered() -> void:
 	assert_array(names).not_contains(["Fire Bolt"])
 
 
-# -- Section 11: _process still manages disabled state -------------------------
+# -- Section 11: draft_started signal triggers refresh -------------------------
+
+func test_draft_started_signal_refreshes_buttons() -> void:
+	DraftManager.is_draft_active = false
+
+	var towers: Array[TowerData] = [
+		_make_tower_data("Flame Spire", "fire"),
+		_make_tower_data("Tidal Obelisk", "water"),
+		_make_tower_data("Stone Bastion", "earth"),
+	]
+	_inject_towers(_menu, towers)
+	_menu._create_buttons()
+	_menu._connect_draft_signals()
+
+	# All visible when draft not active
+	assert_int(_count_visible_buttons(_menu)).is_equal(3)
+
+	# Simulate draft starting with fire as starting element
+	DraftManager.is_draft_active = true
+	DraftManager.drafted_elements = ["fire"] as Array[String]
+	DraftManager.draft_started.emit("fire")
+
+	# Now only fire tower visible
+	assert_int(_count_visible_buttons(_menu)).is_equal(1)
+	var names: Array[String] = _get_visible_tower_names(_menu)
+	assert_array(names).contains(["Flame Spire"])
+
+	_menu._disconnect_draft_signals()
+
+
+# -- Section 12: _process still manages disabled state -------------------------
 
 func test_process_still_disables_unaffordable_towers() -> void:
 	DraftManager.is_draft_active = true

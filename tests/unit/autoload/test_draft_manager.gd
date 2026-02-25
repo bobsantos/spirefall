@@ -2,7 +2,8 @@ extends GdUnitTestSuite
 
 ## Unit tests for DraftManager autoload.
 ## Covers: initial state, start_draft, get_draft_choices, pick_element,
-## is_tower_available (base/fusion/legendary), reset, wave triggers, edge cases.
+## is_tower_available (base/fusion/legendary), reset, wave triggers, round system,
+## multi-pick rounds, and edge cases.
 
 
 # -- Helpers -------------------------------------------------------------------
@@ -11,6 +12,9 @@ func _reset_draft_manager() -> void:
 	DraftManager.drafted_elements.clear()
 	DraftManager.is_draft_active = false
 	DraftManager.picks_remaining = 0
+	DraftManager._current_round = 0
+	DraftManager._picks_this_round = 0
+	DraftManager._picks_needed_this_round = 0
 
 
 func _reset_game_manager() -> void:
@@ -75,12 +79,17 @@ func test_initial_picks_remaining_zero() -> void:
 
 # -- 2. Constants --------------------------------------------------------------
 
-func test_starting_elements_constant() -> void:
-	assert_int(DraftManager.STARTING_ELEMENTS).is_equal(1)
-
-
-func test_draft_waves_constant() -> void:
-	assert_array(DraftManager.DRAFT_WAVES).contains_exactly([5, 10])
+func test_draft_rounds_constant() -> void:
+	assert_int(DraftManager.DRAFT_ROUNDS.size()).is_equal(3)
+	# Round 0: wave 0, pick 1
+	assert_int(DraftManager.DRAFT_ROUNDS[0][0]).is_equal(0)
+	assert_int(DraftManager.DRAFT_ROUNDS[0][1]).is_equal(1)
+	# Round 1: wave 5, pick 1
+	assert_int(DraftManager.DRAFT_ROUNDS[1][0]).is_equal(5)
+	assert_int(DraftManager.DRAFT_ROUNDS[1][1]).is_equal(1)
+	# Round 2: wave 10, pick 2
+	assert_int(DraftManager.DRAFT_ROUNDS[2][0]).is_equal(10)
+	assert_int(DraftManager.DRAFT_ROUNDS[2][1]).is_equal(2)
 
 
 func test_choices_per_pick_constant() -> void:
@@ -94,42 +103,45 @@ func test_start_draft_activates() -> void:
 	assert_bool(DraftManager.is_draft_active).is_true()
 
 
-func test_start_draft_assigns_one_element() -> void:
+func test_start_draft_no_pre_assigned_element() -> void:
 	DraftManager.start_draft()
-	assert_int(DraftManager.drafted_elements.size()).is_equal(1)
+	assert_int(DraftManager.drafted_elements.size()).is_equal(0)
 
 
-func test_start_draft_assigns_valid_element() -> void:
+func test_start_draft_sets_picks_remaining_to_four() -> void:
 	DraftManager.start_draft()
-	assert_bool(DraftManager.drafted_elements[0] in ElementMatrix.ELEMENTS).is_true()
+	assert_int(DraftManager.picks_remaining).is_equal(4)
 
 
-func test_start_draft_sets_picks_remaining() -> void:
-	DraftManager.start_draft()
-	assert_int(DraftManager.picks_remaining).is_equal(2)
-
-
-func test_start_draft_emits_signal() -> void:
+func test_start_draft_emits_started_with_empty_string() -> void:
 	var emitted_elements: Array[String] = []
 	var conn: Callable = func(el: String) -> void: emitted_elements.append(el)
 	DraftManager.draft_started.connect(conn)
 	DraftManager.start_draft()
 	DraftManager.draft_started.disconnect(conn)
 	assert_int(emitted_elements.size()).is_equal(1)
-	assert_bool(emitted_elements[0] in ElementMatrix.ELEMENTS).is_true()
-	# Signal arg should match the drafted element
-	assert_str(emitted_elements[0]).is_equal(DraftManager.drafted_elements[0])
+	assert_str(emitted_elements[0]).is_equal("")
 
 
-func test_start_draft_randomness() -> void:
-	# Run start_draft many times and verify we get more than 1 unique element
-	# (statistical test -- extremely unlikely to fail with 6 elements over 30 trials)
-	var seen: Dictionary = {}
-	for i in range(30):
-		DraftManager.reset()
-		DraftManager.start_draft()
-		seen[DraftManager.drafted_elements[0]] = true
-	assert_int(seen.size()).is_greater(1)
+func test_start_draft_emits_pick_available_with_three_choices() -> void:
+	var emitted_choices: Array = []
+	var emitted_pick_counts: Array[int] = []
+	var conn: Callable = func(choices: Array[String], pick_count: int) -> void:
+		emitted_choices.append(choices)
+		emitted_pick_counts.append(pick_count)
+	DraftManager.draft_pick_available.connect(conn)
+	DraftManager.start_draft()
+	DraftManager.draft_pick_available.disconnect(conn)
+	assert_int(emitted_choices.size()).is_equal(1)
+	assert_int(emitted_choices[0].size()).is_equal(3)
+	assert_int(emitted_pick_counts[0]).is_equal(1)
+
+
+func test_start_draft_initializes_round_zero() -> void:
+	DraftManager.start_draft()
+	assert_int(DraftManager._current_round).is_equal(0)
+	assert_int(DraftManager._picks_this_round).is_equal(0)
+	assert_int(DraftManager._picks_needed_this_round).is_equal(1)
 
 
 # -- 4. get_draft_choices() ----------------------------------------------------
@@ -142,9 +154,9 @@ func test_get_draft_choices_returns_correct_count() -> void:
 
 func test_get_draft_choices_excludes_drafted() -> void:
 	DraftManager.start_draft()
-	var drafted: String = DraftManager.drafted_elements[0]
+	DraftManager.pick_element("fire")
 	var choices: Array[String] = DraftManager.get_draft_choices()
-	assert_bool(drafted in choices).is_false()
+	assert_bool("fire" in choices).is_false()
 
 
 func test_get_draft_choices_all_valid_elements() -> void:
@@ -175,10 +187,18 @@ func test_pick_element_adds_to_drafted() -> void:
 
 func test_pick_element_decrements_picks_remaining() -> void:
 	DraftManager.start_draft()
-	assert_int(DraftManager.picks_remaining).is_equal(2)
+	assert_int(DraftManager.picks_remaining).is_equal(4)
 	var choices: Array[String] = DraftManager.get_draft_choices()
 	DraftManager.pick_element(choices[0])
-	assert_int(DraftManager.picks_remaining).is_equal(1)
+	assert_int(DraftManager.picks_remaining).is_equal(3)
+
+
+func test_pick_element_increments_picks_this_round() -> void:
+	DraftManager.start_draft()
+	assert_int(DraftManager._picks_this_round).is_equal(0)
+	var choices: Array[String] = DraftManager.get_draft_choices()
+	DraftManager.pick_element(choices[0])
+	assert_int(DraftManager._picks_this_round).is_equal(1)
 
 
 func test_pick_element_emits_signal() -> void:
@@ -205,15 +225,16 @@ func test_pick_element_ignored_when_no_picks() -> void:
 
 func test_pick_element_ignored_for_already_drafted() -> void:
 	DraftManager.start_draft()
-	var existing: String = DraftManager.drafted_elements[0]
+	# Pick fire first, then try to pick it again
+	DraftManager.pick_element("fire")
 	var picks_before: int = DraftManager.picks_remaining
-	DraftManager.pick_element(existing)
+	DraftManager.pick_element("fire")
 	# Should not add duplicate or decrement picks
 	assert_int(DraftManager.picks_remaining).is_equal(picks_before)
 	# Count occurrences
 	var count: int = 0
 	for el: String in DraftManager.drafted_elements:
-		if el == existing:
+		if el == "fire":
 			count += 1
 	assert_int(count).is_equal(1)
 
@@ -289,6 +310,7 @@ func test_is_tower_available_legendary_missing_one() -> void:
 
 func test_reset_clears_drafted_elements() -> void:
 	DraftManager.start_draft()
+	DraftManager.pick_element("fire")
 	assert_int(DraftManager.drafted_elements.size()).is_greater(0)
 	DraftManager.reset()
 	assert_int(DraftManager.drafted_elements.size()).is_equal(0)
@@ -307,14 +329,27 @@ func test_reset_zeroes_picks_remaining() -> void:
 	assert_int(DraftManager.picks_remaining).is_equal(0)
 
 
+func test_reset_clears_round_state() -> void:
+	DraftManager.start_draft()
+	DraftManager.pick_element("fire")
+	DraftManager.reset()
+	assert_int(DraftManager._current_round).is_equal(0)
+	assert_int(DraftManager._picks_this_round).is_equal(0)
+	assert_int(DraftManager._picks_needed_this_round).is_equal(0)
+
+
 # -- 10. Wave completion triggers draft_pick_available -------------------------
 
 func test_wave_5_triggers_draft_pick_available() -> void:
 	DraftManager.start_draft()
-	# Ensure picks_remaining > 0
+	# Pick the first element so round 0 is complete
+	DraftManager.pick_element("fire")
 	assert_int(DraftManager.picks_remaining).is_greater(0)
 	var emitted_choices: Array = []
-	var conn: Callable = func(choices: Array[String]) -> void: emitted_choices.append(choices)
+	var emitted_pick_counts: Array[int] = []
+	var conn: Callable = func(choices: Array[String], pick_count: int) -> void:
+		emitted_choices.append(choices)
+		emitted_pick_counts.append(pick_count)
 	DraftManager.draft_pick_available.connect(conn)
 	# Simulate wave 5 completed
 	GameManager.wave_completed.emit(5)
@@ -322,26 +357,34 @@ func test_wave_5_triggers_draft_pick_available() -> void:
 	assert_int(emitted_choices.size()).is_equal(1)
 	# The emitted choices should have CHOICES_PER_PICK elements
 	assert_int(emitted_choices[0].size()).is_equal(DraftManager.CHOICES_PER_PICK)
+	# Round 1 needs 1 pick
+	assert_int(emitted_pick_counts[0]).is_equal(1)
 
 
-func test_wave_10_triggers_draft_pick_available() -> void:
+func test_wave_10_triggers_draft_pick_available_with_pick_count_2() -> void:
 	DraftManager.start_draft()
-	# Pick one element on wave 5 first, so picks_remaining is still > 0
-	var choices: Array[String] = DraftManager.get_draft_choices()
-	DraftManager.pick_element(choices[0])
+	# Pick two elements (round 0 at start, round 1 at wave 5)
+	DraftManager.pick_element("fire")
+	GameManager.wave_completed.emit(5)
+	DraftManager.pick_element("water")
 	assert_int(DraftManager.picks_remaining).is_greater(0)
 	var emitted_choices: Array = []
-	var conn: Callable = func(c: Array[String]) -> void: emitted_choices.append(c)
+	var emitted_pick_counts: Array[int] = []
+	var conn: Callable = func(c: Array[String], pc: int) -> void:
+		emitted_choices.append(c)
+		emitted_pick_counts.append(pc)
 	DraftManager.draft_pick_available.connect(conn)
 	GameManager.wave_completed.emit(10)
 	DraftManager.draft_pick_available.disconnect(conn)
 	assert_int(emitted_choices.size()).is_equal(1)
+	# Round 2 needs 2 picks
+	assert_int(emitted_pick_counts[0]).is_equal(2)
 
 
 func test_non_draft_wave_does_not_trigger() -> void:
 	DraftManager.start_draft()
 	var emitted_count: Array[int] = [0]
-	var conn: Callable = func(_c: Array[String]) -> void: emitted_count[0] += 1
+	var conn: Callable = func(_c: Array[String], _pc: int) -> void: emitted_count[0] += 1
 	DraftManager.draft_pick_available.connect(conn)
 	GameManager.wave_completed.emit(3)
 	DraftManager.draft_pick_available.disconnect(conn)
@@ -352,7 +395,7 @@ func test_draft_wave_no_picks_remaining_does_not_trigger() -> void:
 	DraftManager.start_draft()
 	DraftManager.picks_remaining = 0
 	var emitted_count: Array[int] = [0]
-	var conn: Callable = func(_c: Array[String]) -> void: emitted_count[0] += 1
+	var conn: Callable = func(_c: Array[String], _pc: int) -> void: emitted_count[0] += 1
 	DraftManager.draft_pick_available.connect(conn)
 	GameManager.wave_completed.emit(5)
 	DraftManager.draft_pick_available.disconnect(conn)
@@ -362,14 +405,76 @@ func test_draft_wave_no_picks_remaining_does_not_trigger() -> void:
 func test_draft_inactive_wave_does_not_trigger() -> void:
 	# Draft not started -- wave_completed should not trigger anything
 	var emitted_count: Array[int] = [0]
-	var conn: Callable = func(_c: Array[String]) -> void: emitted_count[0] += 1
+	var conn: Callable = func(_c: Array[String], _pc: int) -> void: emitted_count[0] += 1
 	DraftManager.draft_pick_available.connect(conn)
 	GameManager.wave_completed.emit(5)
 	DraftManager.draft_pick_available.disconnect(conn)
 	assert_int(emitted_count[0]).is_equal(0)
 
 
-# -- 11. Edge cases ------------------------------------------------------------
+# -- 11. Round system ----------------------------------------------------------
+
+func test_round_0_needs_1_pick() -> void:
+	DraftManager.start_draft()
+	assert_int(DraftManager._picks_needed_this_round).is_equal(1)
+
+
+func test_round_0_complete_after_1_pick() -> void:
+	DraftManager.start_draft()
+	DraftManager.pick_element("fire")
+	assert_bool(DraftManager.is_round_complete()).is_true()
+
+
+func test_wave_5_advances_to_round_1() -> void:
+	DraftManager.start_draft()
+	DraftManager.pick_element("fire")
+	GameManager.wave_completed.emit(5)
+	assert_int(DraftManager._current_round).is_equal(1)
+	assert_int(DraftManager._picks_needed_this_round).is_equal(1)
+	assert_int(DraftManager._picks_this_round).is_equal(0)
+
+
+func test_wave_10_advances_to_round_2() -> void:
+	DraftManager.start_draft()
+	DraftManager.pick_element("fire")
+	GameManager.wave_completed.emit(5)
+	DraftManager.pick_element("water")
+	GameManager.wave_completed.emit(10)
+	assert_int(DraftManager._current_round).is_equal(2)
+	assert_int(DraftManager._picks_needed_this_round).is_equal(2)
+	assert_int(DraftManager._picks_this_round).is_equal(0)
+
+
+func test_round_2_needs_2_picks_to_complete() -> void:
+	DraftManager.start_draft()
+	DraftManager.pick_element("fire")
+	GameManager.wave_completed.emit(5)
+	DraftManager.pick_element("water")
+	GameManager.wave_completed.emit(10)
+	# First pick of round 2
+	DraftManager.pick_element("earth")
+	assert_bool(DraftManager.is_round_complete()).is_false()
+	# Second pick of round 2
+	DraftManager.pick_element("wind")
+	assert_bool(DraftManager.is_round_complete()).is_true()
+
+
+func test_wave_10_choices_exclude_already_drafted() -> void:
+	DraftManager.start_draft()
+	DraftManager.pick_element("fire")
+	GameManager.wave_completed.emit(5)
+	DraftManager.pick_element("water")
+	var emitted_choices: Array = []
+	var conn: Callable = func(c: Array[String], _pc: int) -> void: emitted_choices.append(c)
+	DraftManager.draft_pick_available.connect(conn)
+	GameManager.wave_completed.emit(10)
+	DraftManager.draft_pick_available.disconnect(conn)
+	# Choices should not include fire or water
+	assert_bool("fire" not in emitted_choices[0]).is_true()
+	assert_bool("water" not in emitted_choices[0]).is_true()
+
+
+# -- 12. Edge cases ------------------------------------------------------------
 
 func test_get_choices_with_five_elements_drafted() -> void:
 	# With 5 of 6 elements drafted, only 1 remains -- choices should be size 1
@@ -410,23 +515,43 @@ func test_is_tower_available_base_tower_uses_element_field() -> void:
 
 
 func test_full_draft_flow() -> void:
-	# Simulate a complete draft: start -> pick at wave 5 -> pick at wave 10
+	# Simulate a complete draft: pick at start -> pick at wave 5 -> 2 picks at wave 10
 	DraftManager.start_draft()
-	var starting: String = DraftManager.drafted_elements[0]
-	assert_int(DraftManager.drafted_elements.size()).is_equal(1)
-	assert_int(DraftManager.picks_remaining).is_equal(2)
+	assert_int(DraftManager.drafted_elements.size()).is_equal(0)
+	assert_int(DraftManager.picks_remaining).is_equal(4)
 
-	# Wave 5: get choices and pick
+	# Round 0: pick 1 element at game start
+	DraftManager.pick_element("fire")
+	assert_int(DraftManager.drafted_elements.size()).is_equal(1)
+	assert_int(DraftManager.picks_remaining).is_equal(3)
+	assert_bool(DraftManager.is_round_complete()).is_true()
+
+	# Wave 5 round 1: pick 1 element
+	GameManager.wave_completed.emit(5)
+	assert_int(DraftManager._current_round).is_equal(1)
 	var choices_1: Array[String] = DraftManager.get_draft_choices()
-	assert_bool(starting not in choices_1).is_true()
+	assert_bool("fire" not in choices_1).is_true()
 	DraftManager.pick_element(choices_1[0])
 	assert_int(DraftManager.drafted_elements.size()).is_equal(2)
-	assert_int(DraftManager.picks_remaining).is_equal(1)
+	assert_int(DraftManager.picks_remaining).is_equal(2)
+	assert_bool(DraftManager.is_round_complete()).is_true()
 
-	# Wave 10: get choices and pick
+	# Wave 10 round 2: pick 2 elements
+	GameManager.wave_completed.emit(10)
+	assert_int(DraftManager._current_round).is_equal(2)
+	assert_int(DraftManager._picks_needed_this_round).is_equal(2)
 	var choices_2: Array[String] = DraftManager.get_draft_choices()
-	assert_bool(starting not in choices_2).is_true()
+	assert_bool("fire" not in choices_2).is_true()
 	assert_bool(choices_1[0] not in choices_2).is_true()
+
+	# First pick of round 2
 	DraftManager.pick_element(choices_2[0])
 	assert_int(DraftManager.drafted_elements.size()).is_equal(3)
+	assert_int(DraftManager.picks_remaining).is_equal(1)
+	assert_bool(DraftManager.is_round_complete()).is_false()
+
+	# Second pick of round 2
+	DraftManager.pick_element(choices_2[1])
+	assert_int(DraftManager.drafted_elements.size()).is_equal(4)
 	assert_int(DraftManager.picks_remaining).is_equal(0)
+	assert_bool(DraftManager.is_round_complete()).is_true()

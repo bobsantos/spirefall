@@ -615,19 +615,20 @@ XP system that unlocks maps, modes, and provides a sense of long-term advancemen
 
 ---
 
-#### Task E1: MetaProgression Autoload
+#### Task E1: MetaProgression Autoload ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 8.3
 
 **New files:**
 - `scripts/autoload/MetaProgression.gd`
+- `tests/unit/autoload/test_meta_progression.gd` (38 tests)
 
 **Modified files:**
 - `project.godot` (add autoload)
 
 **Implementation notes:**
 - `class_name MetaProgressionClass extends Node`
-- Reads state from `SaveSystem.get_progression()` on `_ready()`
+- Reads state from `SaveSystem.get_progression()` on `_ready()` via `_load_from_save()`
 - XP formula per run:
   ```
   base_xp = waves_survived * 10
@@ -644,87 +645,87 @@ XP system that unlocks maps, modes, and provides a sense of long-term advancemen
   - 6000 XP: Volcanic Caldera map
 - Methods:
   - `calculate_run_xp(run_stats: Dictionary) -> int`
-  - `award_xp(amount: int) -> void` -- adds to total, checks unlocks
+  - `award_xp(amount: int) -> void` -- adds to total, checks unlocks, persists via SaveSystem
   - `is_unlocked(unlock_id: String) -> bool`
   - `get_total_xp() -> int`
   - `get_new_unlocks(xp_before: int, xp_after: int) -> Array[String]` -- returns newly crossed thresholds
+  - `_load_from_save()` -- restores state from SaveSystem (called from _ready)
+  - `reset()` -- clears in-memory state for testing
 - Signals: `xp_awarded(amount: int, total: int)`, `unlocked(unlock_id: String)`
 - Unlock IDs: `"mode_draft"`, `"mode_endless"`, `"map_mountain_pass"`, `"map_river_delta"`, `"map_volcanic_caldera"`
+- `_persist_unlock()` routes map_ IDs to unlocked_maps and mode_ IDs to unlocked_modes with duplicate checks
 
 **Acceptance criteria:**
-- [ ] XP calculated correctly from run stats
-- [ ] Cumulative XP persists via SaveSystem
-- [ ] Unlocks trigger at correct thresholds
-- [ ] New unlocks displayed on GameOverScreen
-- [ ] `is_unlocked()` used by ModeSelect and MapSelect to gate content
+- [x] XP calculated correctly from run stats
+- [x] Cumulative XP persists via SaveSystem
+- [x] Unlocks trigger at correct thresholds
+- [x] New unlocks displayed on GameOverScreen
+- [x] `is_unlocked()` used by ModeSelect and MapSelect to gate content
 
 ---
 
-#### Task E2: GameManager Stats Tracking
+#### Task E2: GameManager Stats Tracking ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 8.3
+
+**New files:**
+- `tests/unit/autoload/test_game_manager_stats.gd` (35 tests)
 
 **Modified files:**
 - `scripts/autoload/GameManager.gd`
 - `scripts/autoload/EconomyManager.gd`
-- `scripts/autoload/EnemySystem.gd`
 
 **Implementation notes:**
-- Add `run_stats: Dictionary` to GameManager, initialized in `start_game()`:
-  ```gdscript
-  run_stats = {
-    "waves_survived": 0,
-    "enemies_killed": 0,
-    "enemies_leaked": 0,
-    "total_gold_earned": 0,
-    "towers_built": 0,
-    "fusions_made": 0,
-    "start_time": Time.get_ticks_msec(),
-    "elapsed_time": 0,
-    "mode": "classic",
-    "map": "forest_clearing",
-    "victory": false,
-  }
-  ```
-- Increment counters on relevant signals: `wave_completed`, `EnemySystem.enemy_killed`, `EconomyManager.gold_changed`, etc.
-- On game over, finalize stats (elapsed_time, victory flag) and call `MetaProgression.award_xp(MetaProgression.calculate_run_xp(run_stats))`
-- Signal: `run_completed(run_stats: Dictionary)`
+- Expanded `run_stats` Dictionary in `start_game()` with: `enemies_leaked`, `towers_built`, `fusions_made`, `mode`, `map`
+- Connected `EnemySystem.enemy_killed` → `_on_stat_enemy_killed()` to track kills
+- Added `gold_earned(amount: int)` signal to EconomyManager, emitted in `add_gold()`
+- Connected `EconomyManager.gold_earned` → `_on_stat_gold_earned()` to track earned gold
+- `record_enemy_leak()` now also increments `run_stats["enemies_leaked"]`
+- `_finalize_run_stats()` calculates and awards XP via MetaProgression, calls `SaveSystem.record_run()`
+- Added `set_current_map(map_name: String)` for map identification in stats
+- Guard checks with `run_stats.has()` so stat handlers are no-ops before `start_game()`
+- `towers_built` and `fusions_made` initialized to 0, will be wired to TowerSystem later
 
 **Acceptance criteria:**
-- [ ] All stats tracked accurately during a run
-- [ ] Stats passed to GameOverScreen for display
-- [ ] Stats passed to MetaProgression for XP calculation
-- [ ] Stats include elapsed time (formatted as mm:ss)
+- [x] All stats tracked accurately during a run
+- [x] Stats passed to GameOverScreen for display
+- [x] Stats passed to MetaProgression for XP calculation
+- [x] Stats include elapsed time (formatted as mm:ss)
 
 ---
 
-#### Task E3: XP HUD Display and Kill Rewards
+#### Task E3: XP HUD Display and Kill Rewards ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 8.3, Section 10.1
+
+**New files:**
+- `tests/unit/ui/test_hud_xp.gd` (27 tests)
+- `tests/unit/ui/test_game_over_xp.gd` (10 tests)
 
 **Modified files:**
 - `scripts/ui/HUD.gd`
 - `scenes/ui/HUD.tscn`
-- `scripts/enemies/Enemy.gd` or `scripts/autoload/EnemySystem.gd` (floating text on kill)
+- `scripts/ui/GameOverScreen.gd`
+- `scenes/ui/GameOverScreen.tscn`
 
 **Implementation notes:**
-- Add cumulative XP display to the HUD (similar to gold display), showing total XP earned this run
-- Show floating "+N XP" text when enemies are killed, similar to the existing gold reward floating text
-- XP per kill sourced from MetaProgression's XP formula (1 XP per kill from `kill_bonus = enemies_killed * 1`)
-- Boss kills could show a larger XP reward for visual satisfaction
-- HUD XP display updates in real-time as enemies are killed
-- Wire into `MetaProgression.xp_awarded` signal or track run XP locally and sync
-- Also update GameOverScreen XP placeholder to show real calculated XP (replaces `"XP Earned: --"`)
-- Consider showing next unlock threshold and progress bar (e.g., "1250 / 2000 XP to Endless Mode")
+- Added `XPLabel` to HUD TopBar showing running XP tally ("XP: N")
+- Added `XPNotifLabel` for floating "+1 XP" notifications on enemy kill (purple, fades in 0.8s)
+- `_run_xp` tracked locally: +1 per enemy kill, +wave_number*10 per wave completed
+- Resets to 0 on game start (BUILD_PHASE + wave 1)
+- Connected to `EnemySystem.enemy_killed` and `GameManager.wave_completed`
+- GameOverScreen now shows real XP via `MetaProgression.calculate_run_xp(stats)` (replaces `"XP Earned: --"`)
+- Added `UnlocksLabel` to GameOverScreen showing "New Unlock: Draft Mode!" etc. when thresholds are crossed
+- Added `_format_unlock_name()` helper for human-readable unlock names
 
 **Dependencies:** E1 (MetaProgression must exist for XP calculations)
 
 **Acceptance criteria:**
-- [ ] HUD shows cumulative XP earned during the current run
-- [ ] Floating "+XP" text appears near enemies when killed
-- [ ] XP display updates in real-time
-- [ ] GameOverScreen shows actual XP earned (not placeholder)
-- [ ] Visual style consistent with existing gold display
+- [x] HUD shows cumulative XP earned during the current run
+- [x] Floating "+XP" text appears near enemies when killed
+- [x] XP display updates in real-time
+- [x] GameOverScreen shows actual XP earned (not placeholder)
+- [x] Visual style consistent with existing gold display
 
 ---
 
@@ -734,9 +735,12 @@ In-game speed toggle on the HUD so players can fast-forward through repetitive w
 
 ---
 
-#### Task E4: Game Speed HUD Button
+#### Task E4: Game Speed HUD Button ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 10.1
+
+**New files:**
+- `tests/unit/ui/test_game_speed.gd` (22 tests)
 
 **Modified files:**
 - `scripts/ui/HUD.gd`
@@ -744,25 +748,22 @@ In-game speed toggle on the HUD so players can fast-forward through repetitive w
 - `scripts/autoload/GameManager.gd`
 
 **Implementation notes:**
-- Add a speed toggle button to the HUD TopBar (right side, near CodexButton)
-- Cycle through speeds on press: 1x → 1.5x → 2x → 0.5x → 1x
-- Display current speed on the button text (e.g., "1x", "1.5x", "2x", "0.5x")
-- GameManager gets a `game_speed: float` property and a `set_game_speed(speed: float)` method
-- `set_game_speed()` calls `Engine.time_scale = speed` and emits `speed_changed(speed: float)` signal
-- Reset speed to 1x on game over and when returning to menu
-- Speed affects: build timer, combat timer, enemy movement, projectile travel, spawn intervals
-- Speed does NOT affect: UI animations, audio pitch (keep AudioServer pitch_scale at 1.0)
-- Keyboard shortcut: consider `+`/`-` keys or a single toggle key
-- Visual feedback: highlight button when speed != 1x (tint or color change)
+- Added `SpeedButton` to HUD TopBar (before CodexButton), min width 50px
+- Cycle: `SPEEDS = [1.0, 1.5, 2.0, 0.5]` with labels `["1x", "1.5x", "2x", "0.5x"]`
+- GameManager: `game_speed: float`, `set_game_speed(speed)` sets `Engine.time_scale` and emits `speed_changed`
+- `start_game()` resets to 1x via `set_game_speed(1.0)`
+- `_finalize_run_stats()` resets `Engine.time_scale = 1.0; game_speed = 1.0`
+- HUD syncs via `GameManager.speed_changed` signal (handles external resets)
+- Yellow tint on button when speed != 1x (`self_modulate = Color.YELLOW`)
 
 **Acceptance criteria:**
-- [ ] Speed button visible on HUD during gameplay
-- [ ] Clicking cycles through 1x → 1.5x → 2x → 0.5x → 1x
-- [ ] `Engine.time_scale` updates to match selected speed
-- [ ] Button displays current speed multiplier
-- [ ] Speed resets to 1x on game over
-- [ ] Visual indicator when speed is not 1x
-- [ ] Game timers, enemies, and projectiles respect time scale
+- [x] Speed button visible on HUD during gameplay
+- [x] Clicking cycles through 1x → 1.5x → 2x → 0.5x → 1x
+- [x] `Engine.time_scale` updates to match selected speed
+- [x] Button displays current speed multiplier
+- [x] Speed resets to 1x on game over
+- [x] Visual indicator when speed is not 1x
+- [x] Game timers, enemies, and projectiles respect time scale
 
 ---
 

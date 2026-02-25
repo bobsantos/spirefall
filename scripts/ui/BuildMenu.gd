@@ -284,16 +284,24 @@ func _on_tower_selected(tower_data: TowerData) -> void:
 	tower_build_selected.emit(tower_data)
 
 
-## Connect to DraftManager signals for live updates when new elements are drafted.
+## Connect to DraftManager signals for live updates when draft starts or new elements are drafted.
 func _connect_draft_signals() -> void:
+	if not DraftManager.draft_started.is_connected(_on_draft_started):
+		DraftManager.draft_started.connect(_on_draft_started)
 	if not DraftManager.element_drafted.is_connected(_on_element_drafted):
 		DraftManager.element_drafted.connect(_on_element_drafted)
 
 
 ## Disconnect from DraftManager signals (used in cleanup and tests).
 func _disconnect_draft_signals() -> void:
+	if DraftManager.draft_started.is_connected(_on_draft_started):
+		DraftManager.draft_started.disconnect(_on_draft_started)
 	if DraftManager.element_drafted.is_connected(_on_element_drafted):
 		DraftManager.element_drafted.disconnect(_on_element_drafted)
+
+
+func _on_draft_started(_starting_element: String) -> void:
+	_refresh_draft_filter()
 
 
 func _on_element_drafted(_element: String) -> void:
