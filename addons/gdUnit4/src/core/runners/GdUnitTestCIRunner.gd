@@ -127,28 +127,12 @@ func get_exit_code() -> int:
 	return report_exit_code()
 
 
-## Override _process to handle STOP state in headless mode.[br]
-## The parent's STOP handler uses await create_timer() and await quit(),
-## both of which stall in headless mode because frame/physics signals
-## never resolve. Intercept and quit directly.
-func _process(delta: float) -> void:
-	if _state == STOP and DisplayServer.get_name() == "headless":
-		_state = EXIT
-		GdUnitTools.dispose_all()
-		get_tree().quit(get_exit_code())
-		return
-	super(delta)
-
-
 ## Cleanup and quit the runner.[br]
 ## [br]
 ## [param code] The exit code to return.
 func quit(code: int) -> void:
 	_state = EXIT
 	GdUnitTools.dispose_all()
-	if DisplayServer.get_name() == "headless":
-		get_tree().quit(code)
-		return
 	await GdUnitMemoryObserver.gc_on_guarded_instances()
 	await super(code)
 

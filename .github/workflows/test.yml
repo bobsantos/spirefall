@@ -25,43 +25,70 @@ jobs:
       - name: Run unit tests
         shell: bash
         run: |
-          set +e
-          # GdUnit4 runner hangs during finalization in headless mode.
-          # Use timeout to kill it after 5 minutes.
-          # Pipe through tee to capture output for validation.
-          timeout 300 godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
+          # GdUnit4 runner hangs during finalization in headless mode after
+          # all tests complete. Run it in background, monitor output for the
+          # "Overall Summary" line, then kill the process and parse results.
+          LOG=/tmp/gdunit_output.log
+          > "$LOG"
+
+          godot --headless --path . -s res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
             --add tests/ \
             -c \
             --ignoreHeadlessMode \
-            -rd res://reports 2>&1 | tee /tmp/gdunit_output.log
-          EXIT_CODE=${PIPESTATUS[0]}
+            -rd res://reports > "$LOG" 2>&1 &
+          GODOT_PID=$!
 
-          # Exit 0 = all passed, 101 = orphan warnings only (not failures)
-          if [ "$EXIT_CODE" -eq 0 ] || [ "$EXIT_CODE" -eq 101 ]; then
-            exit 0
+          # Wait up to 10 minutes for tests to complete
+          TIMEOUT=600
+          ELAPSED=0
+          while [ $ELAPSED -lt $TIMEOUT ]; do
+            if ! kill -0 $GODOT_PID 2>/dev/null; then
+              # Process exited on its own
+              break
+            fi
+            if grep -q "Overall Summary:" "$LOG" 2>/dev/null; then
+              # Tests finished, give it a moment to flush output
+              sleep 2
+              break
+            fi
+            sleep 1
+            ELAPSED=$((ELAPSED + 1))
+          done
+
+          # Kill godot if still running (finalization hang)
+          if kill -0 $GODOT_PID 2>/dev/null; then
+            kill $GODOT_PID 2>/dev/null
+            wait $GODOT_PID 2>/dev/null || true
           fi
 
-          # Exit 124 = timeout killed the process. Verify no test failures
-          # in the captured output before accepting as success.
-          if [ "$EXIT_CODE" -eq 124 ]; then
-            echo "GdUnit4 runner was killed by timeout (likely finalization hang)."
-            echo "Checking test output for failures..."
-            if grep -q 'FAILED' /tmp/gdunit_output.log; then
-              echo "FAILED tests found in output:"
-              grep 'FAILED' /tmp/gdunit_output.log
-              exit 1
-            fi
-            if grep -q '[1-9][0-9]* failures' /tmp/gdunit_output.log; then
-              echo "Test failures found in output:"
-              grep '[1-9][0-9]* failures' /tmp/gdunit_output.log
-              exit 1
-            fi
-            echo "All test suites show 0 failures. Accepting timeout as success."
-            exit 0
+          # Display the test output
+          cat "$LOG"
+
+          # Parse results from the Overall Summary line
+          if ! grep -q "Overall Summary:" "$LOG"; then
+            echo "ERROR: Tests did not complete within ${TIMEOUT}s"
+            exit 1
           fi
 
-          # Any other exit code is a real failure
-          exit $EXIT_CODE
+          SUMMARY=$(grep "Overall Summary:" "$LOG" | sed 's/\x1b\[[0-9;]*m//g')
+          echo ""
+          echo "=== $SUMMARY ==="
+
+          # Check for failures or errors
+          if echo "$SUMMARY" | grep -qE '[1-9][0-9]* (failures|errors)'; then
+            echo "FAILED: Test failures or errors detected"
+            exit 1
+          fi
+
+          # Also check for individual FAILED test markers
+          if grep -q 'FAILED' "$LOG"; then
+            echo "FAILED: Individual test failures detected:"
+            grep 'FAILED' "$LOG" | sed 's/\x1b\[[0-9;]*m//g'
+            exit 1
+          fi
+
+          echo "All tests passed."
+          exit 0
 
       - name: Upload test reports
         uses: actions/upload-artifact@v4
