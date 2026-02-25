@@ -35,7 +35,6 @@ func _setup_grid() -> void:
 		var column: Array = []
 		for y: int in range(GridManager.GRID_HEIGHT):
 			column.append(GridManager.CellType.BUILDABLE)
-		column.append(column)
 		grid.append(column)
 	for x: int in range(GridManager.GRID_WIDTH):
 		grid[x][7] = GridManager.CellType.PATH

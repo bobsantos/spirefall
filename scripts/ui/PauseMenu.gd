@@ -2,7 +2,7 @@ class_name PauseMenu
 extends Control
 
 ## In-game pause overlay with semi-transparent background.
-## Buttons: Resume, Restart, Settings (no-op until Task D3), Codex, Quit to Menu.
+## Buttons: Resume, Restart, Settings, Codex, Quit to Menu.
 ## process_mode is PROCESS_MODE_WHEN_PAUSED so it remains interactive while paused.
 ##
 ## All tree-pause calls are delegated to GameManager (an autoload always in the tree)
@@ -18,6 +18,10 @@ extends Control
 ## from re-showing this overlay on top of the Codex when CodexPanel.toggle()
 ## re-emits paused_changed(true).
 var _codex_open: bool = false
+
+## True while the SettingsPanel is shown from this menu.
+var _settings_open: bool = false
+var _settings_panel: Control = null
 
 
 func _ready() -> void:
@@ -36,9 +40,8 @@ func _ready() -> void:
 
 
 func _on_paused_changed(is_paused: bool) -> void:
-	# Do not re-show this overlay while Codex is open; the Codex is drawn on top
-	# of PauseMenu in the scene tree and must stay fully visible and interactive.
-	if _codex_open:
+	# Do not re-show this overlay while Codex or Settings is open.
+	if _codex_open or _settings_open:
 		return
 	# Do not show the pause overlay during game over — GameOverScreen owns that state.
 	if GameManager.game_state == GameManager.GameState.GAME_OVER:
@@ -70,8 +73,43 @@ func _on_restart_pressed() -> void:
 
 
 func _on_settings_pressed() -> void:
-	# SettingsPanel not yet implemented (Task D3). No-op for now.
-	print("PauseMenu: Settings not yet available (Task D3).")
+	if _settings_panel and is_instance_valid(_settings_panel):
+		# Toggle settings panel visibility
+		_settings_open = not _settings_open
+		_settings_panel.visible = _settings_open
+		visible = not _settings_open
+		return
+	# Instantiate SettingsPanel
+	var scene: PackedScene = load("res://scenes/ui/SettingsPanel.tscn") as PackedScene
+	if scene == null:
+		return
+	_settings_panel = scene.instantiate()
+	_settings_panel.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	# Center the panel in its parent with proper anchors so it sizes correctly
+	_settings_panel.anchor_left = 0.5
+	_settings_panel.anchor_top = 0.5
+	_settings_panel.anchor_right = 0.5
+	_settings_panel.anchor_bottom = 0.5
+	_settings_panel.offset_left = -250.0
+	_settings_panel.offset_top = -260.0
+	_settings_panel.offset_right = 250.0
+	_settings_panel.offset_bottom = 260.0
+	_settings_panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	_settings_panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	# Add as sibling so it renders on top
+	if is_inside_tree():
+		get_parent().add_child(_settings_panel)
+	_settings_panel.close_requested.connect(_on_settings_closed)
+	_settings_open = true
+	visible = false
+
+
+func _on_settings_closed() -> void:
+	_settings_open = false
+	if _settings_panel and is_instance_valid(_settings_panel):
+		_settings_panel.queue_free()
+		_settings_panel = null
+	visible = true
 
 
 func _on_codex_pressed() -> void:

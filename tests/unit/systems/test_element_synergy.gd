@@ -321,13 +321,16 @@ func test_synergy_changed_signal_on_tier_change() -> void:
 	ElementSynergy.recalculate()
 	assert_int(ElementSynergy.get_synergy_tier("fire")).is_equal(0)
 
-	monitor_signals(ElementSynergy, false)
+	var emitted: Array[bool] = []
+	var conn: Callable = func() -> void: emitted.append(true)
+	ElementSynergy.synergy_changed.connect(conn)
 	# Add a 3rd fire tower and recalculate
 	var data: TowerData = _make_tower_data("Fire3", "fire")
 	var stub: Node2D = auto_free(_make_tower_stub(data))
 	TowerSystem._active_towers.append(stub)
 	ElementSynergy.recalculate()
-	await assert_signal(ElementSynergy).wait_until(500).is_emitted("synergy_changed")
+	ElementSynergy.synergy_changed.disconnect(conn)
+	assert_int(emitted.size()).is_greater_equal(1)
 
 
 # -- 23. test_synergy_changed_not_emitted_when_same_tier ----------------------
@@ -338,13 +341,17 @@ func test_synergy_changed_not_emitted_when_same_tier() -> void:
 	ElementSynergy.recalculate()
 	assert_int(ElementSynergy.get_synergy_tier("fire")).is_equal(1)
 
-	monitor_signals(ElementSynergy, false)
+	# Track signal emissions synchronously (recalculate() emits inline, not deferred)
+	var emitted_count: Array[int] = [0]
+	var conn: Callable = func() -> void: emitted_count[0] += 1
+	ElementSynergy.synergy_changed.connect(conn)
 	# Add a 4th fire tower (still tier 1, needs 5 for tier 2)
 	var data: TowerData = _make_tower_data("Fire4", "fire")
 	var stub: Node2D = auto_free(_make_tower_stub(data))
 	TowerSystem._active_towers.append(stub)
 	ElementSynergy.recalculate()
-	await assert_signal(ElementSynergy).wait_until(500).is_not_emitted("synergy_changed")
+	ElementSynergy.synergy_changed.disconnect(conn)
+	assert_int(emitted_count[0]).is_equal(0)
 
 
 # -- 24. test_recalculate_clears_old_counts -----------------------------------

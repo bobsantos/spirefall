@@ -370,12 +370,15 @@ func test_wave_cleared_signal_when_all_dead() -> void:
 	EnemySystem._active_enemies.append(stub)
 	EnemySystem._wave_finished_spawning = true
 
-	monitor_signals(EnemySystem, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(wave_number: int) -> void: emitted_args.append(wave_number)
+	EnemySystem.wave_cleared.connect(conn)
 	EnemySystem.on_enemy_killed(stub)
+	EnemySystem.wave_cleared.disconnect(conn)
 	# After the last enemy is removed and _wave_finished_spawning is true,
 	# wave_cleared should be emitted
-	await assert_signal(EnemySystem).wait_until(500).is_emitted(
-		"wave_cleared", [1])
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_int(emitted_args[0]).is_equal(1)
 
 
 # -- 24. Split enemies spawn two children -------------------------------------

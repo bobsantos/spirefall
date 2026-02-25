@@ -188,9 +188,12 @@ func test_get_flying_path_ignores_towers() -> void:
 # -- 11. path_recalculated signal emitted on recalculate() ---------------------
 
 func test_path_recalculated_signal() -> void:
-	monitor_signals(PathfindingSystem, false)
+	var emitted: Array[bool] = []
+	var conn: Callable = func() -> void: emitted.append(true)
+	PathfindingSystem.path_recalculated.connect(conn)
 	PathfindingSystem.recalculate()
-	await assert_signal(PathfindingSystem).wait_until(500).is_emitted("path_recalculated")
+	PathfindingSystem.path_recalculated.disconnect(conn)
+	assert_int(emitted.size()).is_greater_equal(1)
 
 
 # -- 12. Diagonal mode is NEVER (path only uses cardinal directions) -----------

@@ -388,10 +388,15 @@ func test_sell_tower_emits_signal() -> void:
 	GridManager.grid[5][5] = GridManager.CellType.TOWER
 	GridManager._tower_map[Vector2i(5, 5)] = tower
 
-	monitor_signals(TowerSystem, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(t: Node, refund: int) -> void: emitted_args.append([t, refund])
+	TowerSystem.tower_sold.connect(conn)
 	TowerSystem.sell_tower(tower)
+	TowerSystem.tower_sold.disconnect(conn)
 	# Signal: tower_sold(tower, refund) -- refund = 80 * 0.75 = 60
-	await assert_signal(TowerSystem).wait_until(500).is_emitted("tower_sold", [tower, 60])
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_that(emitted_args[0][0]).is_equal(tower)
+	assert_int(emitted_args[0][1]).is_equal(60)
 
 
 # -- 18. fuse_towers success ----------------------------------------------------

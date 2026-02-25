@@ -91,7 +91,7 @@ func before_test() -> void:
 	DraftManager.drafted_elements.clear()
 	EconomyManager.gold = 9999  # Enough to afford everything
 
-	_menu = _build_menu_node()
+	_menu = auto_free(_build_menu_node())
 	_apply_script(_menu)
 
 
@@ -101,12 +101,7 @@ func after_test() -> void:
 	EconomyManager.gold = _original_gold
 	UIManager.build_menu = null
 
-	if _menu != null:
-		# Free all children first
-		for child: Node in _menu.get_node("ScrollContainer/HBoxContainer").get_children():
-			child.free()
-		_menu.free()
-		_menu = null
+	_menu = null
 
 
 # -- Section 1: Non-draft mode (all towers shown) -----------------------------

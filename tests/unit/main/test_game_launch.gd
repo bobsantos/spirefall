@@ -232,7 +232,7 @@ func test_game_loads_map_from_config() -> void:
 	# Set config with a specific map path
 	SceneManager.current_game_config = {"map": FOREST_MAP, "mode": "classic"}
 
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 
@@ -251,17 +251,13 @@ func test_game_loads_map_from_config() -> void:
 	# GameBoard should have a child (the loaded map)
 	assert_int(game_node.game_board.get_child_count()).is_greater(0)
 
-	# Clean up
-	game_node.game_board.get_child(0).free()
-	game_node.free()
-
 
 # -- 15. Game defaults to ForestClearing when config is empty ------------------
 
 func test_game_defaults_to_forest_clearing_when_config_empty() -> void:
 	SceneManager.current_game_config = {}
 
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 
@@ -276,16 +272,13 @@ func test_game_defaults_to_forest_clearing_when_config_empty() -> void:
 	# Should still have a child (ForestClearing as fallback)
 	assert_int(game_node.game_board.get_child_count()).is_greater(0)
 
-	game_node.game_board.get_child(0).free()
-	game_node.free()
-
 
 # -- 16. Game reads mode from config and passes to start_game -----------------
 
 func test_game_reads_mode_from_config() -> void:
 	SceneManager.current_game_config = {"mode": "endless"}
 
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 
@@ -301,15 +294,13 @@ func test_game_reads_mode_from_config() -> void:
 	assert_int(GameManager.current_mode).is_equal(GameManager.GameMode.ENDLESS)
 	assert_int(GameManager.max_waves).is_equal(999)
 
-	game_node.free()
-
 
 # -- 17. Game defaults to "classic" mode when config has no mode ---------------
 
 func test_game_defaults_to_classic_when_no_mode_in_config() -> void:
 	SceneManager.current_game_config = {"map": FOREST_MAP}
 
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 
@@ -324,8 +315,6 @@ func test_game_defaults_to_classic_when_no_mode_in_config() -> void:
 	assert_int(GameManager.current_mode).is_equal(GameManager.GameMode.CLASSIC)
 	assert_int(GameManager.max_waves).is_equal(30)
 
-	game_node.free()
-
 
 # -- 18. Game _load_map uses config map path -----------------------------------
 
@@ -333,7 +322,7 @@ func test_game_load_map_uses_config_path() -> void:
 	# Use a known map that exists
 	SceneManager.current_game_config = {"map": FOREST_MAP}
 
-	var game_node: Node2D = _build_game_node()
+	var game_node: Node2D = auto_free(_build_game_node())
 	var script: GDScript = load(GAME_SCRIPT_PATH)
 	game_node.set_script(script)
 
@@ -346,9 +335,6 @@ func test_game_load_map_uses_config_path() -> void:
 	# The child should be a map instance
 	var map_child: Node = game_node.game_board.get_child(0)
 	assert_object(map_child).is_not_null()
-
-	map_child.free()
-	game_node.free()
 
 
 # ==============================================================================

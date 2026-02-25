@@ -9,11 +9,12 @@ const MODE_SELECT_PATH: String = "res://scenes/main/ModeSelect.tscn"
 @onready var credits_button: Button = %CreditsButton
 @onready var collection_button: Button = %CollectionButton
 @onready var leaderboards_button: Button = %LeaderboardsButton
-@onready var settings_overlay: PanelContainer = %SettingsOverlay
+@onready var settings_overlay: Control = %SettingsOverlay
 @onready var credits_overlay: PanelContainer = %CreditsOverlay
-@onready var settings_close_button: Button = %SettingsCloseButton
 @onready var credits_close_button: Button = %CreditsCloseButton
 @onready var title_label: Label = %TitleLabel
+
+var _settings_panel_instance: Control = null
 
 
 func _ready() -> void:
@@ -29,10 +30,13 @@ func connect_buttons() -> void:
 		settings_button.pressed.connect(_on_settings_pressed)
 	if not credits_button.pressed.is_connected(_on_credits_pressed):
 		credits_button.pressed.connect(_on_credits_pressed)
-	if not settings_close_button.pressed.is_connected(_on_settings_close_pressed):
-		settings_close_button.pressed.connect(_on_settings_close_pressed)
 	if not credits_close_button.pressed.is_connected(_on_credits_close_pressed):
 		credits_close_button.pressed.connect(_on_credits_close_pressed)
+	# Connect SettingsPanel close signal if the panel is embedded in the overlay
+	_settings_panel_instance = settings_overlay.get_node_or_null("SettingsPanel")
+	if _settings_panel_instance and _settings_panel_instance.has_signal("close_requested"):
+		if not _settings_panel_instance.close_requested.is_connected(_on_settings_close_pressed):
+			_settings_panel_instance.close_requested.connect(_on_settings_close_pressed)
 
 
 func apply_button_styles() -> void:

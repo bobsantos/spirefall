@@ -149,7 +149,7 @@ func before_test() -> void:
 		_scene_change_paths.append(SceneManager._last_scene_path)
 	SceneManager.scene_changing.connect(_scene_change_conn)
 
-	_mode_select = _build_mode_select()
+	_mode_select = auto_free(_build_mode_select())
 	_apply_script(_mode_select)
 
 
@@ -160,9 +160,7 @@ func after_test() -> void:
 	SceneManager._last_scene_path = ""
 	SceneManager.current_game_config = {}
 
-	if is_instance_valid(_mode_select):
-		_mode_select.free()
-		_mode_select = null
+	_mode_select = null
 
 
 # -- 1. Script loads and has expected structure --------------------------------

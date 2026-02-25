@@ -264,18 +264,22 @@ func test_victory_at_wave_30() -> void:
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
 	GameManager.current_wave = 30  # Final wave
 
-	monitor_signals(GameManager, false)
+	var emitted_args: Array = []
+	var conn: Callable = func(victory: bool) -> void: emitted_args.append(victory)
+	GameManager.game_over.connect(conn)
 
 	# Simulate wave 30 cleared
 	_simulate_wave_cleared()
 	GameManager._process(0.016)
 
+	GameManager.game_over.disconnect(conn)
+
 	# State should be GAME_OVER
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.GAME_OVER)
 
 	# Verify victory=true via signal
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"game_over", [true])
+	assert_int(emitted_args.size()).is_greater_equal(1)
+	assert_bool(emitted_args[0]).is_true()
 
 	# Wave should still be 30 (no increment past max)
 	assert_int(GameManager.current_wave).is_equal(30)
@@ -295,12 +299,16 @@ func test_early_wave_start_bonus() -> void:
 
 	var gold_before: int = EconomyManager.gold
 
-	monitor_signals(GameManager, false)
+	var emitted_bonus: Array = []
+	var conn: Callable = func(amount: int) -> void: emitted_bonus.append(amount)
+	GameManager.early_wave_bonus.connect(conn)
 
 	# Start wave early while timer has 20 seconds remaining
 	GameManager.start_wave_early()
 	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
 	EnemySystem._enemies_to_spawn.clear()
+
+	GameManager.early_wave_bonus.disconnect(conn)
 
 	# Should transition to COMBAT_PHASE
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)
@@ -310,8 +318,8 @@ func test_early_wave_start_bonus() -> void:
 	assert_int(EconomyManager.gold).is_equal(gold_before + expected_bonus)
 
 	# Verify the early_wave_bonus signal was emitted with the correct amount
-	await assert_signal(GameManager).wait_until(500).is_emitted(
-		"early_wave_bonus", [expected_bonus])
+	assert_int(emitted_bonus.size()).is_greater_equal(1)
+	assert_int(emitted_bonus[0]).is_equal(expected_bonus)
 
 
 # ==============================================================================
