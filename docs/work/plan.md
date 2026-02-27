@@ -773,70 +773,56 @@ Wire up AudioManager calls throughout gameplay code. Audio files are external de
 
 ---
 
-#### Task F1: AudioManager Enhancements
+#### Task F1: AudioManager Enhancements ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 11
 
 **Modified files:**
 - `scripts/autoload/AudioManager.gd`
 
+**New files:**
+- `tests/unit/autoload/test_audio_manager.gd` (31 tests, F1 + F2 combined)
+
 **Implementation notes:**
-- Add music crossfade: when `play_music()` is called while music is playing, fade out old (0.5s) then fade in new (0.5s) using Tween
-- Add `set_bus_volume(bus_name: String, linear: float)` -- converts linear 0.0-1.0 to dB using `linear_to_db()`, applies to `AudioServer.set_bus_volume_db()`
-- Add `play_sfx_pitched(sfx_name: String, pitch_scale: float)` for variation
-- Add OGG fallback: try `.ogg` if `.wav` not found for SFX (allows both formats)
-- Add `stop_sfx_all()` for scene transitions
-- Support `.mp3` for music as fallback to `.ogg`
-- Ensure `play_sfx` / `play_music` silently return if file not found (already does this, verify)
+- Music crossfade: when `play_music()` is called while music is playing, fade out old (0.5s) then fade in new (0.5s) using Tween
+- `set_bus_volume(bus_name: String, linear: float)` -- converts linear 0.0-1.0 to dB, mutes at 0
+- `play_sfx_pitched(sfx_name: String, pitch_scale: float)` for variation
+- OGG fallback for SFX: `_load_sfx_stream()` tries `.wav` then `.ogg`
+- MP3 fallback for music: `_load_music_stream()` tries `.ogg` then `.mp3`
+- `stop_sfx_all()` for scene transitions
+- `_current_track` tracking to skip restart when same track requested
+- `is_playing_music()` and `get_current_track()` getters
+- `_last_sfx_played` / `_last_music_requested` for test observability (set before file checks)
+- Warn-once pattern via `_missing_sfx_warned` / `_missing_music_warned` dictionaries for dev debugging
 
 **Acceptance criteria:**
-- [ ] Music crossfades smoothly between tracks
-- [ ] Bus volume API works with SettingsManager
-- [ ] Missing audio files do not cause errors (graceful fallback)
+- [x] Music crossfades smoothly between tracks
+- [x] Bus volume API works with SettingsManager
+- [x] Missing audio files do not cause errors (graceful fallback with warn-once)
 
 ---
 
-#### Task F2: Gameplay Audio Hooks
+#### Task F2: Gameplay Audio Hooks ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 11
 
 **Modified files:**
-- `scripts/main/Game.gd`
-- `scripts/towers/Tower.gd`
-- `scripts/enemies/Enemy.gd`
-- `scripts/autoload/GameManager.gd`
-- `scripts/autoload/TowerSystem.gd`
-- `scripts/autoload/EnemySystem.gd`
-- `scripts/ui/BuildMenu.gd`
+- `scripts/autoload/AudioManager.gd` (centralized signal-driven hooks)
+- `scripts/ui/BuildMenu.gd` (single `AudioManager.play_sfx("ui_click")` line)
 
 **Implementation notes:**
-- Add `AudioManager.play_sfx()` calls at these trigger points:
-  - Tower placed: `"tower_place"` (in `TowerSystem.create_tower`)
-  - Tower upgraded: `"tower_upgrade"` (in `TowerSystem.upgrade_tower`)
-  - Tower sold: `"tower_sell"` (in `TowerSystem.sell_tower`)
-  - Tower shoots: `"tower_shoot_{element}"` (in `Tower._shoot`, e.g. `"tower_shoot_fire"`)
-  - Enemy killed: `"enemy_death"` (in `EnemySystem._on_enemy_died`)
-  - Enemy leaked: `"enemy_leak"` (in `EnemySystem._on_enemy_reached_exit`)
-  - Wave start: `"wave_start"` (in `GameManager._transition_to(COMBAT_PHASE)`)
-  - Life lost: `"life_lost"` (in `GameManager.lose_life`)
-  - Gold earned: `"gold_clink"` (in `EconomyManager.add_gold`, throttled to max 1 per 0.1s)
-  - Build menu button click: `"ui_click"` (in `BuildMenu._on_tower_selected`)
-- Add `AudioManager.play_music()` calls:
-  - MainMenu: `"menu"` (Task A2)
-  - Build phase: `"build_phase"`
-  - Combat phase: `"combat_phase"`
-  - Boss wave: `"boss_combat"` (waves 10, 20, 30)
-  - Victory: `"victory"`
-  - Defeat: `"defeat"`
-- Music transitions happen in `GameManager._transition_to()` based on phase
-- All SFX names are strings that map to filenames. If the file does not exist, `play_sfx` silently no-ops
+- All audio hooks centralized in `AudioManager._connect_gameplay_signals()` via signal connections -- no changes to GameManager, TowerSystem, EnemySystem, or EconomyManager
+- SFX hooks: `tower_place`, `tower_upgrade`, `tower_sell`, `tower_fuse`, `enemy_death`, `enemy_leak`, `life_lost`, `wave_start`, `gold_clink` (throttled 0.15s), `ui_click`
+- Music hooks via `GameManager.phase_changed`: `build_phase`, `combat_phase`, `boss_combat` (waves 10/20/30), `victory`, `defeat`
+- Same-track deduplication prevents music restart when already playing correct track
+- Tower shoot SFX (`tower_shoot_{element}`) deferred to F3/asset creation (6 element-specific sounds recommended per game designer)
 
 **Acceptance criteria:**
-- [ ] All trigger points call AudioManager with correct SFX names
-- [ ] Music changes on phase transitions
-- [ ] Boss waves use different combat music
-- [ ] No errors when audio files are missing (graceful degradation)
-- [ ] Gold sound is throttled to avoid spam
+- [x] All trigger points call AudioManager with correct SFX names
+- [x] Music changes on phase transitions
+- [x] Boss waves use different combat music
+- [x] No errors when audio files are missing (graceful degradation)
+- [x] Gold sound is throttled to avoid spam
 
 ---
 
