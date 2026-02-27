@@ -221,11 +221,13 @@ func test_enemy_killed_plays_sfx() -> void:
 
 
 func test_enemy_leak_plays_sfx() -> void:
-	# enemy_reached_exit should play both "enemy_leak" and "life_lost"
-	# The last one recorded will be "life_lost" since it's connected second
+	# enemy_reached_exit plays "enemy_leak" always, and "life_lost" only when
+	# lives are critically low (<= 50% of starting_lives).
+	# With full lives, the last SFX should be "enemy_leak".
+	GameManager.lives = GameManager.starting_lives
 	AudioManager._last_sfx_played = ""
 	EnemySystem.enemy_reached_exit.emit(null)
-	assert_str(AudioManager._last_sfx_played).is_equal("life_lost")
+	assert_str(AudioManager._last_sfx_played).is_equal("enemy_leak")
 
 
 # -- Wave start SFX -----------------------------------------------------------

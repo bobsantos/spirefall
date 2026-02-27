@@ -151,7 +151,7 @@ func _load_sfx_stream(sfx_name: String) -> AudioStream:
 	return null
 
 
-## Try .ogg then .mp3 for music files. Warns once per missing key.
+## Try .ogg, .mp3, then .wav for music files. Warns once per missing key.
 func _load_music_stream(track_name: String) -> AudioStream:
 	var ogg_path: String = "res://assets/audio/music/%s.ogg" % track_name
 	if ResourceLoader.exists(ogg_path):
@@ -159,6 +159,9 @@ func _load_music_stream(track_name: String) -> AudioStream:
 	var mp3_path: String = "res://assets/audio/music/%s.mp3" % track_name
 	if ResourceLoader.exists(mp3_path):
 		return load(mp3_path)
+	var wav_path: String = "res://assets/audio/music/%s.wav" % track_name
+	if ResourceLoader.exists(wav_path):
+		return load(wav_path)
 	if not _missing_music_warned.has(track_name):
 		push_warning("AudioManager: Missing music '%s'" % track_name)
 		_missing_music_warned[track_name] = true
@@ -196,13 +199,16 @@ func _connect_gameplay_signals() -> void:
 	# Enemy SFX
 	EnemySystem.enemy_killed.connect(_on_enemy_killed)
 	EnemySystem.enemy_reached_exit.connect(_on_enemy_leak)
-	EnemySystem.enemy_reached_exit.connect(_on_life_lost)
 
 	# Wave SFX
 	GameManager.wave_started.connect(_on_wave_started)
+	EnemySystem.wave_cleared.connect(_on_wave_cleared)
 
 	# Gold SFX (throttled)
 	EconomyManager.gold_earned.connect(_on_gold_earned)
+
+	# Error SFX
+	EconomyManager.insufficient_funds.connect(_on_insufficient_funds)
 
 	# Music hooks
 	GameManager.phase_changed.connect(_on_phase_changed)
@@ -225,15 +231,14 @@ func _on_tower_fused(_tower: Node) -> void:
 
 
 func _on_enemy_killed(_enemy: Node) -> void:
-	play_sfx("enemy_death")
+	play_sfx_pitched("enemy_death", randf_range(0.85, 1.15))
 
 
 func _on_enemy_leak(_enemy: Node) -> void:
 	play_sfx("enemy_leak")
-
-
-func _on_life_lost(_enemy: Node) -> void:
-	play_sfx("life_lost")
+	# Play life_lost as escalation when lives are critically low (<= 50%)
+	if GameManager.lives <= GameManager.starting_lives / 2:
+		play_sfx("life_lost")
 
 
 func _on_wave_started(_wave_number: int) -> void:
@@ -243,8 +248,16 @@ func _on_wave_started(_wave_number: int) -> void:
 func _on_gold_earned(_amount: int) -> void:
 	if _gold_sfx_cooldown > 0.0:
 		return
-	play_sfx("gold_clink")
+	play_sfx_pitched("gold_clink", randf_range(0.9, 1.1))
 	_gold_sfx_cooldown = GOLD_SFX_COOLDOWN_DURATION
+
+
+func _on_wave_cleared(_wave_number: int) -> void:
+	play_sfx("wave_clear")
+
+
+func _on_insufficient_funds(_cost: int) -> void:
+	play_sfx("error_buzz")
 
 
 func _on_phase_changed(new_phase: GameManager.GameState) -> void:
