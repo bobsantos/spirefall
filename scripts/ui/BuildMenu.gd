@@ -280,6 +280,7 @@ func _build_tooltip(tower: TowerData) -> String:
 
 
 func _on_tower_selected(tower_data: TowerData) -> void:
+	AudioManager.play_sfx("ui_click")
 	UIManager.request_build(tower_data)
 	tower_build_selected.emit(tower_data)
 

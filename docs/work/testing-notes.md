@@ -9,3 +9,6 @@
 - there are enemis in wave 17 which is difficult to kill
 - seems like healers are impossible to defeat and they are not visible
 - draft mode is exciting, but then you would always want to draft Stone Bastion because that's the base tower with many legendary fusion capabilities
+- most often than not the last clicked control will be clickable with space bar. should we limit space bar for wave start? maybe we can add shortcuts for most, if not all, of the controls
+- elemental enemies and healers seem invisible
+- on wave 30 when i have not killed the boss yet, the game ended in my victory

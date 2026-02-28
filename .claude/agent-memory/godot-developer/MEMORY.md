@@ -48,6 +48,7 @@
 - Phase 3 Task D2 complete: `tests/unit/autoload/test_settings_manager.gd` (23 tests)
 - Phase 3 Task D3 complete: `tests/unit/ui/test_settings_panel.gd` (28 tests)
 - Phase 3 Task D4 complete: `tests/unit/autoload/test_settings_manager.gd` (+7 tests, 30 total), `tests/unit/ui/test_settings_panel.gd` (+3 tests, 31 total)
+- Phase 3 Task F1+F2 complete: `tests/unit/autoload/test_audio_manager.gd` (31 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
