@@ -846,9 +846,9 @@ Wire up AudioManager calls throughout gameplay code. Audio files are external de
 - Document the expected file list in `assets/audio/README.md`
 
 **Acceptance criteria:**
-- [ ] All expected audio files exist (even if placeholder quality)
-- [ ] Game plays with sound effects and music
-- [ ] Audio README documents the full expected file manifest
+- [x] All expected audio files exist (even if placeholder quality)
+- [x] Game plays with sound effects and music
+- [x] Audio README documents the full expected file manifest
 
 ---
 
