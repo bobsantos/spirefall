@@ -63,6 +63,16 @@ func _ready() -> void:
 	target_mode_dropdown.clear()
 	for label_text: String in TARGET_MODE_LABELS:
 		target_mode_dropdown.add_item(label_text)
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+func _apply_mobile_sizing() -> void:
+	var min_h: float = UIManager.MOBILE_ACTION_BUTTON_MIN_HEIGHT
+	upgrade_button.custom_minimum_size.y = min_h
+	sell_button.custom_minimum_size.y = min_h
+	fuse_button.custom_minimum_size.y = min_h
+	target_mode_dropdown.custom_minimum_size.y = min_h
 
 
 func display_tower(tower: Node) -> void:

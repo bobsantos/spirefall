@@ -858,7 +858,7 @@ Make the game playable on touchscreens for Android and mobile browsers.
 
 ---
 
-#### Task G1: Touch Input Handling
+#### Task G1: Touch Input Handling ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Large | **GDD Ref:** Section 12
 
@@ -885,15 +885,15 @@ Make the game playable on touchscreens for Android and mobile browsers.
   ```
 
 **Acceptance criteria:**
-- [ ] Tapping places towers and selects towers
-- [ ] Two-finger drag pans the camera
-- [ ] Pinch gesture zooms the camera
-- [ ] All existing mouse/keyboard input still works
-- [ ] Touch input does not interfere with UI button presses
+- [x] Tapping places towers and selects towers
+- [x] Two-finger drag pans the camera
+- [x] Pinch gesture zooms the camera
+- [x] All existing mouse/keyboard input still works
+- [x] Touch input does not interfere with UI button presses
 
 ---
 
-#### Task G2: Mobile-Friendly UI Sizing
+#### Task G2: Mobile-Friendly UI Sizing ✅ COMPLETE
 
 **Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 12
 
@@ -919,10 +919,10 @@ Make the game playable on touchscreens for Android and mobile browsers.
 - Test with `emulate_touch_from_mouse` enabled in project settings
 
 **Acceptance criteria:**
-- [ ] All interactive elements meet 48x48px minimum on mobile
-- [ ] Build menu scrolls with touch drag
-- [ ] Text is readable on a 6-inch phone screen
-- [ ] Desktop UI is unchanged
+- [x] All interactive elements meet 48x48px minimum on mobile
+- [x] Build menu scrolls with touch drag
+- [x] Text is readable on a 6-inch phone screen
+- [x] Desktop UI is unchanged
 
 ---
 

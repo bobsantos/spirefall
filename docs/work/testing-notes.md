@@ -12,3 +12,6 @@
 - most often than not the last clicked control will be clickable with space bar. should we limit space bar for wave start? maybe we can add shortcuts for most, if not all, of the controls
 - elemental enemies and healers seem invisible
 - on wave 30 when i have not killed the boss yet, the game ended in my victory
+- draft mode does not have tower fusion, is it intentional?
+- gold feels like it comes easily. does it make sense to remove gold reward and create a tower which earns you gold when it hits enemies and get extra gold when it kills an enemy?
+- no way to pause or go to menu in mobile

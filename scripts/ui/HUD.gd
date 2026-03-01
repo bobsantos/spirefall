@@ -40,6 +40,16 @@ func _ready() -> void:
 	xp_notif_label.visible = false
 	_update_speed_display()
 	update_display()
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+func _apply_mobile_sizing() -> void:
+	var top_bar: HBoxContainer = $TopBar
+	top_bar.custom_minimum_size.y = 56
+	speed_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
+	codex_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
+	start_wave_button.custom_minimum_size = UIManager.MOBILE_START_WAVE_MIN
 
 
 func update_display() -> void:

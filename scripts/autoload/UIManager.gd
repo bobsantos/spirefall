@@ -7,6 +7,12 @@ signal tower_selected(tower: Node)
 signal tower_deselected()
 signal build_requested(tower_data: TowerData)
 
+## Minimum touch-target sizes for mobile (px). Desktop uses default sizes.
+const MOBILE_BUTTON_MIN: Vector2 = Vector2(56, 56)
+const MOBILE_TOWER_BUTTON_MIN: Vector2 = Vector2(128, 80)
+const MOBILE_ACTION_BUTTON_MIN_HEIGHT: float = 48.0
+const MOBILE_START_WAVE_MIN: Vector2 = Vector2(140, 56)
+
 var selected_tower: Node = null
 var hud: Control = null
 var build_menu: Control = null
@@ -67,3 +73,8 @@ func update_hud() -> void:
 func show_wave_preview(wave_number: int) -> void:
 	if wave_preview_panel:
 		wave_preview_panel.display_wave(wave_number)
+
+
+## Returns true when running on a mobile device or mobile web browser.
+static func is_mobile() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
