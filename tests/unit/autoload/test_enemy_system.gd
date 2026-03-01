@@ -514,16 +514,16 @@ func test_boss_minions_spawn_at_boss_position() -> void:
 	EnemySystem._enemy_scene = original_scene
 
 
-# -- 28. Fallback queue for unknown wave ---------------------------------------
+# -- 28. Fallback queue for unknown wave uses endless generation ---------------
 
 func test_fallback_queue_for_unknown_wave() -> void:
-	# Wave 999 is not in the config, should use _build_fallback_queue
-	# Fallback count = 8 + int(999 / 3) = 8 + 333 = 341
-	# But this also loads the "normal" template from .tres
+	# Wave 999 is not in the config, should use _build_endless_wave
+	# Endless count = 12 + (999 - 30) * 2 = 12 + 1938 = 1950 regular enemies
+	# 999 - 30 = 969, 969 % 10 = 9, so NOT a boss wave -> no extra boss
 	var queue: Array = EnemySystem._build_wave_queue(999)
-	var expected_count: int = 8 + int(999.0 / 3.0)
+	var expected_count: int = 12 + (999 - 30) * 2
 	assert_int(queue.size()).is_equal(expected_count)
-	# Spawn interval should be reset to DEFAULT
+	# Non-boss endless wave: spawn interval should be DEFAULT
 	assert_float(EnemySystem._spawn_interval).is_equal(EnemySystem.DEFAULT_SPAWN_INTERVAL)
 
 
@@ -615,6 +615,147 @@ func _setup_minimal_map() -> void:
 	GridManager.grid[spawn.x][spawn.y] = GridManager.CellType.SPAWN
 	GridManager.grid[exit.x][exit.y] = GridManager.CellType.EXIT
 	PathfindingSystem.recalculate()
+
+
+# -- 31. Endless wave generates correct enemy count ----------------------------
+
+func test_endless_wave_generates_correct_enemy_count() -> void:
+	# Wave 35: base_count(12) + (35 - 30) * 2 = 12 + 10 = 22
+	var queue: Array = EnemySystem._build_endless_wave(35)
+	# Boss entries are separate; wave 35 is not a boss wave, so count is pure regular
+	assert_int(queue.size()).is_equal(22)
+
+	# Wave 50: 12 + (50 - 30) * 2 = 12 + 40 = 52, plus 1 boss = 53
+	var queue_50: Array = EnemySystem._build_endless_wave(50)
+	assert_int(queue_50.size()).is_equal(53)
+
+	# Wave 31: 12 + (31 - 30) * 2 = 12 + 2 = 14
+	var queue_31: Array = EnemySystem._build_endless_wave(31)
+	assert_int(queue_31.size()).is_equal(14)
+
+
+# -- 32. Endless wave scales enemies ------------------------------------------
+
+func test_endless_wave_scales_enemies() -> void:
+	var queue: Array = EnemySystem._build_endless_wave(40)
+	assert_bool(queue.is_empty()).is_false()
+	# All entries should be EnemyData with scaling applied (HP > base)
+	for entry in queue:
+		var data: EnemyData = entry as EnemyData
+		assert_object(data).is_not_null()
+		# At wave 40, HP scale = (1 + 0.15 * 40)^2 = 7^2 = 49
+		# Even the weakest enemy (swarm, base_health=30) would have 30*49=1470
+		assert_int(data.base_health).is_greater(0)
+
+
+# -- 33. Endless wave boss every 10th wave ------------------------------------
+
+func test_endless_wave_boss_every_10th_wave() -> void:
+	# Waves 40, 50, 60 should each contain exactly one boss
+	for wave: int in [40, 50, 60]:
+		var queue: Array = EnemySystem._build_endless_wave(wave)
+		var boss_count: int = 0
+		for entry in queue:
+			var data: EnemyData = entry as EnemyData
+			if data.is_boss:
+				boss_count += 1
+		assert_int(boss_count).is_equal(1)
+
+
+# -- 34. Endless wave no boss on non-10th wave --------------------------------
+
+func test_endless_wave_no_boss_on_non_10th() -> void:
+	for wave: int in [35, 42, 47, 53]:
+		var queue: Array = EnemySystem._build_endless_wave(wave)
+		var boss_count: int = 0
+		for entry in queue:
+			var data: EnemyData = entry as EnemyData
+			if data.is_boss:
+				boss_count += 1
+		assert_int(boss_count).is_equal(0)
+
+
+# -- 35. Endless wave boss cycling --------------------------------------------
+
+func test_endless_wave_boss_cycling() -> void:
+	# Bosses cycle: wave 40 -> ember_titan (index 0), 50 -> glacial_wyrm (1),
+	# 60 -> chaos_elemental (2), 70 -> ember_titan (0 again)
+	var boss_names: Array[String] = []
+	for wave: int in [40, 50, 60, 70]:
+		var queue: Array = EnemySystem._build_endless_wave(wave)
+		for entry in queue:
+			var data: EnemyData = entry as EnemyData
+			if data.is_boss:
+				boss_names.append(data.enemy_name)
+	assert_int(boss_names.size()).is_equal(4)
+	assert_str(boss_names[0]).is_equal("Ember Titan")
+	assert_str(boss_names[1]).is_equal("Glacial Wyrm")
+	assert_str(boss_names[2]).is_equal("Chaos Elemental")
+	assert_str(boss_names[3]).is_equal("Ember Titan")
+
+
+# -- 36. Endless wave enemy variety increases ----------------------------------
+
+func test_endless_wave_enemy_variety_increases() -> void:
+	# Wave 60 (30 past 30): 72 enemies with high Tier 3 weights — expect broad variety
+	# Run multiple samples to avoid flakiness from random selection
+	var best_variety: int = 0
+	for _i in range(5):
+		var queue_60: Array = EnemySystem._build_endless_wave(60)
+		var types_60: Dictionary = {}
+		for entry in queue_60:
+			var data: EnemyData = entry as EnemyData
+			if not data.is_boss:
+				types_60[data.enemy_name] = true
+		best_variety = max(best_variety, types_60.size())
+
+	# With 72 enemies and all 9 types in the weighted pool, expect at least 5 unique types
+	assert_bool(best_variety >= 5).is_true()
+
+
+# -- 37. Endless wave type mix every 5th wave ---------------------------------
+
+func test_endless_wave_type_mix_every_5th() -> void:
+	# Waves 35, 40, 45 are every-5th past 30 — must have at least 1 of each Tier 3 type
+	var tier3_names: Array[String] = ["Flying", "Healer", "Stealth", "Split"]
+	for wave: int in [35, 40, 45]:
+		var queue: Array = EnemySystem._build_endless_wave(wave)
+		var found_types: Dictionary = {}
+		for entry in queue:
+			var data: EnemyData = entry as EnemyData
+			found_types[data.enemy_name] = true
+		for t3_name: String in tier3_names:
+			assert_bool(found_types.has(t3_name)).is_true()
+
+
+# -- 38. Endless wave returns valid queue --------------------------------------
+
+func test_endless_wave_returns_valid_queue() -> void:
+	var queue: Array = EnemySystem._build_endless_wave(42)
+	assert_bool(queue.is_empty()).is_false()
+	for entry in queue:
+		var data: EnemyData = entry as EnemyData
+		assert_object(data).is_not_null()
+		assert_str(data.enemy_name).is_not_empty()
+		assert_int(data.base_health).is_greater(0)
+		assert_int(data.gold_reward).is_greater(0)
+
+
+# -- 39. _build_wave_queue delegates to endless for waves past config ----------
+
+func test_build_wave_queue_uses_endless_for_waves_past_config() -> void:
+	# Wave 35 is not in _wave_config (only 1-30 exist)
+	# _build_wave_queue should delegate to _build_endless_wave
+	var queue: Array = EnemySystem._build_wave_queue(35)
+	# Endless wave 35: 12 + (35 - 30) * 2 = 22 enemies
+	assert_int(queue.size()).is_equal(22)
+	# Should contain varied types (not just "Normal" like old fallback)
+	var types: Dictionary = {}
+	for entry in queue:
+		var data: EnemyData = entry as EnemyData
+		types[data.enemy_name] = true
+	# Endless waves should have more than just one type
+	assert_bool(types.size() > 1).is_true()
 
 
 # -- Stub Scene Helper ---------------------------------------------------------

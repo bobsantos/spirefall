@@ -1242,32 +1242,38 @@ Endless mode generates waves beyond the 30 defined in wave_config.json.
 
 ---
 
-#### Task J1: Endless Wave Generation
+#### Task J1: Endless Wave Generation ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 6.3
 
 **Modified files:**
 - `scripts/autoload/EnemySystem.gd`
 - `scripts/autoload/GameManager.gd`
+- `tests/unit/autoload/test_enemy_system.gd` (9 new tests, 39 total)
+- `tests/unit/autoload/test_game_manager.gd` (3 new tests, 25 total)
 
 **Implementation notes:**
 - When mode is ENDLESS and wave > 30, procedurally generate wave data:
-  - Enemy count: `base_count + (wave - 30) * 2`
+  - Enemy count: `base_count + (wave - 30) * 2` (base_count = 12)
   - HP multiplier: `1.0 + (wave - 30) * 0.15` applied to base HP
   - Speed multiplier: `1.0 + (wave - 30) * 0.02` (capped at 2.0x)
   - Gold multiplier: `1.0 + (wave - 30) * 0.1`
   - Every 10th wave beyond 30 is a boss wave (cycling through the 3 bosses)
-  - Every 5th wave introduces a new enemy type mix
-- Enemy type selection: weighted random from all 10 types, shifting toward harder types as waves increase
-- Modify `EnemySystem.spawn_wave()` to check if wave > configured waves and generate on the fly
-- GameManager in ENDLESS mode: never transitions to GAME_OVER on wave_completed, only on lives == 0
+  - Every 5th wave introduces a new enemy type mix (guaranteed Tier 3 types)
+- Enemy type selection: 3-tier weighted system shifting toward harder types:
+  - Tier 1 (normal, fast): weight = max(1, 10 - waves_past_30) — fades out
+  - Tier 2 (armored, swarm, elemental): weight = 5 + waves_past_30 — grows linearly
+  - Tier 3 (flying, healer, stealth, split): weight = waves_past_30 * 2 — grows fastest
+- New method `_build_endless_wave()` replaces `_build_fallback_queue()` for waves > 30
+- `get_wave_config()` returns synthetic `{"is_boss_wave": true}` for endless boss waves (90s timer)
+- GameManager in ENDLESS mode: `_on_wave_cleared()` skips game-over check entirely, only `lose_life()` ends game
 
 **Acceptance criteria:**
-- [ ] Waves continue past 30 in Endless mode
-- [ ] Difficulty scales progressively
-- [ ] Boss waves cycle at intervals
-- [ ] Game only ends on defeat (lives == 0)
-- [ ] Leaderboard-ready: wave number tracked for high score
+- [x] Waves continue past 30 in Endless mode
+- [x] Difficulty scales progressively
+- [x] Boss waves cycle at intervals
+- [x] Game only ends on defeat (lives == 0)
+- [x] Leaderboard-ready: wave number tracked for high score
 
 ---
 

@@ -11,6 +11,8 @@ func _reset_game_manager() -> void:
 	GameManager.game_state = GameManager.GameState.MENU
 	GameManager.current_wave = 0
 	GameManager.lives = GameManager.starting_lives
+	GameManager.max_waves = 30
+	GameManager.current_mode = GameManager.GameMode.CLASSIC
 	GameManager._build_timer = 0.0
 	GameManager._combat_timer = 0.0
 	GameManager._combat_timer_max = 0.0
@@ -292,6 +294,43 @@ func test_combat_phase_emits_wave_started() -> void:
 	GameManager.wave_started.disconnect(conn)
 	assert_int(emitted_args.size()).is_greater_equal(1)
 	assert_int(emitted_args[0]).is_equal(1)
+
+
+# -- 23. Endless mode never game over on wave clear ----------------------------
+
+func test_endless_mode_never_game_over_on_wave_clear() -> void:
+	GameManager.start_game("endless")
+	assert_int(GameManager.current_mode).is_equal(GameManager.GameMode.ENDLESS)
+	# Simulate clearing wave 999 (max_waves is 999 in endless)
+	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
+	GameManager.current_wave = 999
+	_simulate_wave_cleared()
+	GameManager._process(0.016)
+	# Should NOT transition to GAME_OVER -- endless mode keeps going
+	assert_int(GameManager.game_state).is_not_equal(GameManager.GameState.GAME_OVER)
+	# Should be in BUILD_PHASE (wave 1000)
+	assert_int(GameManager.current_wave).is_equal(1000)
+
+
+# -- 24. Endless mode game over on zero lives ----------------------------------
+
+func test_endless_mode_game_over_on_zero_lives() -> void:
+	GameManager.start_game("endless")
+	GameManager.lose_life(20)
+	assert_int(GameManager.game_state).is_equal(GameManager.GameState.GAME_OVER)
+	assert_int(GameManager.lives).is_equal(0)
+
+
+# -- 25. Endless mode tracks waves survived ------------------------------------
+
+func test_endless_mode_tracks_waves_survived() -> void:
+	GameManager.start_game("endless")
+	# Simulate playing to wave 42
+	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
+	GameManager.current_wave = 42
+	# Now lose all lives to trigger game over and finalize stats
+	GameManager.lose_life(20)
+	assert_int(GameManager.run_stats["waves_survived"]).is_equal(42)
 
 
 # -- 20. GAME_OVER pauses the tree so gameplay stops --------------------------

@@ -40,6 +40,16 @@
 - Chaos Elemental: element cycle (10s), soft enrage (undefined -- needs implementation), no immunity
 - Chaos Elemental W30 gold reward (1700g) is pointless on final wave -- consider score/XP instead
 
+### Endless Mode Design (Task J1)
+- CRITICAL: Do NOT apply a second HP multiplier on top of _create_scaled_enemy. The existing quadratic formula already handles all scaling. Just pass the actual wave number.
+- HP scaling goes quadratic: W50=72.25x, W80=169x, W100=256x. Recommend hybrid formula past W50 to avoid HP wall.
+- Speed cap hits 2.0x at W50 -- difficulty needs a 3rd axis past W50 (e.g. new enemy trait).
+- base_count should be 20 individual enemies; cap count growth at 80 past wave 60.
+- heal_per_second (10 HP/s) is intentionally NOT scaled in _create_scaled_enemy -- document this, do not "fix" it.
+- Boss cycling: every 10th wave past 30. Add +50% HP per full cycle (3 bosses = 30 waves) on top of wave scaling.
+- Enemy weight shift algorithm: use lerp across 9 types from early-profile to late-profile over waves 31-80. See full algorithm in response.
+- Gold scales linearly vs HP quadratic -- ensure sell value is 75-80% in endless to prevent economy lock.
+
 ## Key File Paths
 - Wave config: `resources/waves/wave_config.json`
 - Enemy scaling: `scripts/autoload/EnemySystem.gd` (_create_scaled_enemy, line 261)

@@ -175,7 +175,13 @@ func _on_wave_cleared() -> void:
 	var bonus: int = EconomyManager.calculate_wave_bonus(current_wave, _enemies_leaked_this_wave)
 	EconomyManager.add_gold(bonus)
 	wave_completed.emit(current_wave)
-	if current_wave >= max_waves:
+	if current_mode == GameMode.ENDLESS:
+		# Endless mode: never game over from wave completion, only from lives == 0
+		if current_wave % 5 == 0:
+			_transition_to(GameState.INCOME_PHASE)
+		else:
+			_transition_to(GameState.BUILD_PHASE)
+	elif current_wave >= max_waves:
 		_transition_to(GameState.GAME_OVER)
 	elif current_wave % 5 == 0:
 		_transition_to(GameState.INCOME_PHASE)
