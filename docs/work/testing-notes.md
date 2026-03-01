@@ -3,7 +3,7 @@
 - selected tower should have a more visible selected indicator
 - fusing the same tower type should be possible at least on the first tier
 - it's good that we have the timer in the middle of the screen when there's 10 seconds left, but i think we should add it to the top part of the hud permanently as well. maybe beside the wave indicator?
-- boss escaping costs only 1 life
+- boss escaping costs only 1 life. should it be at least 2?
 - there are times when i cannot see the enemy and all i see is their health bar
 - there are enemis in wave 13 which is difficult to kill
 - there are enemis in wave 17 which is difficult to kill

@@ -62,7 +62,7 @@ func _apply_enemy_data() -> void:
 	current_health = max_health
 	speed = _base_speed * enemy_data.speed_multiplier
 	_update_health_bar()
-	# Load enemy sprite texture from name (e.g. "Boss Ember Titan" -> "boss_ember_titan")
+	# Load enemy sprite texture from name (e.g. "Ember Titan" -> "ember_titan")
 	var texture_name: String = enemy_data.enemy_name.to_lower().replace(" ", "_")
 	var texture_path: String = "res://assets/sprites/enemies/%s.png" % texture_name
 	sprite.texture = load(texture_path)
@@ -218,11 +218,53 @@ func _reached_exit() -> void:
 	EnemySystem.on_enemy_reached_exit(self)
 
 
+## HP bar color thresholds
+const HP_COLOR_GREEN := Color(0.2, 0.85, 0.2)
+const HP_COLOR_YELLOW := Color(0.95, 0.8, 0.1)
+const HP_COLOR_RED := Color(0.9, 0.2, 0.15)
+const HP_BG_COLOR := Color(0.1, 0.1, 0.1, 0.7)
+
+var _hp_bar_styled: bool = false
+var _hp_fill_style: StyleBoxFlat = null
+
+
 func _update_health_bar() -> void:
-	if health_bar:
-		health_bar.max_value = max_health
-		health_bar.value = current_health
-		health_bar.visible = current_health < max_health
+	if not health_bar:
+		return
+
+	# One-time setup: background track and fill stylebox
+	if not _hp_bar_styled:
+		_hp_bar_styled = true
+		var bg := StyleBoxFlat.new()
+		bg.bg_color = HP_BG_COLOR
+		health_bar.add_theme_stylebox_override("background", bg)
+		_hp_fill_style = StyleBoxFlat.new()
+		health_bar.add_theme_stylebox_override("fill", _hp_fill_style)
+		# Sizing: 48px wide, 5px tall, centered horizontally
+		health_bar.offset_left = -24.0
+		health_bar.offset_right = 24.0
+		health_bar.offset_top = -40.0
+		health_bar.offset_bottom = -35.0
+
+	health_bar.max_value = max_health
+	health_bar.value = current_health
+
+	# Boss enemies use the HUD BossHPBar, not individual bars
+	if enemy_data and enemy_data.is_boss:
+		health_bar.visible = false
+		return
+
+	health_bar.visible = current_health < max_health
+
+	# Update fill color based on HP percentage
+	if _hp_fill_style and max_health > 0:
+		var hp_ratio: float = float(current_health) / float(max_health)
+		if hp_ratio > 0.5:
+			_hp_fill_style.bg_color = HP_COLOR_GREEN
+		elif hp_ratio >= 0.25:
+			_hp_fill_style.bg_color = HP_COLOR_YELLOW
+		else:
+			_hp_fill_style.bg_color = HP_COLOR_RED
 
 
 # -- Healer Behavior --------------------------------------------------------
