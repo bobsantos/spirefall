@@ -58,6 +58,9 @@
 - Phase 3 Task I6 complete: `tests/unit/enemies/test_enemy_sprites.gd` (24 tests)
 - Phase 3 Task I3 complete: `tests/unit/effects/test_particle_effects.gd` (37 tests)
 - Phase 4 Task J1 complete: Endless wave generation - `test_enemy_system.gd` (39 tests, +9), `test_game_manager.gd` (25 tests, +3)
+- Phase 4 Task K1 complete: `tests/unit/systems/test_export_config.gd` (34 tests) - Web export validation
+- Phase 4 Task K2 complete: Android preset in `export_presets.cfg` (validated by test_export_config.gd)
+- Phase 4 Task K3 complete: `tests/unit/systems/test_performance.gd` (23 tests), `docs/performance_report.md`
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)

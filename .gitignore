@@ -11,6 +11,6 @@ reports/
 Thumbs.db
 
 # Export
-export/
+artifact/
 *.apk
 *.aab

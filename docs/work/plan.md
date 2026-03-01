@@ -1303,10 +1303,10 @@ Configure Godot export presets for HTML5 and Android.
 - Add `exports/` to `.gitignore`
 
 **Acceptance criteria:**
-- [ ] Game exports to HTML5 without errors
-- [ ] Game runs in Chrome and Firefox
-- [ ] No WebGL errors in console
-- [ ] Game fits in browser viewport with correct aspect ratio
+- [x] Game exports to HTML5 without errors
+- [x] Game runs in Chrome and Firefox
+- [x] No WebGL errors in console
+- [x] Game fits in browser viewport with correct aspect ratio
 
 ---
 
@@ -1330,10 +1330,10 @@ Configure Godot export presets for HTML5 and Android.
 - Touch input must work (Task G1 prerequisite)
 
 **Acceptance criteria:**
-- [ ] Game exports to APK without errors
-- [ ] APK installs and runs on Android device/emulator
-- [ ] Touch input works on Android
-- [ ] Landscape orientation enforced
+- [x] Game exports to APK without errors
+- [x] APK installs and runs on Android device/emulator
+- [x] Touch input works on Android
+- [x] Landscape orientation enforced
 
 ---
 
@@ -1357,10 +1357,10 @@ Configure Godot export presets for HTML5 and Android.
 - Document findings and optimize bottlenecks
 
 **Acceptance criteria:**
-- [ ] 60 FPS maintained on desktop with 50 enemies + 20 towers
-- [ ] No frame spikes > 32ms during pathfinding recalculation
-- [ ] Memory usage stays within budget
-- [ ] Performance report documented
+- [x] 60 FPS maintained on desktop with 50 enemies + 20 towers
+- [x] No frame spikes > 32ms during pathfinding recalculation
+- [x] Memory usage stays within budget
+- [x] Performance report documented
 
 ---
 
