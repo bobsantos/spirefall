@@ -49,6 +49,14 @@
 - Phase 3 Task D3 complete: `tests/unit/ui/test_settings_panel.gd` (28 tests)
 - Phase 3 Task D4 complete: `tests/unit/autoload/test_settings_manager.gd` (+7 tests, 30 total), `tests/unit/ui/test_settings_panel.gd` (+3 tests, 31 total)
 - Phase 3 Task F1+F2 complete: `tests/unit/autoload/test_audio_manager.gd` (31 tests)
+- Phase 3 Task H1 complete: `tests/unit/ui/test_boss_hp_bar.gd` (31 tests)
+- Phase 3 Task H2 complete: `tests/unit/ui/test_boss_announcement.gd` (28 tests)
+- Phase 3 Task I1 complete: `tests/unit/ui/test_range_indicator.gd` (33 tests)
+- Phase 3 Task I2 complete: `tests/unit/enemies/test_enemy_hp_bars.gd` (24 tests)
+- Phase 3 Task I4 complete: `tests/unit/ui/test_wave_progress.gd` (39 tests)
+- Phase 3 Task I5 complete: `tests/unit/towers/test_tower_sprites.gd` (24 tests)
+- Phase 3 Task I6 complete: `tests/unit/enemies/test_enemy_sprites.gd` (24 tests)
+- Phase 3 Task I3 complete: `tests/unit/effects/test_particle_effects.gd` (37 tests)
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
@@ -71,6 +79,13 @@
 - **Critical**: Lambdas in GDScript 4 capture primitive types (`int`, `bool`) by value — use `Array[int]` for mutable counters in signal test closures
 - **Pattern**: Nodes tested outside scene tree cannot call `get_tree()` — delegate tree access to an autoload (e.g., `GameManager.pause()`) so scripts work both in-game and in unit tests
 - **Constant**: `Node.PROCESS_MODE_WHEN_PAUSED == 2` in Godot 4.6 (not 3)
+
+## Enemy Sprite Convention
+- Sprites at `assets/sprites/enemies/`, named by `enemy_name.to_lower().replace(" ", "_") + ".png"`
+- Boss .tres files use names WITHOUT "Boss" prefix: "Ember Titan", "Glacial Wyrm", "Chaos Elemental"
+- Sprite files: `ember_titan.png`, `glacial_wyrm.png`, `chaos_elemental.png` (no `boss_` prefix)
+- Also includes: `split_child.png`, `ice_minion.png` for spawned sub-enemies
+- Generator script: `tools/generate_enemy_sprites.py` (Pillow/PIL)
 
 ## Map Architecture
 - `MapBase` (class_name) extends Node2D -- base class for all maps at `scripts/maps/MapBase.gd`

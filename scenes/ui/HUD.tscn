@@ -54,6 +54,19 @@ text = "1x"
 layout_mode = 2
 text = "Codex (C)"
 
+[node name="WaveProgressBar" type="ProgressBar" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 38.0
+offset_bottom = 44.0
+grow_horizontal = 2
+min_value = 0.0
+max_value = 30.0
+value = 0.0
+show_percentage = false
+mouse_filter = 2
+
 [node name="BossHPBar" type="PanelContainer" parent="."]
 layout_mode = 1
 anchors_preset = 10
@@ -114,6 +127,14 @@ layout_mode = 2
 size_flags_horizontal = 3
 custom_minimum_size = Vector2(120, 0)
 text = "Start Wave (Space)"
+
+[node name="EnemyCountLabel" type="Label" parent="WaveControls"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 18
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+visible = false
 
 [node name="CountdownLabel" type="Label" parent="."]
 layout_mode = 1

@@ -81,15 +81,13 @@ func apply_tower_data() -> void:
 		_ability_interval = 8.0  # Fixed 8s interval for stun amplify pulse
 	else:
 		_ability_interval = 0.0
-	# Load tower sprite texture from name (e.g. "Flame Spire" -> "flame_spire")
-	var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
-	var texture_path: String = "res://assets/sprites/towers/%s.png" % texture_name
+	# Load tower sprite texture using tier-aware path resolution
+	var texture_path: String = get_sprite_path(tower_data)
 	var tex: Texture2D = load(texture_path)
 	if tex == null:
-		# Fallback: strip "_enhanced" or "_superior" suffix to find base sprite
-		texture_name = texture_name.replace("_enhanced", "").replace("_superior", "")
-		texture_path = "res://assets/sprites/towers/%s.png" % texture_name
-		tex = load(texture_path)
+		# Fallback: try base element sprite or strip upgrade suffix
+		var fallback_path: String = get_fallback_sprite_path(tower_data)
+		tex = load(fallback_path)
 	if tex:
 		sprite.texture = tex
 	# Apply synergy visual tint (only when not disabled)
@@ -437,3 +435,33 @@ func _on_synergy_changed() -> void:
 	if not tower_data:
 		return
 	apply_tower_data()
+
+
+static func get_sprite_path(data: TowerData) -> String:
+	## Returns the expected sprite path for a tower based on its tier and name.
+	## Tier 1 (base/enhanced/superior): res://assets/sprites/towers/{name}.png
+	## Tier 2 (fusions): res://assets/sprites/towers/fusions/{name}.png
+	## Tier 3 (legendaries): res://assets/sprites/towers/legendaries/{name}.png
+	var texture_name: String = data.tower_name.to_lower().replace(" ", "_")
+	var subdir: String = ""
+	if data.tier == 2:
+		subdir = "fusions/"
+	elif data.tier == 3:
+		subdir = "legendaries/"
+	return "res://assets/sprites/towers/%s%s.png" % [subdir, texture_name]
+
+
+static func get_fallback_sprite_path(data: TowerData) -> String:
+	## Returns a fallback sprite path when the primary path is not found.
+	## Enhanced/superior towers fall back to the base tower sprite (strip suffix).
+	## Fusion/legendary towers fall back to the element sprite in the base directory.
+	var texture_name: String = data.tower_name.to_lower().replace(" ", "_")
+	if data.tier == 1:
+		# Strip enhanced/superior suffix to find the base tower sprite
+		var base_name: String = texture_name.replace("_enhanced", "").replace("_superior", "")
+		if base_name != texture_name:
+			return "res://assets/sprites/towers/%s.png" % base_name
+		# Base tower with no suffix: fall back to element sprite
+		return "res://assets/sprites/towers/%s.png" % data.element
+	# Fusion/legendary: fall back to element sprite
+	return "res://assets/sprites/towers/%s.png" % data.element

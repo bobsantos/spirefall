@@ -76,6 +76,10 @@ func is_wave_finished() -> bool:
 	return _wave_finished_spawning and _enemies_to_spawn.is_empty()
 
 
+func get_queued_enemy_count() -> int:
+	return _enemies_to_spawn.size()
+
+
 func get_active_enemies() -> Array[Node]:
 	return _active_enemies
 

@@ -1004,7 +1004,7 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 
 ---
 
-#### Task I1: Tower Range Indicator
+#### Task I1: Tower Range Indicator ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.1
 
@@ -1021,14 +1021,14 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 - Remove indicator when tower is deselected or placement cancelled
 
 **Acceptance criteria:**
-- [ ] Range circle visible during tower placement
-- [ ] Range circle visible when tower is selected
-- [ ] Circle radius matches tower's actual range_cells * CELL_SIZE
-- [ ] Circle uses tower's element color
+- [x] Range circle visible during tower placement
+- [x] Range circle visible when tower is selected
+- [x] Circle radius matches tower's actual range_cells * CELL_SIZE
+- [x] Circle uses tower's element color
 
 ---
 
-#### Task I2: Enemy HP Bars
+#### Task I2: Enemy HP Bars ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.1
 
@@ -1045,14 +1045,14 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 - Boss enemies: do NOT show individual HP bar (they have the big HUD bar from Task H1)
 
 **Acceptance criteria:**
-- [ ] HP bars appear above enemies when damaged
-- [ ] Color changes based on HP percentage
-- [ ] HP bars hidden at full HP
-- [ ] Boss enemies do not show individual HP bars
+- [x] HP bars appear above enemies when damaged
+- [x] Color changes based on HP percentage
+- [x] HP bars hidden at full HP
+- [x] Boss enemies do not show individual HP bars
 
 ---
 
-#### Task I3: Particle Effects
+#### Task I3: Particle Effects ✅ COMPLETE
 
 **Priority:** P2 | **Effort:** Medium | **GDD Ref:** Section 11.2
 
@@ -1071,14 +1071,14 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 - Effects spawned by existing signal connections in Game.gd
 
 **Acceptance criteria:**
-- [ ] Visual feedback for tower shots, hits, enemy deaths
-- [ ] Effects are element-colored where appropriate
-- [ ] Effects auto-cleanup (no orphan nodes)
-- [ ] Particle count stays reasonable (< 500 particles total on screen)
+- [x] Visual feedback for tower shots, hits, enemy deaths
+- [x] Effects are element-colored where appropriate
+- [x] Effects auto-cleanup (no orphan nodes)
+- [x] Particle count stays reasonable (< 500 particles total on screen)
 
 ---
 
-#### Task I4: Wave Progress Indicator
+#### Task I4: Wave Progress Indicator ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.1
 
@@ -1095,14 +1095,14 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 - Wave number text already exists in HUD -- enhance with progress bar beneath it
 
 **Acceptance criteria:**
-- [ ] Wave progress visually displayed as a bar or segments
-- [ ] Enemy count shown during combat phase
-- [ ] Build timer countdown shown during build phase
-- [ ] Clear distinction between build and combat phase states
+- [x] Wave progress visually displayed as a bar or segments
+- [x] Enemy count shown during combat phase
+- [x] Build timer countdown shown during build phase
+- [x] Clear distinction between build and combat phase states
 
 ---
 
-#### Task I5: Tower Sprites Per Tier
+#### Task I5: Tower Sprites Per Tier ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Large | **GDD Ref:** Section 11.2, Section 12, Section 13.3
 
@@ -1171,18 +1171,18 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 - Total new sprites: 33 (12 enhanced/superior + 15 fusions + 6 legendaries)
 
 **Acceptance criteria:**
-- [ ] All 6 enhanced tower sprites exist and display correctly (one per base element)
-- [ ] All 6 superior tower sprites exist and are visually distinct from enhanced
-- [ ] All 15 dual-element fusion tower sprites exist with blended element colors
-- [ ] All 6 legendary tower sprites exist with tri-color visual treatment
-- [ ] Tier progression is visually clear: base < enhanced < superior < fusion < legendary
-- [ ] `Tower.apply_tower_data()` correctly resolves sprite paths for all tiers
-- [ ] Fallback to base sprite still works if a specific sprite is missing
-- [ ] All sprites are 64x64 pixels and read clearly on the game grid
+- [x] All 6 enhanced tower sprites exist and display correctly (one per base element)
+- [x] All 6 superior tower sprites exist and are visually distinct from enhanced
+- [x] All 15 dual-element fusion tower sprites exist with blended element colors
+- [x] All 6 legendary tower sprites exist with tri-color visual treatment
+- [x] Tier progression is visually clear: base < enhanced < superior < fusion < legendary
+- [x] `Tower.apply_tower_data()` correctly resolves sprite paths for all tiers
+- [x] Fallback to base sprite still works if a specific sprite is missing
+- [x] All sprites are 64x64 pixels and read clearly on the game grid
 
 ---
 
-#### Task I6: Enemy Sprites Per Type
+#### Task I6: Enemy Sprites Per Type ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 11.2, Section 12, Section 13.3
 
@@ -1225,14 +1225,14 @@ Improve the visual experience beyond programmer placeholders. Focus on effects t
 - Total new sprites: 6 new + 6 redesigned = 12 sprites
 
 **Acceptance criteria:**
-- [ ] All 10 enemy types have unique, visually distinct sprites
-- [ ] Each enemy type is identifiable by silhouette shape alone (not just color)
-- [ ] All 3 boss sprites exist and are visually larger/more imposing than regular enemies
-- [ ] Healer, Split, Stealth, and Elemental sprites load correctly for their respective enemy types
-- [ ] Stealth sprite accepts runtime transparency modulation
-- [ ] Elemental sprite accepts runtime element color tinting
-- [ ] All sprites are 64x64 pixels and read clearly on the game grid
-- [ ] No missing sprite warnings in Godot console for any enemy type
+- [x] All 10 enemy types have unique, visually distinct sprites
+- [x] Each enemy type is identifiable by silhouette shape alone (not just color)
+- [x] All 3 boss sprites exist and are visually larger/more imposing than regular enemies
+- [x] Healer, Split, Stealth, and Elemental sprites load correctly for their respective enemy types
+- [x] Stealth sprite accepts runtime transparency modulation
+- [x] Elemental sprite accepts runtime element color tinting
+- [x] All sprites are 64x64 pixels and read clearly on the game grid
+- [x] No missing sprite warnings in Godot console for any enemy type
 
 ---
 

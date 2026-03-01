@@ -219,6 +219,11 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - CodexPanel.tab_buttons is declared `Array[Button]`. Assigning a plain `Array` literal `[btn1, btn2]` fails at runtime with "Invalid assignment ... value of type 'Array'".
 - Fix: declare a typed local first, then assign: `var typed_tabs: Array[Button] = [btn1 as Button, btn2 as Button]` then `panel.tab_buttons = typed_tabs`.
 
+## GdUnit4 assert_int API: No is_greater_or_equal
+- `assert_int()` does NOT have `is_greater_or_equal()` or `is_less_or_equal()` methods
+- Available: `is_equal()`, `is_greater()`, `is_less()`, `is_between()`, `is_not_equal()`
+- Workaround: use `assert_bool(value >= threshold).is_true()` or restructure to use `is_equal()`
+
 ## Godot 4.x Theme Override API
 - There is NO `get_theme_stylebox_override()` method on Control/Button. It does not exist.
 - To CHECK if a stylebox override is set: `btn.has_theme_stylebox_override("hover")` (returns bool)
@@ -267,3 +272,9 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - On Linux CI (ext4), test execution order differs from macOS (alphabetical) due to DirAccess.list_dir_begin() returning OS-dependent order
 - Fix: added `_game_running: bool = false` flag to GameManager, guarding `_process()`. Only `start_game()` sets it to true; GAME_OVER and MENU setter clear it
 - This prevents any autonomous wave progression when tests manipulate game_state directly without calling start_game()
+
+## CPUParticles2D API Gotchas (Godot 4.6)
+- `CPUParticles2D.gravity` is `Vector2`, NOT `Vector3` (it's a 2D node)
+- `CPUParticles2D.direction` is also `Vector2`
+- Timer nodes cannot `start()` outside the scene tree -- use `_process()` countdown instead for effects that need to work in unit tests
+- `gl_compatibility` renderer requires `CPUParticles2D` instead of `GPUParticles2D` for web/mobile compatibility

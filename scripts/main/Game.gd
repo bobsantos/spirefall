@@ -9,6 +9,7 @@ extends Node2D
 
 var _placing_tower: TowerData = null
 var _ghost_tower: Sprite2D = null
+var _range_indicator: RangeIndicator = null
 
 # Fusion target selection state
 var _fusing_tower: Node = null  # The tower that initiated fusion (stays in place)
@@ -46,6 +47,13 @@ const LONG_PRESS_DURATION: float = 0.5  # 500ms triggers context action
 const PINCH_ZOOM_SENSITIVITY: float = 0.005
 var _last_touch_screen_pos: Vector2 = Vector2(-1.0, -1.0)  # Last single-finger position for ghost preview
 
+# --- Particle effect scenes ---
+var _impact_effect_scene: PackedScene = preload("res://scenes/effects/particles/ImpactEffect.tscn")
+var _death_effect_scene: PackedScene = preload("res://scenes/effects/particles/EnemyDeathEffect.tscn")
+var _placement_effect_scene: PackedScene = preload("res://scenes/effects/particles/PlacementEffect.tscn")
+var _upgrade_effect_scene: PackedScene = preload("res://scenes/effects/particles/UpgradeEffect.tscn")
+var _shoot_effect_scene: PackedScene = preload("res://scenes/effects/particles/TowerShootEffect.tscn")
+
 
 func _ready() -> void:
 	UIManager.build_requested.connect(_on_build_requested)
@@ -53,6 +61,11 @@ func _ready() -> void:
 	EnemySystem.enemy_killed.connect(_on_enemy_killed)
 	TowerSystem.tower_created.connect(_on_tower_created)
 	TowerSystem.tower_sold.connect(_on_tower_sold)
+	TowerSystem.tower_upgraded.connect(_on_tower_upgraded)
+	UIManager.tower_selected.connect(_on_tower_selected_for_range)
+	UIManager.tower_deselected.connect(_on_tower_deselected_for_range)
+	_range_indicator = RangeIndicator.new()
+	game_board.add_child(_range_indicator)
 	_load_map()
 	_start_game_from_config()
 
@@ -396,23 +409,33 @@ func _update_ghost() -> void:
 	# Hide ghost if cursor is outside the grid
 	if not GridManager.is_in_bounds(grid_pos):
 		_ghost_tower.visible = false
+		if _range_indicator:
+			_range_indicator.hide_range()
 		return
 
 	_ghost_tower.visible = true
 	# Snap ghost to cell center
-	_ghost_tower.position = GridManager.grid_to_world(grid_pos)
+	var cell_center: Vector2 = GridManager.grid_to_world(grid_pos)
+	_ghost_tower.position = cell_center
 
 	# Tint green if placement is valid, red if not
-	if GridManager.can_place_tower(grid_pos) and EconomyManager.can_afford(_placing_tower.cost):
+	var is_valid: bool = GridManager.can_place_tower(grid_pos) and EconomyManager.can_afford(_placing_tower.cost)
+	if is_valid:
 		_ghost_tower.modulate = GHOST_COLOR_VALID
+		if _range_indicator:
+			_range_indicator.show_range_for_tower(cell_center, _placing_tower)
 	else:
 		_ghost_tower.modulate = GHOST_COLOR_INVALID
+		if _range_indicator:
+			_range_indicator.hide_range()
 
 
 func _clear_ghost() -> void:
 	if _ghost_tower:
 		_ghost_tower.queue_free()
 		_ghost_tower = null
+	if _range_indicator:
+		_range_indicator.hide_range()
 
 
 func _on_tower_created(tower: Node) -> void:
@@ -420,6 +443,14 @@ func _on_tower_created(tower: Node) -> void:
 		tower.projectile_spawned.connect(_on_projectile_spawned)
 	# Connect fuse_requested from the info panel once the panel exists
 	_connect_tower_info_fuse_signal()
+	# Placement dust poof
+	_spawn_effect(_placement_effect_scene, tower.position)
+
+
+func _on_tower_upgraded(tower: Node) -> void:
+	# Sparkle effect on upgrade
+	var color: Color = Color(1.0, 0.85, 0.2, 1.0)  # Gold
+	_spawn_effect(_upgrade_effect_scene, tower.position, color)
 
 
 func _on_tower_sold(tower: Node, _refund: int) -> void:
@@ -432,6 +463,13 @@ func _on_projectile_spawned(projectile: Node) -> void:
 	# Connect ground effect signal if the projectile can spawn ground effects
 	if projectile.has_signal("ground_effect_spawned"):
 		projectile.ground_effect_spawned.connect(_on_ground_effect_spawned)
+	# Connect impact signal for particle effects
+	if projectile.has_signal("impact"):
+		projectile.impact.connect(_on_projectile_impact)
+	# Spawn tower shoot effect at the projectile's origin (tower position)
+	if projectile is Projectile:
+		var elem_color: Color = ElementMatrix.get_color(projectile.element)
+		_spawn_effect(_shoot_effect_scene, projectile.global_position, elem_color)
 	game_board.add_child(projectile)
 
 
@@ -439,9 +477,24 @@ func _on_ground_effect_spawned(effect: Node) -> void:
 	game_board.add_child(effect)
 
 
+func _on_projectile_impact(pos: Vector2, elem_color: Color) -> void:
+	_spawn_effect(_impact_effect_scene, pos, elem_color)
+
+
+func _spawn_effect(scene: PackedScene, pos: Vector2, color: Color = Color.WHITE) -> void:
+	## Instantiate a ParticleEffect scene, spawn it at pos with color, and add to game_board.
+	if scene == null:
+		return
+	var effect: Node = scene.instantiate()
+	game_board.add_child(effect)
+	if effect.has_method("spawn"):
+		effect.spawn(pos, color)
+
+
 func _on_enemy_killed(enemy: Node) -> void:
 	var gold: int = enemy.enemy_data.gold_reward
 	_spawn_gold_text(enemy.global_position, gold)
+	_spawn_effect(_death_effect_scene, enemy.global_position)
 
 
 func _spawn_gold_text(pos: Vector2, amount: int) -> void:
@@ -457,6 +510,18 @@ func _spawn_gold_text(pos: Vector2, amount: int) -> void:
 	tween.tween_property(label, "position:y", label.position.y - 30.0, 1.0)
 	tween.tween_property(label, "modulate:a", 0.0, 1.0).set_delay(0.3)
 	tween.chain().tween_callback(label.queue_free)
+
+
+# --- Range indicator for tower selection ---
+
+func _on_tower_selected_for_range(tower: Node) -> void:
+	if _range_indicator and tower and is_instance_valid(tower) and tower.tower_data:
+		_range_indicator.show_range_for_tower(tower.position, tower.tower_data)
+
+
+func _on_tower_deselected_for_range() -> void:
+	if _range_indicator:
+		_range_indicator.hide_range()
 
 
 # --- Fusion target selection flow ---

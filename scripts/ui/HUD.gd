@@ -16,6 +16,8 @@ extends Control
 @onready var xp_notif_label: Label = $XPNotifLabel
 @onready var boss_hp_bar: PanelContainer = $BossHPBar
 @onready var boss_announcement: Control = $BossAnnouncement
+@onready var wave_progress_bar: ProgressBar = $WaveProgressBar
+@onready var enemy_count_label: Label = $WaveControls/EnemyCountLabel
 
 const SPEEDS: Array[float] = [1.0, 1.5, 2.0, 0.5]
 const SPEED_LABELS: Array[String] = ["1x", "1.5x", "2x", "0.5x"]
@@ -64,10 +66,15 @@ func update_display() -> void:
 	gold_label.text = "Gold: %d" % EconomyManager.gold
 	xp_label.text = "XP: %d" % _run_xp
 	wave_controls.visible = GameManager.game_state == GameManager.GameState.BUILD_PHASE
+	if wave_progress_bar:
+		wave_progress_bar.max_value = GameManager.max_waves
+		wave_progress_bar.value = GameManager.current_wave
 
 
 func _process(_delta: float) -> void:
 	if GameManager.game_state == GameManager.GameState.BUILD_PHASE:
+		if enemy_count_label:
+			enemy_count_label.visible = false
 		if GameManager.current_wave == 1:
 			# Wave 1: no auto-start timer, show prompt instead
 			timer_label.text = "Place towers!"
@@ -75,7 +82,7 @@ func _process(_delta: float) -> void:
 			countdown_label.visible = false
 		else:
 			var t: float = GameManager._build_timer
-			timer_label.text = "%.0f" % t
+			timer_label.text = "Next wave in: %ds" % ceili(t)
 			timer_label.visible = true
 			# Prominent centered countdown for last 5 seconds
 			if t <= 5.0 and t > 0.0:
@@ -92,11 +99,14 @@ func _process(_delta: float) -> void:
 				countdown_label.visible = false
 				countdown_label.scale = Vector2.ONE
 	elif GameManager.game_state == GameManager.GameState.COMBAT_PHASE:
-		# Show combat timer countdown
-		var t: float = GameManager._combat_timer
-		timer_label.text = "%.0f" % maxf(t, 0.0)
-		timer_label.visible = true
+		# Show enemy remaining count, hide timer
+		timer_label.visible = false
+		var remaining: int = EnemySystem.get_active_enemy_count() + EnemySystem.get_queued_enemy_count()
+		if enemy_count_label:
+			enemy_count_label.text = "%d remaining" % remaining
+			enemy_count_label.visible = true
 		# Prominent countdown for last 10 seconds of combat
+		var t: float = GameManager._combat_timer
 		if t <= 10.0 and t > 0.0:
 			countdown_label.text = "%d" % ceili(t)
 			countdown_label.visible = true
@@ -110,6 +120,8 @@ func _process(_delta: float) -> void:
 			countdown_label.scale = Vector2.ONE
 	else:
 		timer_label.visible = false
+		if enemy_count_label:
+			enemy_count_label.visible = false
 		countdown_label.visible = false
 		countdown_label.scale = Vector2.ONE
 

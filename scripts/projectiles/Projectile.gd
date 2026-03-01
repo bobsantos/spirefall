@@ -5,6 +5,7 @@ extends Node2D
 ## Carries all data needed so the tower can fire-and-forget.
 
 signal ground_effect_spawned(effect: Node)
+signal impact(pos: Vector2, element_color: Color)
 
 const HIT_THRESHOLD: float = 8.0
 const DEFAULT_SPEED: float = 400.0
@@ -84,6 +85,9 @@ func _hit() -> void:
 	# Spawn ground effects after dealing damage
 	if special_key == "lava_pool" or special_key == "slow_zone" or special_key == "burning_ground":
 		_spawn_ground_effect()
+
+	# Emit impact signal for particle effects
+	impact.emit(global_position, ElementMatrix.get_color(element))
 
 	queue_free()
 
