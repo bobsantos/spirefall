@@ -1,6 +1,8 @@
-[gd_scene load_steps=2 format=3 uid="uid://hud"]
+[gd_scene load_steps=4 format=3 uid="uid://hud"]
 
 [ext_resource type="Script" path="res://scripts/ui/HUD.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/ui/BossHPBar.gd" id="2"]
+[ext_resource type="Script" path="res://scripts/ui/BossAnnouncement.gd" id="3"]
 
 [node name="HUD" type="Control"]
 layout_mode = 3
@@ -51,6 +53,44 @@ text = "1x"
 [node name="CodexButton" type="Button" parent="TopBar"]
 layout_mode = 2
 text = "Codex (C)"
+
+[node name="BossHPBar" type="PanelContainer" parent="."]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 40.0
+offset_bottom = 72.0
+grow_horizontal = 2
+visible = false
+script = ExtResource("2")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="BossHPBar"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="BossNameLabel" type="Label" parent="BossHPBar/HBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(200, 0)
+theme_override_font_sizes/font_size = 18
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="HPBar" type="ProgressBar" parent="BossHPBar/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.0
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="HPText" type="Label" parent="BossHPBar/HBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(120, 0)
+theme_override_font_sizes/font_size = 14
+text = "100/100"
+horizontal_alignment = 2
+vertical_alignment = 1
 
 [node name="WaveControls" type="HBoxContainer" parent="."]
 layout_mode = 1
@@ -132,3 +172,52 @@ text = "+1 XP"
 horizontal_alignment = 2
 vertical_alignment = 1
 visible = false
+
+[node name="BossAnnouncement" type="Control" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+visible = false
+script = ExtResource("3")
+
+[node name="Overlay" type="ColorRect" parent="BossAnnouncement"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.4)
+
+[node name="CenterContainer" type="CenterContainer" parent="BossAnnouncement"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="BossAnnouncement/CenterContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="BossNameLabel" type="Label" parent="BossAnnouncement/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 48
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="SubtitleLabel" type="Label" parent="BossAnnouncement/CenterContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 20
+text = ""
+horizontal_alignment = 1
+vertical_alignment = 1

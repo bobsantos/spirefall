@@ -932,57 +932,69 @@ Boss fights at waves 10, 20, 30 already function mechanically. This group adds p
 
 ---
 
-#### Task H1: Boss HP Bar
+#### Task H1: Boss HP Bar ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 5.3
 
 **New files:**
 - `scenes/ui/BossHPBar.tscn`
 - `scripts/ui/BossHPBar.gd`
+- `tests/unit/ui/test_boss_hp_bar.gd` (31 tests)
 
 **Modified files:**
-- `scripts/ui/HUD.gd` (show/hide boss HP bar)
+- `scripts/ui/HUD.gd` (show/hide boss HP bar, signal connections)
+- `scenes/ui/HUD.tscn` (added BossHPBar node below TopBar)
 
 **Implementation notes:**
-- Full-width bar at top of screen (below HUD), only visible during boss waves
-- Shows boss name, HP bar (ProgressBar styled with boss element color), and HP text (current/max)
-- Boss enemies have `enemy_data.is_boss == true` -- HUD listens for `EnemySystem.enemy_spawned` and checks
-- Bar updates each frame while boss is alive (read `boss.current_hp`)
-- Hides when boss dies or wave ends
-- Multiple bosses (minion spawns) should not trigger -- only the main boss entity
+- Full-width PanelContainer bar below HUD TopBar (y=40-72), only visible during boss waves
+- Shows boss name (Label), HP bar (ProgressBar with element-colored StyleBoxFlat fill), and HP text (current/max)
+- `show_for_boss(enemy)` guards on `enemy.enemy_data.is_boss` -- non-boss enemies silently ignored
+- HP bar fill color set via `StyleBoxFlat` with `ElementMatrix.get_color(element)` (fire=red-orange, ice=light blue, none=white)
+- `_process()` calls `update_hp()` every frame while visible, reading `current_health`/`max_health` from tracked boss
+- `on_enemy_killed(enemy)` only hides if the killed enemy is the tracked boss
+- `on_wave_cleared()` always hides and clears the boss reference
+- Handles freed boss references via `is_instance_valid()` check
+- HUD connects `EnemySystem.enemy_spawned`, `EnemySystem.enemy_killed`, `EnemySystem.wave_cleared` signals
 
 **Acceptance criteria:**
-- [ ] Boss HP bar appears at top of screen when boss spawns
-- [ ] HP bar updates smoothly as boss takes damage
-- [ ] Boss name and element color displayed
-- [ ] Bar hides when boss is killed
+- [x] Boss HP bar appears at top of screen when boss spawns
+- [x] HP bar updates smoothly as boss takes damage
+- [x] Boss name and element color displayed
+- [x] Bar hides when boss is killed
 
 ---
 
-#### Task H2: Boss Announcement Splash
+#### Task H2: Boss Announcement Splash ✅ COMPLETE
 
 **Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 5.3
 
 **New files:**
 - `scenes/ui/BossAnnouncement.tscn`
 - `scripts/ui/BossAnnouncement.gd`
+- `tests/unit/ui/test_boss_announcement.gd` (28 tests)
+
+**Modified files:**
+- `scripts/ui/HUD.gd` (trigger announcement on wave_started)
+- `scenes/ui/HUD.tscn` (added BossAnnouncement node as full-screen overlay)
 
 **Implementation notes:**
-- Full-screen overlay that flashes briefly (2 seconds) when a boss wave starts
-- Shows boss name in large text with element color, brief subtitle with boss ability hint
-- Animate: slide in from top, hold 1.5s, fade out 0.5s
-- Triggered by `GameManager.wave_started` when wave is a boss wave (10, 20, 30)
-- Does NOT pause the game -- purely visual overlay
-- Boss names from enemy resources:
-  - Wave 10: Ember Titan (fire)
-  - Wave 20: Glacial Wyrm (ice)
-  - Wave 30: Chaos Elemental (all elements)
+- Full-screen Control overlay with semi-transparent dark background (Color(0,0,0,0.4))
+- Shows boss name in large element-colored text, subtitle with ability hint
+- `BOSS_SUBTITLES` dictionary maps boss names to ability hints:
+  - "Ember Titan" -> "Leaves a trail of fire in its wake"
+  - "Glacial Wyrm" -> "Freezes towers caught in its gaze"
+  - "Chaos Elemental" -> "Shifts between elemental forms"
+- Animation: slide in from top (-80px offset, TRANS_BACK ease), hold 1.5s, fade out 0.5s (total 2.0s)
+- `mouse_filter = MOUSE_FILTER_IGNORE` so it does NOT block gameplay input
+- `on_wave_started(wave_number)` reads `EnemySystem.get_wave_config()` to determine if boss wave and extract boss data
+- Unknown bosses get fallback subtitle "A powerful foe approaches"
+- HUD connects `GameManager.wave_started` signal to trigger announcement
 
 **Acceptance criteria:**
-- [ ] Announcement appears at start of boss waves
-- [ ] Boss name and element color correct
-- [ ] Animation plays smoothly without disrupting gameplay
-- [ ] Announcement does not appear for non-boss waves
+- [x] Announcement appears at start of boss waves
+- [x] Boss name and element color correct
+- [x] Animation plays smoothly without disrupting gameplay
+- [x] Announcement does not appear for non-boss waves
 
 ---
 
