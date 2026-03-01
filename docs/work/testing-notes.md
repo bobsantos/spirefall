@@ -16,3 +16,4 @@
 - gold feels like it comes easily. does it make sense to remove gold reward and create a tower which earns you gold when it hits enemies and get extra gold when it kills an enemy?
 - no way to pause or go to menu in mobile
 - tower preview does not follow mouse position
+- add information about game modes in codex

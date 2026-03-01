@@ -86,9 +86,14 @@ func get_active_enemies() -> Array[Node]:
 
 func get_wave_config(wave_number: int) -> Dictionary:
 	## Returns the raw wave_config.json entry for the given wave number.
-	## Empty dictionary if wave_number not found.
+	## For endless waves (> configured range), generates a synthetic config dict.
 	if _wave_config.has(wave_number):
 		return _wave_config[wave_number]
+	# Endless wave: check if it's a boss wave
+	if wave_number > 30:
+		var waves_past_30: int = wave_number - 30
+		if waves_past_30 > 0 and waves_past_30 % 10 == 0:
+			return {"wave": wave_number, "is_boss_wave": true}
 	return {}
 
 
@@ -228,8 +233,8 @@ func _on_enemy_removed(enemy: Node) -> void:
 
 func _build_wave_queue(wave_number: int) -> Array:
 	if not _wave_config.has(wave_number):
-		push_warning("EnemySystem: No config for wave %d, using fallback" % wave_number)
-		return _build_fallback_queue(wave_number)
+		push_warning("EnemySystem: No config for wave %d, using endless generation" % wave_number)
+		return _build_endless_wave(wave_number)
 
 	var wave_entry: Dictionary = _wave_config[wave_number]
 	var queue: Array = []
@@ -302,17 +307,92 @@ func _create_scaled_enemy(template: EnemyData, wave_number: int) -> EnemyData:
 	return data
 
 
-func _build_fallback_queue(wave_number: int) -> Array:
-	## Generates a reasonable wave for wave numbers beyond the config.
-	var queue: Array = []
-	var template: EnemyData = _load_enemy_template("normal")
-	if template == null:
-		return queue
+## Endless wave enemy type tiers for weighted selection.
+const TIER_1_TYPES: Array[String] = ["normal", "fast"]
+const TIER_2_TYPES: Array[String] = ["armored", "swarm", "elemental"]
+const TIER_3_TYPES: Array[String] = ["flying", "healer", "stealth", "split"]
+const ENDLESS_BOSS_CYCLE: Array[String] = ["boss_ember_titan", "boss_glacial_wyrm", "boss_chaos_elemental"]
+const ENDLESS_BASE_COUNT: int = 12
 
-	var count: int = 8 + int(wave_number / 3)
-	for i: int in range(count):
+
+func _build_endless_wave(wave_number: int) -> Array:
+	## Generates a scaled, varied wave for endless mode (waves beyond config).
+	var queue: Array = []
+	var waves_past_30: int = wave_number - 30
+
+	# Enemy count formula
+	var count: int = ENDLESS_BASE_COUNT + waves_past_30 * 2
+
+	# Build weighted type pool
+	var weighted_pool: Array[Dictionary] = _build_weighted_pool(waves_past_30)
+	var total_weight: float = 0.0
+	for entry: Dictionary in weighted_pool:
+		total_weight += entry["weight"]
+
+	# Every 5th wave past 30 (35, 40, 45...): guarantee at least 1 of each Tier 3 type
+	var is_tier3_guaranteed: bool = waves_past_30 > 0 and waves_past_30 % 5 == 0
+	var guaranteed_count: int = 0
+	if is_tier3_guaranteed:
+		for t3_type: String in TIER_3_TYPES:
+			var template: EnemyData = _load_enemy_template(t3_type)
+			if template == null:
+				continue
+			var data: EnemyData = _create_scaled_enemy(template, wave_number)
+			queue.append(data)
+			guaranteed_count += 1
+
+	# Fill remaining slots with weighted random selection
+	var remaining: int = count - guaranteed_count
+	for i: int in range(remaining):
+		var enemy_type: String = _pick_weighted_type(weighted_pool, total_weight)
+		var template: EnemyData = _load_enemy_template(enemy_type)
+		if template == null:
+			template = _load_enemy_template("normal")
+		if template == null:
+			continue
 		var data: EnemyData = _create_scaled_enemy(template, wave_number)
 		queue.append(data)
 
-	_spawn_interval = DEFAULT_SPAWN_INTERVAL
+	# Boss every 10th wave past 30 (40, 50, 60...)
+	var is_boss_wave: bool = waves_past_30 > 0 and waves_past_30 % 10 == 0
+	if is_boss_wave:
+		var boss_index: int = (waves_past_30 / 10 - 1) % ENDLESS_BOSS_CYCLE.size()
+		var boss_type: String = ENDLESS_BOSS_CYCLE[boss_index]
+		var boss_template: EnemyData = _load_enemy_template(boss_type)
+		if boss_template != null:
+			var boss_data: EnemyData = _create_scaled_enemy(boss_template, wave_number)
+			queue.append(boss_data)
+		_spawn_interval = BOSS_SPAWN_INTERVAL
+	else:
+		_spawn_interval = DEFAULT_SPAWN_INTERVAL
+
 	return queue
+
+
+func _build_weighted_pool(waves_past_30: int) -> Array[Dictionary]:
+	## Build array of {type, weight} entries for weighted random enemy selection.
+	var pool: Array[Dictionary] = []
+	for t: String in TIER_1_TYPES:
+		pool.append({"type": t, "weight": maxf(1.0, 10.0 - waves_past_30)})
+	for t: String in TIER_2_TYPES:
+		pool.append({"type": t, "weight": 5.0 + waves_past_30})
+	for t: String in TIER_3_TYPES:
+		pool.append({"type": t, "weight": waves_past_30 * 2.0})
+	return pool
+
+
+func _pick_weighted_type(pool: Array[Dictionary], total_weight: float) -> String:
+	## Pick a random enemy type from the weighted pool.
+	var roll: float = randf() * total_weight
+	var cumulative: float = 0.0
+	for entry: Dictionary in pool:
+		cumulative += entry["weight"]
+		if roll <= cumulative:
+			return entry["type"]
+	# Fallback to last entry
+	return pool[pool.size() - 1]["type"]
+
+
+func _build_fallback_queue(wave_number: int) -> Array:
+	## Legacy fallback — delegates to endless wave generation.
+	return _build_endless_wave(wave_number)
