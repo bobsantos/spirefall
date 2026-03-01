@@ -41,6 +41,9 @@ const ELEMENT_BG_COLORS: Dictionary = {
 
 func _ready() -> void:
 	UIManager.register_build_menu(self)
+	if UIManager.is_mobile():
+		custom_minimum_size.y = 110
+		offset_top = -110
 	_load_available_towers()
 	_create_draft_indicator()
 	_create_buttons()
@@ -48,24 +51,21 @@ func _ready() -> void:
 
 
 func _load_available_towers() -> void:
-	# Load all tier-1 base towers (no fusions, no enhanced/superior)
-	var tower_dir := "res://resources/towers/"
-	var dir := DirAccess.open(tower_dir)
-	if dir == null:
-		return
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-	while file_name != "":
-		if file_name.ends_with(".tres"):
-			# Skip enhanced/superior upgrades -- only show base towers
-			var lower_name := file_name.to_lower()
-			if lower_name.contains("enhanced") or lower_name.contains("superior"):
-				file_name = dir.get_next()
-				continue
-			var tower: TowerData = load(tower_dir + file_name)
-			if tower and tower.tier == 1:
-				_available_towers.append(tower)
-		file_name = dir.get_next()
+	# Load all tier-1 base towers by explicit path list.
+	# DirAccess.open() does not work in web exports (files are packed in .pck),
+	# so we list tower resource paths statically.
+	var tower_paths: Array[String] = [
+		"res://resources/towers/flame_spire.tres",
+		"res://resources/towers/tidal_obelisk.tres",
+		"res://resources/towers/stone_bastion.tres",
+		"res://resources/towers/gale_tower.tres",
+		"res://resources/towers/thunder_pylon.tres",
+		"res://resources/towers/frost_sentinel.tres",
+	]
+	for path: String in tower_paths:
+		var tower: TowerData = load(path)
+		if tower and tower.tier == 1:
+			_available_towers.append(tower)
 	# Sort by canonical element order for consistent button layout
 	_available_towers.sort_custom(func(a: TowerData, b: TowerData) -> bool:
 		return ELEMENT_ORDER.find(a.element) < ELEMENT_ORDER.find(b.element)
@@ -167,7 +167,10 @@ func _add_separator() -> VSeparator:
 
 func _create_tower_button(tower: TowerData) -> Button:
 	var btn := Button.new()
-	btn.custom_minimum_size = Vector2(96, 64)
+	if UIManager.is_mobile():
+		btn.custom_minimum_size = UIManager.MOBILE_TOWER_BUTTON_MIN
+	else:
+		btn.custom_minimum_size = Vector2(96, 64)
 	btn.clip_text = true
 	btn.pressed.connect(_on_tower_selected.bind(tower))
 

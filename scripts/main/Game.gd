@@ -31,6 +31,21 @@ const MAP_MAX: Vector2 = Vector2(1280.0, 960.0)
 # Camera drag state
 var _is_dragging: bool = false
 
+# --- Touch input state ---
+var _touches: Dictionary = {}  # finger_index -> Vector2 position
+var _touch_start_pos: Vector2 = Vector2.ZERO
+var _touch_start_time: float = 0.0
+var _is_potential_tap: bool = false
+var _is_long_pressing: bool = false
+var _tap_processed: bool = false  # True once tap delay fires and tap is handled
+var _initial_pinch_distance: float = 0.0
+var _last_pinch_distance: float = 0.0
+const TAP_DELAY: float = 0.15  # 150ms buffer to distinguish tap from pan gesture
+const TAP_MOVE_THRESHOLD: float = 10.0  # px movement cancels tap
+const LONG_PRESS_DURATION: float = 0.5  # 500ms triggers context action
+const PINCH_ZOOM_SENSITIVITY: float = 0.005
+var _last_touch_screen_pos: Vector2 = Vector2(-1.0, -1.0)  # Last single-finger position for ghost preview
+
 
 func _ready() -> void:
 	UIManager.build_requested.connect(_on_build_requested)
@@ -56,11 +71,20 @@ func _start_game_from_config() -> void:
 
 func _process(delta: float) -> void:
 	_handle_camera_pan(delta)
+	_handle_touch_timers(delta)
 	if _placing_tower:
 		_update_ghost()
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	# --- Touch input ---
+	if event is InputEventScreenTouch:
+		_handle_screen_touch(event)
+		return
+	if event is InputEventScreenDrag:
+		_handle_screen_drag(event)
+		return
+
 	# --- Camera: middle mouse drag ---
 	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_MIDDLE:
@@ -181,8 +205,119 @@ func _clamp_camera() -> void:
 		camera.position.y = clampf(camera.position.y, min_pos.y, max_pos.y)
 
 
+# --- Touch input handlers ---
+
+func _handle_screen_touch(event: InputEventScreenTouch) -> void:
+	if event.pressed:
+		_touches[event.index] = event.position
+		if _touches.size() == 1:
+			# First finger down: start potential tap
+			_touch_start_pos = event.position
+			_touch_start_time = Time.get_ticks_msec() / 1000.0
+			_is_potential_tap = true
+			_is_long_pressing = false
+			_tap_processed = false
+			_last_touch_screen_pos = event.position
+		elif _touches.size() == 2:
+			# Second finger: cancel tap, start pinch/pan tracking
+			_is_potential_tap = false
+			_is_long_pressing = false
+			var positions: Array = _touches.values()
+			_initial_pinch_distance = (positions[0] as Vector2).distance_to(positions[1] as Vector2)
+			_last_pinch_distance = _initial_pinch_distance
+	else:
+		# Finger released
+		var was_potential_tap: bool = _is_potential_tap and not _tap_processed
+		var tap_screen_pos: Vector2 = _touch_start_pos
+		_touches.erase(event.index)
+		if was_potential_tap and _touches.is_empty():
+			# Single finger released quickly without moving: process as tap
+			var elapsed: float = Time.get_ticks_msec() / 1000.0 - _touch_start_time
+			if elapsed < LONG_PRESS_DURATION:
+				_handle_click(tap_screen_pos)
+			_is_potential_tap = false
+		if _touches.is_empty():
+			_is_potential_tap = false
+			_is_long_pressing = false
+			_tap_processed = false
+	if is_inside_tree():
+		get_viewport().set_input_as_handled()
+
+
+func _handle_screen_drag(event: InputEventScreenDrag) -> void:
+	_touches[event.index] = event.position
+
+	# Check if single-finger movement exceeds tap threshold
+	if _is_potential_tap and _touches.size() == 1:
+		var moved: float = event.position.distance_to(_touch_start_pos)
+		if moved > TAP_MOVE_THRESHOLD:
+			_is_potential_tap = false
+			_is_long_pressing = false
+
+	# Update ghost tower preview position during single-finger drag in placement mode
+	if _touches.size() == 1 and _placing_tower:
+		_last_touch_screen_pos = event.position
+
+	# Two-finger gestures: camera pan and pinch zoom
+	if _touches.size() == 2:
+		var keys: Array = _touches.keys()
+		var pos_a: Vector2 = _touches[keys[0]]
+		var pos_b: Vector2 = _touches[keys[1]]
+
+		# Pan: apply average drag delta (use the current finger's relative motion)
+		var pan_delta: Vector2 = event.relative / camera.zoom
+		camera.position -= pan_delta
+		_clamp_camera()
+
+		# Pinch zoom: compare finger distance to last known distance
+		var current_distance: float = pos_a.distance_to(pos_b)
+		if _last_pinch_distance > 0.0:
+			var distance_delta: float = current_distance - _last_pinch_distance
+			var zoom_step: float = distance_delta * PINCH_ZOOM_SENSITIVITY
+			if absf(zoom_step) > 0.001:
+				var pinch_center: Vector2 = (pos_a + pos_b) * 0.5
+				_zoom_camera(zoom_step, pinch_center)
+		_last_pinch_distance = current_distance
+
+	if is_inside_tree():
+		get_viewport().set_input_as_handled()
+
+
+func _handle_touch_timers(delta: float) -> void:
+	if not _is_potential_tap:
+		return
+	if _tap_processed:
+		return
+
+	var elapsed: float = Time.get_ticks_msec() / 1000.0 - _touch_start_time
+
+	# Tap delay: if 150ms elapsed with still just one finger, process the tap
+	# (We defer actual tap processing to finger release for a better feel,
+	# but we use the delay window to reject multi-finger gestures.)
+
+	# Long press detection: held > 0.5s without moving = context action
+	if elapsed >= LONG_PRESS_DURATION and not _is_long_pressing and _touches.size() == 1:
+		_is_long_pressing = true
+		_tap_processed = true
+		_is_potential_tap = false
+		Input.vibrate_handheld(50)
+		# Long press acts as right-click: cancel fusion or placement
+		if _fusing_tower:
+			_cancel_fusion_selection()
+		elif _placing_tower:
+			_cancel_placement()
+
+
+func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	## Convert a screen-space position to world-space using the canvas transform.
+	## This accounts for viewport stretch, camera position, and zoom correctly
+	## across all platforms (desktop, web, mobile).
+	var canvas_xform: Transform2D = get_viewport().get_canvas_transform()
+	return canvas_xform.affine_inverse() * screen_pos
+
+
 func _handle_click(screen_pos: Vector2) -> void:
-	var world_pos: Vector2 = camera.get_global_mouse_position() if camera else get_global_mouse_position()
+	var world_pos: Vector2 = _screen_to_world(screen_pos)
 	var grid_pos: Vector2i = GridManager.world_to_grid(world_pos)
 
 	# Fusion target selection mode: clicking a tower tries to fuse
@@ -248,7 +383,14 @@ func _update_ghost() -> void:
 	if not _ghost_tower:
 		return
 
-	var world_pos: Vector2 = camera.get_global_mouse_position() if camera else get_global_mouse_position()
+	# Use last touch position if available, otherwise fall back to mouse position
+	var world_pos: Vector2
+	if _last_touch_screen_pos.x >= 0.0:
+		world_pos = _screen_to_world(_last_touch_screen_pos)
+	elif camera:
+		world_pos = camera.get_global_mouse_position()
+	else:
+		world_pos = get_global_mouse_position()
 	var grid_pos: Vector2i = GridManager.world_to_grid(world_pos)
 
 	# Hide ghost if cursor is outside the grid
