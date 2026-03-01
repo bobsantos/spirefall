@@ -14,6 +14,8 @@ extends Control
 @onready var bonus_label: Label = $BonusLabel
 @onready var countdown_label: Label = $CountdownLabel
 @onready var xp_notif_label: Label = $XPNotifLabel
+@onready var boss_hp_bar: PanelContainer = $BossHPBar
+@onready var boss_announcement: Control = $BossAnnouncement
 
 const SPEEDS: Array[float] = [1.0, 1.5, 2.0, 0.5]
 const SPEED_LABELS: Array[String] = ["1x", "1.5x", "2x", "0.5x"]
@@ -31,6 +33,10 @@ func _ready() -> void:
 	GameManager.wave_completed.connect(_on_wave_completed)
 	GameManager.early_wave_bonus.connect(_on_early_wave_bonus)
 	EnemySystem.enemy_killed.connect(_on_enemy_killed)
+	EnemySystem.enemy_spawned.connect(_on_boss_enemy_spawned)
+	EnemySystem.enemy_killed.connect(_on_boss_enemy_killed)
+	EnemySystem.wave_cleared.connect(_on_boss_wave_cleared)
+	GameManager.wave_started.connect(_on_boss_wave_started)
 	GameManager.wave_completed.connect(_on_xp_wave_completed)
 	codex_button.pressed.connect(_on_codex_pressed)
 	speed_button.pressed.connect(_on_speed_pressed)
@@ -199,3 +205,23 @@ func _update_speed_display() -> void:
 		speed_button.self_modulate = Color.WHITE
 	else:
 		speed_button.self_modulate = Color.YELLOW
+
+
+func _on_boss_enemy_spawned(enemy: Node) -> void:
+	if boss_hp_bar:
+		boss_hp_bar.on_enemy_spawned(enemy)
+
+
+func _on_boss_enemy_killed(enemy: Node) -> void:
+	if boss_hp_bar:
+		boss_hp_bar.on_enemy_killed(enemy)
+
+
+func _on_boss_wave_cleared(wave_number: int) -> void:
+	if boss_hp_bar:
+		boss_hp_bar.on_wave_cleared(wave_number)
+
+
+func _on_boss_wave_started(wave_number: int) -> void:
+	if boss_announcement:
+		boss_announcement.on_wave_started(wave_number)
