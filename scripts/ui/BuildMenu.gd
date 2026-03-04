@@ -172,6 +172,7 @@ func _create_tower_button(tower: TowerData) -> Button:
 	else:
 		btn.custom_minimum_size = Vector2(96, 64)
 	btn.clip_text = true
+	btn.focus_mode = Control.FOCUS_NONE
 	btn.pressed.connect(_on_tower_selected.bind(tower))
 
 	# Build the button content as an HBoxContainer child
@@ -333,6 +334,19 @@ func _refresh_draft_filter() -> void:
 		var element_visible: bool = visible_elements.has(element)
 		for node: Node in nodes:
 			node.visible = element_visible
+
+
+func get_tower_data_by_index(index: int) -> TowerData:
+	## Return the TowerData at the given 0-based index in the build menu order.
+	## Only considers towers that are visible (not filtered out by draft mode).
+	## Returns null if index is out of range.
+	var visible_index: int = 0
+	for i: int in range(_available_towers.size()):
+		if i < _tower_buttons.size() and _tower_buttons[i].visible:
+			if visible_index == index:
+				return _available_towers[i]
+			visible_index += 1
+	return null
 
 
 func _process(_delta: float) -> void:

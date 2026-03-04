@@ -33,6 +33,7 @@ var _build_timer: float = 0.0
 var _combat_timer: float = 0.0
 var _combat_timer_max: float = 0.0
 var _enemies_leaked_this_wave: int = 0
+var _boss_escaped_this_wave: bool = false
 var _game_running: bool = false
 var game_speed: float = 1.0
 var _previous_gold: int = 0
@@ -95,7 +96,7 @@ func start_game(mode: String = "classic") -> void:
 
 func start_wave_early() -> void:
 	if game_state == GameState.BUILD_PHASE:
-		var bonus: int = int(_build_timer) * 10
+		var bonus: int = int(_build_timer) * 3
 		_transition_to(GameState.COMBAT_PHASE)
 		EconomyManager.add_gold(bonus)
 		if bonus > 0:
@@ -130,6 +131,7 @@ func _transition_to(new_state: GameState) -> void:
 			_build_timer = build_phase_duration
 		GameState.COMBAT_PHASE:
 			_enemies_leaked_this_wave = 0
+			_boss_escaped_this_wave = false
 			# Boss waves get a longer combat timer
 			var wave_config: Dictionary = EnemySystem.get_wave_config(current_wave)
 			if wave_config.get("is_boss_wave", false):
@@ -144,7 +146,7 @@ func _transition_to(new_state: GameState) -> void:
 			_transition_to(GameState.BUILD_PHASE)
 		GameState.GAME_OVER:
 			_game_running = false
-			var victory: bool = current_wave >= max_waves
+			var victory: bool = current_wave >= max_waves and not _boss_escaped_this_wave
 			_finalize_run_stats(victory)
 			# Pause the tree so gameplay stops. GameOverScreen and SceneManager
 			# use PROCESS_MODE_WHEN_PAUSED / ALWAYS to remain interactive.
@@ -194,6 +196,10 @@ func lose_life(amount: int = 1) -> void:
 	if lives <= 0:
 		lives = 0
 		_transition_to(GameState.GAME_OVER)
+
+
+func record_boss_escaped() -> void:
+	_boss_escaped_this_wave = true
 
 
 func record_enemy_leak() -> void:

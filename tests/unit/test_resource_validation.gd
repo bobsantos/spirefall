@@ -55,6 +55,8 @@ const FUSION_TOWER_PATHS: Array[String] = [
 const LEGENDARY_TOWER_PATHS: Array[String] = [
 	"res://resources/towers/legendaries/arctic_maelstrom.tres",
 	"res://resources/towers/legendaries/crystalline_monolith.tres",
+	"res://resources/towers/legendaries/cyclone_conductor.tres",
+	"res://resources/towers/legendaries/frostfire_cataclysm.tres",
 	"res://resources/towers/legendaries/primordial_nexus.tres",
 	"res://resources/towers/legendaries/supercell_obelisk.tres",
 	"res://resources/towers/legendaries/tectonic_dynamo.tres",
@@ -149,8 +151,8 @@ func test_all_15_fusion_tres_load() -> void:
 			.is_equal(2)
 
 
-func test_all_6_legendary_tres_load() -> void:
-	assert_int(LEGENDARY_TOWER_PATHS.size()).is_equal(6)
+func test_all_8_legendary_tres_load() -> void:
+	assert_int(LEGENDARY_TOWER_PATHS.size()).is_equal(8)
 	for path in LEGENDARY_TOWER_PATHS:
 		var res: TowerData = load(path) as TowerData
 		assert_object(res)\

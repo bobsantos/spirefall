@@ -59,6 +59,10 @@ text = "Fusions"
 layout_mode = 2
 text = "Enemies"
 
+[node name="ModesTab" type="Button" parent="VBoxContainer/TabBar"]
+layout_mode = 2
+text = "Modes"
+
 [node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer"]
 layout_mode = 2
 size_flags_vertical = 3

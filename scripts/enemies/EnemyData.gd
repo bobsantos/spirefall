@@ -26,3 +26,4 @@ extends Resource
 @export var minion_data: EnemyData = null  # Minion template for bosses that spawn adds
 @export var minion_spawn_interval: float = 0.0  # Seconds between minion spawns
 @export var minion_spawn_count: int = 0  # How many minions per spawn
+@export var escape_life_cost: int = 1  # Lives lost when this enemy reaches exit (bosses = 3)

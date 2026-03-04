@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="TowerData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/towers/TowerData.gd" id="1"]
+
+[resource]
+script = ExtResource("1")
+tower_name = "Cyclone Conductor"
+element = "lightning"
+tier = 3
+cost = 300
+damage = 30
+attack_speed = 1.2
+range_cells = 5
+damage_type = "lightning"
+special_description = "Chain lightning arcs to 4 targets; wet enemies take 50% bonus damage"
+special_key = "wet_chain"
+special_value = 0.5
+special_duration = 0.0
+special_chance = 1.0
+chain_damage_fraction = 0.6
+aoe_radius_cells = 0.0
+fusion_elements = ["lightning", "water", "wind"]

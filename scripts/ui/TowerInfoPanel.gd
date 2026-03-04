@@ -23,6 +23,8 @@ signal fuse_requested(tower: Node)
 @onready var button_row: HBoxContainer = $VBoxContainer/ButtonRow
 @onready var upgrade_button: Button = $VBoxContainer/ButtonRow/UpgradeButton
 @onready var sell_button: Button = $VBoxContainer/ButtonRow/SellButton
+@onready var ascend_cost_label: Label = $VBoxContainer/AscendCostLabel
+@onready var ascend_button: Button = $VBoxContainer/AscendButton
 @onready var fuse_button: Button = $VBoxContainer/FuseButton
 
 var _tower: Node = null
@@ -58,9 +60,11 @@ func _ready() -> void:
 	UIManager.register_tower_info_panel(self)
 	upgrade_button.pressed.connect(_on_upgrade_pressed)
 	sell_button.pressed.connect(_on_sell_pressed)
+	ascend_button.pressed.connect(_on_ascend_pressed)
 	fuse_button.pressed.connect(_on_fuse_pressed)
 	target_mode_dropdown.item_selected.connect(_on_target_mode_selected)
 	TowerSystem.tower_upgraded.connect(_on_tower_upgraded)
+	TowerSystem.tower_ascended.connect(_on_tower_ascended)
 	TowerSystem.tower_fused.connect(_on_tower_fused)
 	TowerSystem.fusion_failed.connect(_on_fusion_failed)
 	EconomyManager.gold_changed.connect(_on_gold_changed)
@@ -77,6 +81,7 @@ func _apply_mobile_sizing() -> void:
 	var min_h: float = UIManager.MOBILE_ACTION_BUTTON_MIN_HEIGHT
 	upgrade_button.custom_minimum_size.y = min_h
 	sell_button.custom_minimum_size.y = min_h
+	ascend_button.custom_minimum_size.y = min_h
 	fuse_button.custom_minimum_size.y = min_h
 	target_mode_dropdown.custom_minimum_size.y = min_h
 
@@ -144,6 +149,9 @@ func _refresh() -> void:
 	# Sell button
 	_update_sell_button()
 
+	# Ascend button visibility
+	_update_ascend_button(data)
+
 	# Fuse button visibility and text
 	_update_fuse_button(data)
 
@@ -154,6 +162,8 @@ func _refresh() -> void:
 func _get_tier_text(data: TowerData) -> String:
 	match data.tier:
 		1:
+			if data.tower_name.ends_with(" Ascended"):
+				return "Ascended"
 			if data.upgrade_to == null:
 				return "Superior"
 			# Check if this tower's upgrade_to also has an upgrade_to (meaning this is base)
@@ -248,8 +258,8 @@ func _update_fuse_button(data: TowerData) -> void:
 	if not _tower or not is_instance_valid(_tower):
 		fuse_button.visible = false
 		return
-	# Fusion eligible: Superior (tier 1, no upgrade_to) or Tier 2 (for legendary)
-	var can_dual: bool = data.tier == 1 and data.upgrade_to == null
+	# Fusion eligible: Superior (tier 1, no upgrade_to, not Ascended) or Tier 2 (for legendary)
+	var can_dual: bool = data.tier == 1 and data.upgrade_to == null and not data.tower_name.ends_with(" Ascended")
 	var can_legendary: bool = data.tier == 2
 	# Also check: tower 1 Superior can be the "superior" input for a legendary with an existing tier 2
 	var has_legendary_as_superior: bool = false
@@ -277,6 +287,41 @@ func _update_fuse_button(data: TowerData) -> void:
 		fuse_button.visible = false
 
 	_update_fusion_cost_label(data)
+
+
+func _update_ascend_button(_data: TowerData) -> void:
+	if not ascend_button or not ascend_cost_label:
+		return
+	if not _tower or not is_instance_valid(_tower):
+		ascend_button.visible = false
+		ascend_cost_label.visible = false
+		return
+	var can: bool = TowerSystem.can_ascend(_tower)
+	# Show the button for Superior towers of elements that have ascended paths,
+	# even if the player can't currently afford it or doesn't have enough towers
+	var is_superior: bool = TowerSystem._is_superior(_tower) and not TowerSystem._is_ascended(_tower)
+	var has_path: bool = _tower.tower_data.element in TowerSystem.ASCENDED_PATHS
+	if is_superior and has_path:
+		ascend_button.visible = true
+		var cost: int = TowerSystem.ASCEND_COST
+		var count: int = TowerSystem._count_same_element_towers(_tower.tower_data.element)
+		var need_count: int = TowerSystem.ASCEND_MIN_SAME_ELEMENT
+		ascend_button.text = "Ascend (%dg)" % cost
+		ascend_button.disabled = not can
+		# Cost label with requirement info
+		if count < need_count:
+			ascend_cost_label.text = "Ascend: need %d/%d %s towers" % [count, need_count, _tower.tower_data.element.capitalize()]
+			ascend_cost_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
+		elif not EconomyManager.can_afford(cost):
+			ascend_cost_label.text = "Ascend: %dg (need %dg)" % [cost, cost - EconomyManager.gold]
+			ascend_cost_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
+		else:
+			ascend_cost_label.text = "Ascend: %dg" % cost
+			ascend_cost_label.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+		ascend_cost_label.visible = true
+	else:
+		ascend_button.visible = false
+		ascend_cost_label.visible = false
 
 
 func _update_fusion_cost_label(data: TowerData) -> void:
@@ -408,6 +453,11 @@ func _on_sell_pressed() -> void:
 		UIManager.deselect_tower()
 
 
+func _on_ascend_pressed() -> void:
+	if _tower and is_instance_valid(_tower):
+		TowerSystem.ascend_tower(_tower)
+
+
 func _on_fuse_pressed() -> void:
 	if _tower and is_instance_valid(_tower):
 		fuse_requested.emit(_tower)
@@ -424,6 +474,11 @@ func _on_tower_upgraded(tower: Node) -> void:
 		_refresh()
 
 
+func _on_tower_ascended(tower: Node) -> void:
+	if tower == _tower:
+		_refresh()
+
+
 func _on_tower_fused(tower: Node) -> void:
 	if tower == _tower:
 		_refresh()
@@ -433,6 +488,7 @@ func _on_gold_changed(_new_amount: int) -> void:
 	if visible and _tower and is_instance_valid(_tower):
 		_update_upgrade_cost_label(_tower.tower_data)
 		_update_upgrade_button(_tower.tower_data)
+		_update_ascend_button(_tower.tower_data)
 		_update_fuse_button(_tower.tower_data)
 
 

@@ -3,6 +3,7 @@ extends Control
 ## Top bar HUD: wave counter, lives, gold, build timer.
 
 @onready var wave_label: Label = $TopBar/WaveLabel
+@onready var topbar_timer_label: Label = $TopBar/TopBarTimerLabel
 @onready var lives_label: Label = $TopBar/LivesLabel
 @onready var gold_label: Label = $TopBar/GoldLabel
 @onready var xp_label: Label = $TopBar/XPLabel
@@ -80,10 +81,16 @@ func _process(_delta: float) -> void:
 			timer_label.text = "Place towers!"
 			timer_label.visible = true
 			countdown_label.visible = false
+			# No topbar timer for wave 1 build phase
+			topbar_timer_label.text = ""
+			topbar_timer_label.visible = false
 		else:
 			var t: float = GameManager._build_timer
 			timer_label.text = "Next wave in: %ds" % ceili(t)
 			timer_label.visible = true
+			# Persistent topbar timer
+			topbar_timer_label.text = "Next: %ds" % ceili(t)
+			topbar_timer_label.visible = true
 			# Prominent centered countdown for last 5 seconds
 			if t <= 5.0 and t > 0.0:
 				countdown_label.text = "%d" % ceili(t)
@@ -105,8 +112,11 @@ func _process(_delta: float) -> void:
 		if enemy_count_label:
 			enemy_count_label.text = "%d remaining" % remaining
 			enemy_count_label.visible = true
-		# Prominent countdown for last 10 seconds of combat
+		# Persistent topbar timer for combat
 		var t: float = GameManager._combat_timer
+		topbar_timer_label.text = "Time: %ds" % ceili(t)
+		topbar_timer_label.visible = true
+		# Prominent countdown for last 10 seconds of combat
 		if t <= 10.0 and t > 0.0:
 			countdown_label.text = "%d" % ceili(t)
 			countdown_label.visible = true
@@ -124,6 +134,8 @@ func _process(_delta: float) -> void:
 			enemy_count_label.visible = false
 		countdown_label.visible = false
 		countdown_label.scale = Vector2.ONE
+		topbar_timer_label.text = ""
+		topbar_timer_label.visible = false
 
 
 func _on_gold_changed(_new_amount: int) -> void:

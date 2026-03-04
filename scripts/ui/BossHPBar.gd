@@ -56,6 +56,7 @@ func update_hp() -> void:
 		hide_bar()
 		return
 
+	hp_bar.max_value = _tracked_boss.max_health
 	hp_bar.value = _tracked_boss.current_health
 	hp_text.text = "%d/%d" % [_tracked_boss.current_health, _tracked_boss.max_health]
 

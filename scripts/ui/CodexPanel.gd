@@ -12,10 +12,11 @@ signal closed
 	$VBoxContainer/TabBar/ElementsTab,
 	$VBoxContainer/TabBar/FusionsTab,
 	$VBoxContainer/TabBar/EnemiesTab,
+	$VBoxContainer/TabBar/ModesTab,
 ]
 @onready var close_button: Button = $VBoxContainer/HeaderBar/CloseButton
 
-const TABS: Array[String] = ["Towers", "Elements", "Fusions", "Enemies"]
+const TABS: Array[String] = ["Towers", "Elements", "Fusions", "Enemies", "Modes"]
 var _current_tab: int = 0
 # Tracks whether the scene tree was already paused when we opened,
 # so we only unpause on close if we were the ones who paused it.
@@ -132,6 +133,8 @@ func _build_tab_content(tab_index: int) -> void:
 			_build_fusions_tab()
 		3:
 			_build_enemies_tab()
+		4:
+			_build_modes_tab()
 
 
 func _clear_content() -> void:
@@ -667,6 +670,44 @@ func _get_enemy_traits(data: EnemyData, filename: String) -> PackedStringArray:
 	if filename == "elemental":
 		traits.append("Elemental")
 	return traits
+
+
+# --- Modes Tab ---
+
+func _build_modes_tab() -> void:
+	_add_section_header("Classic Mode")
+	_add_mode_bullet("30 waves of increasing difficulty")
+	_add_mode_bullet("Boss waves at 10, 20, 30")
+	_add_mode_bullet("Income phases every 5 waves (interest on banked gold)")
+	_add_mode_bullet("Start with 20 lives, earn gold from kills and wave bonuses")
+	_add_mode_bullet("Victory: survive all 30 waves and defeat the final boss")
+
+	_add_spacer(12)
+
+	_add_section_header("Draft Mode")
+	_add_mode_bullet("Same 30-wave structure as Classic")
+	_add_mode_bullet("Before the game starts, draft towers from randomized picks")
+	_add_mode_bullet("Only drafted tower types can be built during the game")
+	_add_mode_bullet("Both elements must be drafted for fusion to work")
+	_add_mode_bullet("Strategy: balance element coverage vs. powerful fusion paths")
+
+	_add_spacer(12)
+
+	_add_section_header("Endless Mode")
+	_add_mode_bullet("Waves continue beyond 30 with scaling difficulty")
+	_add_mode_bullet("Enemy variety and count increase each wave")
+	_add_mode_bullet("Boss every 10 waves (cycling through all 3 bosses)")
+	_add_mode_bullet("No victory condition — survive as long as possible")
+	_add_mode_bullet("Leaderboard: waves survived and total gold earned")
+
+
+func _add_mode_bullet(text: String) -> void:
+	var label := Label.new()
+	label.text = "  •  %s" % text
+	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.85))
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content_container.add_child(label)
 
 
 # --- Helper methods ---

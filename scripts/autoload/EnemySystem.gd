@@ -146,7 +146,12 @@ func on_enemy_killed(enemy: Node) -> void:
 
 
 func on_enemy_reached_exit(enemy: Node) -> void:
-	GameManager.lose_life(1)
+	var life_cost: int = 1
+	if enemy.enemy_data and enemy.enemy_data.escape_life_cost > 0:
+		life_cost = enemy.enemy_data.escape_life_cost
+	if enemy.enemy_data and enemy.enemy_data.is_boss:
+		GameManager.record_boss_escaped()
+	GameManager.lose_life(life_cost)
 	GameManager.record_enemy_leak()
 	enemy_reached_exit.emit(enemy)
 	_remove_enemy(enemy)
@@ -290,6 +295,7 @@ func _create_scaled_enemy(template: EnemyData, wave_number: int) -> EnemyData:
 	data.minion_data = template.minion_data
 	data.minion_spawn_interval = template.minion_spawn_interval
 	data.minion_spawn_count = template.minion_spawn_count
+	data.escape_life_cost = template.escape_life_cost
 
 	# Apply GDD scaling formulas
 	# HP = Base HP * (1 + 0.15 * wave)^2

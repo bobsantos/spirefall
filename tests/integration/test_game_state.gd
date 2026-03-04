@@ -313,8 +313,8 @@ func test_early_wave_start_bonus() -> void:
 	# Should transition to COMBAT_PHASE
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)
 
-	# Bonus = int(20.0) * 10 = 200 gold
-	var expected_bonus: int = 200
+	# Bonus = int(20.0) * 3 = 60 gold
+	var expected_bonus: int = 60
 	assert_int(EconomyManager.gold).is_equal(gold_before + expected_bonus)
 
 	# Verify the early_wave_bonus signal was emitted with the correct amount

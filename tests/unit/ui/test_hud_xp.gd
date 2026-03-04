@@ -37,6 +37,11 @@ func _build_hud() -> Control:
 	wave_label.text = "Wave 0/30"
 	top_bar.add_child(wave_label)
 
+	var topbar_timer_label := Label.new()
+	topbar_timer_label.name = "TopBarTimerLabel"
+	topbar_timer_label.text = ""
+	top_bar.add_child(topbar_timer_label)
+
 	var lives_label := Label.new()
 	lives_label.name = "LivesLabel"
 	lives_label.text = "Lives: 20"
@@ -103,6 +108,7 @@ func _apply_script(node: Control) -> void:
 	node.set_script(script)
 	# Wire @onready refs manually (no scene tree, no _ready())
 	node.wave_label = node.get_node("TopBar/WaveLabel")
+	node.topbar_timer_label = node.get_node("TopBar/TopBarTimerLabel")
 	node.lives_label = node.get_node("TopBar/LivesLabel")
 	node.gold_label = node.get_node("TopBar/GoldLabel")
 	node.xp_label = node.get_node("TopBar/XPLabel")

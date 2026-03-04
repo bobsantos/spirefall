@@ -56,6 +56,7 @@ func _ready() -> void:
 	TowerSystem.tower_created.connect(_on_towers_changed)
 	TowerSystem.tower_sold.connect(_on_tower_sold)
 	TowerSystem.tower_upgraded.connect(_on_towers_changed)
+	TowerSystem.tower_ascended.connect(_on_towers_changed)
 	TowerSystem.tower_fused.connect(_on_towers_changed)
 
 

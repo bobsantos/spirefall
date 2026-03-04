@@ -12,6 +12,7 @@ element = "fire"
 special = "Fire trail, fire immune"
 is_flying = false
 is_boss = true
+escape_life_cost = 3
 spawn_count = 1
 split_on_death = false
 stealth = false

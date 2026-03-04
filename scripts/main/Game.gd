@@ -46,6 +46,7 @@ const TAP_MOVE_THRESHOLD: float = 10.0  # px movement cancels tap
 const LONG_PRESS_DURATION: float = 0.5  # 500ms triggers context action
 const PINCH_ZOOM_SENSITIVITY: float = 0.005
 var _last_touch_screen_pos: Vector2 = Vector2(-1.0, -1.0)  # Last single-finger position for ghost preview
+var _placement_cooldown: int = 0  # Frame counter to prevent auto-select after placement
 
 # --- Particle effect scenes ---
 var _impact_effect_scene: PackedScene = preload("res://scenes/effects/particles/ImpactEffect.tscn")
@@ -86,6 +87,8 @@ func _start_game_from_config() -> void:
 func _process(delta: float) -> void:
 	_handle_camera_pan(delta)
 	_handle_touch_timers(delta)
+	if _placement_cooldown > 0:
+		_placement_cooldown -= 1
 	if _placing_tower:
 		_update_ghost()
 
@@ -154,6 +157,15 @@ func _unhandled_input(event: InputEvent) -> void:
 
 	if event.is_action_pressed("ui_codex"):
 		UIManager.toggle_codex()
+
+	if event.is_action_pressed("ui_fuse") and UIManager.selected_tower:
+		_on_fuse_requested(UIManager.selected_tower)
+
+	# Number keys 1-6: select tower from build menu
+	for i: int in range(6):
+		if event.is_action_pressed("ui_build_%d" % (i + 1)):
+			_build_tower_by_index(i)
+			break
 
 
 # --- Camera helper methods ---
@@ -254,6 +266,7 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			_is_potential_tap = false
 			_is_long_pressing = false
 			_tap_processed = false
+			_last_touch_screen_pos = Vector2(-1.0, -1.0)
 	if is_inside_tree():
 		get_viewport().set_input_as_handled()
 
@@ -345,13 +358,23 @@ func _handle_click(screen_pos: Vector2) -> void:
 			game_board.add_child(tower)
 			_placing_tower = null
 			_clear_ghost()
-	else:
+			_placement_cooldown = 2  # Prevent auto-selecting the just-placed tower
+	elif _placement_cooldown <= 0:
 		# Try to select existing tower
 		var tower: Node = GridManager.get_tower_at(grid_pos)
 		if tower:
 			UIManager.select_tower(tower)
 		else:
 			UIManager.deselect_tower()
+
+
+func _build_tower_by_index(index: int) -> void:
+	## Keyboard shortcut handler: request building the tower at the given index
+	## in the build menu (0-based). Does nothing if no build menu or index invalid.
+	if UIManager.build_menu and UIManager.build_menu.has_method("get_tower_data_by_index"):
+		var tower_data: TowerData = UIManager.build_menu.get_tower_data_by_index(index)
+		if tower_data:
+			UIManager.request_build(tower_data)
 
 
 func _on_build_requested(tower_data: TowerData) -> void:

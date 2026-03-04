@@ -165,6 +165,17 @@ func _create_element_card(element: String) -> Button:
 		tower_label.add_theme_font_size_override("font_size", 12)
 		vbox.add_child(tower_label)
 
+	# Legendary path count hint
+	var legendary_count: int = _count_legendary_paths(element)
+	if legendary_count > 0:
+		var legendary_label := Label.new()
+		legendary_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		legendary_label.text = "%d legendary path%s" % [legendary_count, "" if legendary_count == 1 else "s"]
+		legendary_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		legendary_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))  # Gold color
+		legendary_label.add_theme_font_size_override("font_size", 11)
+		vbox.add_child(legendary_label)
+
 	card.add_child(vbox)
 	card.pressed.connect(_on_card_pressed.bind(element, card))
 	return card
@@ -212,6 +223,17 @@ func _mark_card_selected(card: Button, element: String) -> void:
 		vbox.add_child(check_label)
 	else:
 		card.add_child(check_label)
+
+
+## Count how many legendary fusion paths include the given element.
+func _count_legendary_paths(element: String) -> int:
+	var count: int = 0
+	var legendaries: Dictionary = FusionRegistry.get_all_legendary_fusions()
+	for key: String in legendaries:
+		var parts: Array = key.split("+")
+		if element in parts:
+			count += 1
+	return count
 
 
 ## Remove all cards from the container and free them immediately.
