@@ -20,14 +20,14 @@ TOWERS_DIR = PROJECT_ROOT / "assets" / "sprites" / "towers"
 FUSIONS_DIR = TOWERS_DIR / "fusions"
 LEGENDARIES_DIR = TOWERS_DIR / "legendaries"
 
-# Element colors
+# Element colors — matched to ElementMatrix.COLORS in-game values
 ELEMENT_COLORS = {
-    "fire": (0xFF, 0x66, 0x33),
-    "water": (0x33, 0x99, 0xFF),
-    "earth": (0x88, 0xAA, 0x44),
-    "wind": (0xAA, 0xDD, 0xFF),
-    "lightning": (0xFF, 0xDD, 0x33),
-    "ice": (0x99, 0xEE, 0xFF),
+    "fire": (0xFF, 0x66, 0x33),       # orange-red
+    "water": (0x4D, 0x80, 0xFF),      # medium blue
+    "earth": (0x99, 0x66, 0x33),      # brown
+    "wind": (0x99, 0xFF, 0x99),       # green
+    "lightning": (0xFF, 0xFF, 0x4D),  # yellow
+    "ice": (0xB3, 0xE6, 0xFF),        # light cyan
 }
 
 # Base tower -> element mapping
