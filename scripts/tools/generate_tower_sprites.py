@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Generate 64x64 placeholder tower sprites for Spirefall.
 
-Generates 33 sprites:
+Generates 35 sprites:
 - 6 enhanced (base shape + 2px glow border)
 - 6 superior (base shape + 4-point star accent, brighter)
 - 15 fusion (diamond shape blending both element colors)
-- 6 legendary (circle with 3-color gradient ring)
+- 8 legendary (circle with 3-color gradient ring)
 
 Run from project root: python3 scripts/tools/generate_tower_sprites.py
 """
@@ -63,6 +63,8 @@ FUSION_TOWERS = {
 LEGENDARY_TOWERS = {
     "arctic_maelstrom": ["ice", "water", "wind"],
     "crystalline_monolith": ["earth", "ice", "lightning"],
+    "cyclone_conductor": ["lightning", "water", "wind"],
+    "frostfire_cataclysm": ["fire", "ice", "water"],
     "primordial_nexus": ["earth", "fire", "water"],
     "supercell_obelisk": ["fire", "lightning", "wind"],
     "tectonic_dynamo": ["earth", "lightning", "water"],
@@ -324,7 +326,7 @@ def main():
         p = generate_fusion(name, elements)
         generated.append(p)
 
-    # Legendaries (6)
+    # Legendaries (8)
     for name, elements in LEGENDARY_TOWERS.items():
         p = generate_legendary(name, elements)
         generated.append(p)
