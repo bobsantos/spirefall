@@ -54,12 +54,12 @@ The panel uses `anchors_preset = 3` (bottom-right) in `TowerInfoPanel.tscn`, pos
 - Hide the fusion cost label when the fuse button is hidden.
 
 **Acceptance criteria:**
-- [ ] When a fusion-eligible tower is selected, the panel shows "Fuse cost: Xg" below sell value
-- [ ] If multiple fusion partners exist with different costs, a range "Fuse cost: X-Yg" is shown
-- [ ] Cost text is gold-colored when affordable, red when not
-- [ ] Fusion cost label is hidden when the tower is not fusion-eligible
-- [ ] `FusionRegistry.get_fusion_cost()` returns correct cost for valid pairs and `-1` for invalid
-- [ ] `FusionRegistry.get_legendary_cost()` returns correct cost for valid triples and `-1` for invalid
+- [x] When a fusion-eligible tower is selected, the panel shows "Fuse cost: Xg" below sell value
+- [x] If multiple fusion partners exist with different costs, a range "Fuse cost: X-Yg" is shown
+- [x] Cost text is gold-colored when affordable, red when not
+- [x] Fusion cost label is hidden when the tower is not fusion-eligible
+- [x] `FusionRegistry.get_fusion_cost()` returns correct cost for valid pairs and `-1` for invalid
+- [x] `FusionRegistry.get_legendary_cost()` returns correct cost for valid triples and `-1` for invalid
 
 **TDD approach:**
 1. Write unit tests for `FusionRegistry.get_fusion_cost()` and `get_legendary_cost()` first

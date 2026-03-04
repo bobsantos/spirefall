@@ -18,6 +18,7 @@ signal fuse_requested(tower: Node)
 @onready var separator_bottom: HSeparator = $VBoxContainer/SeparatorBottom
 @onready var upgrade_cost_label: Label = $VBoxContainer/UpgradeCostLabel
 @onready var sell_value_label: Label = $VBoxContainer/SellValueLabel
+@onready var fusion_cost_label: Label = $VBoxContainer/FusionCostLabel
 @onready var target_mode_dropdown: OptionButton = $VBoxContainer/TargetModeDropdown
 @onready var button_row: HBoxContainer = $VBoxContainer/ButtonRow
 @onready var upgrade_button: Button = $VBoxContainer/ButtonRow/UpgradeButton
@@ -268,6 +269,62 @@ func _update_fuse_button(data: TowerData) -> void:
 			fuse_button.visible = false
 	else:
 		fuse_button.visible = false
+
+	_update_fusion_cost_label(data)
+
+
+func _update_fusion_cost_label(data: TowerData) -> void:
+	if not fuse_button.visible:
+		fusion_cost_label.visible = false
+		return
+
+	var costs: Array[int] = []
+	var can_dual: bool = data.tier == 1 and data.upgrade_to == null
+	var can_legendary: bool = data.tier == 2
+
+	if can_dual:
+		# Collect dual fusion costs
+		var partners: Array[Node] = FusionRegistry.get_fusion_partners(_tower)
+		for partner: Node in partners:
+			var cost: int = FusionRegistry.get_fusion_cost(data.element, partner.tower_data.element)
+			if cost > 0 and cost not in costs:
+				costs.append(cost)
+		# Also check legendary partners where this tower is the superior input
+		var leg_partners: Array[Node] = FusionRegistry.get_legendary_partners(_tower)
+		for partner: Node in leg_partners:
+			if partner.tower_data.tier == 2:
+				var cost: int = FusionRegistry.get_legendary_cost(partner.tower_data.fusion_elements, data.element)
+				if cost > 0 and cost not in costs:
+					costs.append(cost)
+	elif can_legendary:
+		# Collect legendary fusion costs
+		var partners: Array[Node] = FusionRegistry.get_legendary_partners(_tower)
+		for partner: Node in partners:
+			var cost: int = FusionRegistry.get_legendary_cost(data.fusion_elements, partner.tower_data.element)
+			if cost > 0 and cost not in costs:
+				costs.append(cost)
+
+	if costs.is_empty():
+		fusion_cost_label.visible = false
+		return
+
+	costs.sort()
+	var min_cost: int = costs[0]
+	var max_cost: int = costs[costs.size() - 1]
+
+	if min_cost == max_cost:
+		fusion_cost_label.text = "Fuse cost: %dg" % min_cost
+	else:
+		fusion_cost_label.text = "Fuse cost: %d-%dg" % [min_cost, max_cost]
+
+	var affordable_color: Color = Color(1.0, 0.85, 0.2)
+	var unaffordable_color: Color = Color(1.0, 0.4, 0.3)
+	if EconomyManager.can_afford(min_cost):
+		fusion_cost_label.add_theme_color_override("font_color", affordable_color)
+	else:
+		fusion_cost_label.add_theme_color_override("font_color", unaffordable_color)
+
+	fusion_cost_label.visible = true
 
 
 func _apply_panel_style(element: String) -> void:

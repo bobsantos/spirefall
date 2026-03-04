@@ -77,6 +77,12 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 11
 text = "Sell value: 22g (75%)"
 
+[node name="FusionCostLabel" type="Label" parent="VBoxContainer"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 11
+visible = false
+text = ""
+
 [node name="TargetModeDropdown" type="OptionButton" parent="VBoxContainer"]
 layout_mode = 2
 custom_minimum_size = Vector2(0, 28)
