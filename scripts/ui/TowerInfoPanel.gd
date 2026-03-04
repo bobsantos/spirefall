@@ -58,6 +58,7 @@ func _ready() -> void:
 	target_mode_dropdown.item_selected.connect(_on_target_mode_selected)
 	TowerSystem.tower_upgraded.connect(_on_tower_upgraded)
 	TowerSystem.tower_fused.connect(_on_tower_fused)
+	TowerSystem.fusion_failed.connect(_on_fusion_failed)
 	EconomyManager.gold_changed.connect(_on_gold_changed)
 	GameManager.phase_changed.connect(_on_phase_changed)
 	# Populate target mode dropdown items once
@@ -392,3 +393,16 @@ func _on_gold_changed(_new_amount: int) -> void:
 func _on_phase_changed(_new_phase: GameManager.GameState) -> void:
 	if visible and _tower and is_instance_valid(_tower):
 		_update_sell_value_label(_tower.tower_data)
+
+
+func _on_fusion_failed(_tower_node: Node, _reason: String) -> void:
+	if not visible or not fuse_button.visible:
+		return
+	_flash_fuse_button_red()
+
+
+func _flash_fuse_button_red() -> void:
+	var original_color: Color = fuse_button.modulate
+	fuse_button.modulate = Color(1.0, 0.3, 0.3, 1.0)
+	var tween: Tween = create_tween()
+	tween.tween_property(fuse_button, "modulate", original_color, 0.4)

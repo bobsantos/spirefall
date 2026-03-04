@@ -110,12 +110,12 @@ The panel uses `anchors_preset = 3` (bottom-right) in `TowerInfoPanel.tscn`, pos
 - If the TowerInfoPanel is visible when fusion fails, briefly flash the fuse button red and show the error text in the fusion cost label area.
 
 **Acceptance criteria:**
-- [ ] `TowerSystem.fusion_failed` signal is emitted with tower and reason string on every fusion failure path
-- [ ] When fusion fails due to insufficient gold, the message includes the required amount (e.g., "Not enough gold -- need 320g")
-- [ ] A red floating error label appears near the tower on the game board
-- [ ] The error label fades out after ~1.5 seconds and is freed (no orphan nodes)
-- [ ] When fusion fails for non-gold reasons (invalid combo), a generic error message is shown
-- [ ] The fuse button briefly flashes red on failure (visual feedback on the panel itself)
+- [x] `TowerSystem.fusion_failed` signal is emitted with tower and reason string on every fusion failure path
+- [x] When fusion fails due to insufficient gold, the message includes the required amount (e.g., "Not enough gold -- need 320g")
+- [x] A red floating error label appears near the tower on the game board
+- [x] The error label fades out after ~1.5 seconds and is freed (no orphan nodes)
+- [x] When fusion fails for non-gold reasons (invalid combo), a generic error message is shown
+- [x] The fuse button briefly flashes red on failure (visual feedback on the panel itself)
 
 **TDD approach:**
 1. Write unit tests for `TowerSystem.fusion_failed` signal emission: verify signal is emitted with correct reason for each failure path (can't afford, invalid combo, no result)
