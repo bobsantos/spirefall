@@ -18,6 +18,7 @@ signal fuse_requested(tower: Node)
 @onready var separator_bottom: HSeparator = $VBoxContainer/SeparatorBottom
 @onready var upgrade_cost_label: Label = $VBoxContainer/UpgradeCostLabel
 @onready var sell_value_label: Label = $VBoxContainer/SellValueLabel
+@onready var fusion_cost_label: Label = $VBoxContainer/FusionCostLabel
 @onready var target_mode_dropdown: OptionButton = $VBoxContainer/TargetModeDropdown
 @onready var button_row: HBoxContainer = $VBoxContainer/ButtonRow
 @onready var upgrade_button: Button = $VBoxContainer/ButtonRow/UpgradeButton
@@ -25,6 +26,10 @@ signal fuse_requested(tower: Node)
 @onready var fuse_button: Button = $VBoxContainer/FuseButton
 
 var _tower: Node = null
+var _last_screen_pos: Vector2 = Vector2.ZERO
+
+const PANEL_MARGIN: float = 8.0   # Minimum distance from screen edge
+const TOWER_OFFSET: float = 40.0  # Offset from tower to avoid overlap
 
 # Element colors matching BuildMenu for visual consistency
 const ELEMENT_COLORS: Dictionary = {
@@ -57,6 +62,7 @@ func _ready() -> void:
 	target_mode_dropdown.item_selected.connect(_on_target_mode_selected)
 	TowerSystem.tower_upgraded.connect(_on_tower_upgraded)
 	TowerSystem.tower_fused.connect(_on_tower_fused)
+	TowerSystem.fusion_failed.connect(_on_fusion_failed)
 	EconomyManager.gold_changed.connect(_on_gold_changed)
 	GameManager.phase_changed.connect(_on_phase_changed)
 	# Populate target mode dropdown items once
@@ -81,6 +87,7 @@ func display_tower(tower: Node) -> void:
 	if _tower:
 		target_mode_dropdown.selected = _tower.target_mode
 	_refresh()
+	_reposition()
 
 
 func _refresh() -> void:
@@ -269,6 +276,62 @@ func _update_fuse_button(data: TowerData) -> void:
 	else:
 		fuse_button.visible = false
 
+	_update_fusion_cost_label(data)
+
+
+func _update_fusion_cost_label(data: TowerData) -> void:
+	if not fuse_button.visible:
+		fusion_cost_label.visible = false
+		return
+
+	var costs: Array[int] = []
+	var can_dual: bool = data.tier == 1 and data.upgrade_to == null
+	var can_legendary: bool = data.tier == 2
+
+	if can_dual:
+		# Collect dual fusion costs
+		var partners: Array[Node] = FusionRegistry.get_fusion_partners(_tower)
+		for partner: Node in partners:
+			var cost: int = FusionRegistry.get_fusion_cost(data.element, partner.tower_data.element)
+			if cost > 0 and cost not in costs:
+				costs.append(cost)
+		# Also check legendary partners where this tower is the superior input
+		var leg_partners: Array[Node] = FusionRegistry.get_legendary_partners(_tower)
+		for partner: Node in leg_partners:
+			if partner.tower_data.tier == 2:
+				var cost: int = FusionRegistry.get_legendary_cost(partner.tower_data.fusion_elements, data.element)
+				if cost > 0 and cost not in costs:
+					costs.append(cost)
+	elif can_legendary:
+		# Collect legendary fusion costs
+		var partners: Array[Node] = FusionRegistry.get_legendary_partners(_tower)
+		for partner: Node in partners:
+			var cost: int = FusionRegistry.get_legendary_cost(data.fusion_elements, partner.tower_data.element)
+			if cost > 0 and cost not in costs:
+				costs.append(cost)
+
+	if costs.is_empty():
+		fusion_cost_label.visible = false
+		return
+
+	costs.sort()
+	var min_cost: int = costs[0]
+	var max_cost: int = costs[costs.size() - 1]
+
+	if min_cost == max_cost:
+		fusion_cost_label.text = "Fuse cost: %dg" % min_cost
+	else:
+		fusion_cost_label.text = "Fuse cost: %d-%dg" % [min_cost, max_cost]
+
+	var affordable_color: Color = Color(1.0, 0.85, 0.2)
+	var unaffordable_color: Color = Color(1.0, 0.4, 0.3)
+	if EconomyManager.can_afford(min_cost):
+		fusion_cost_label.add_theme_color_override("font_color", affordable_color)
+	else:
+		fusion_cost_label.add_theme_color_override("font_color", unaffordable_color)
+
+	fusion_cost_label.visible = true
+
 
 func _apply_panel_style(element: String) -> void:
 	var bg_color: Color = ELEMENT_BG_COLORS.get(element, Color(0.15, 0.15, 0.18, 0.92))
@@ -283,9 +346,50 @@ func _apply_panel_style(element: String) -> void:
 	add_theme_stylebox_override("panel", style)
 
 
+func _get_tower_screen_pos() -> Vector2:
+	if not _tower or not is_instance_valid(_tower):
+		return Vector2.ZERO
+	return _tower.get_global_transform_with_canvas().origin
+
+
+func _reposition() -> void:
+	if not _tower or not is_instance_valid(_tower):
+		return
+	var screen_pos: Vector2 = _get_tower_screen_pos()
+	_reposition_at(screen_pos)
+
+
+func _reposition_at(screen_pos: Vector2) -> void:
+	var panel_size: Vector2 = size
+	var viewport_size: Vector2 = Vector2(1280, 960)
+	if get_viewport():
+		var vp_rect: Rect2 = get_viewport().get_visible_rect()
+		if vp_rect.size.x > 0 and vp_rect.size.y > 0:
+			viewport_size = vp_rect.size
+
+	# Preferred: right of tower
+	var x: float = screen_pos.x + TOWER_OFFSET
+	var y: float = screen_pos.y - panel_size.y * 0.5
+
+	# Flip to left if it would go off the right edge
+	if x + panel_size.x + PANEL_MARGIN > viewport_size.x:
+		x = screen_pos.x - TOWER_OFFSET - panel_size.x
+
+	# Clamp to viewport bounds
+	y = clampf(y, PANEL_MARGIN, viewport_size.y - panel_size.y - PANEL_MARGIN)
+	x = clampf(x, PANEL_MARGIN, viewport_size.x - panel_size.x - PANEL_MARGIN)
+
+	position = Vector2(x, y)
+	_last_screen_pos = screen_pos
+
+
 func _process(_delta: float) -> void:
 	if not visible or not _tower or not is_instance_valid(_tower):
 		return
+	# Reposition if tower screen pos changed (camera pan/zoom)
+	var current_screen_pos: Vector2 = _get_tower_screen_pos()
+	if current_screen_pos.distance_to(_last_screen_pos) > 2.0:
+		_reposition_at(current_screen_pos)
 	# Keep upgrade button affordability up to date
 	var data: TowerData = _tower.tower_data
 	if data.upgrade_to != null:
@@ -335,3 +439,16 @@ func _on_gold_changed(_new_amount: int) -> void:
 func _on_phase_changed(_new_phase: GameManager.GameState) -> void:
 	if visible and _tower and is_instance_valid(_tower):
 		_update_sell_value_label(_tower.tower_data)
+
+
+func _on_fusion_failed(_tower_node: Node, _reason: String) -> void:
+	if not visible or not fuse_button.visible:
+		return
+	_flash_fuse_button_red()
+
+
+func _flash_fuse_button_red() -> void:
+	var original_color: Color = fuse_button.modulate
+	fuse_button.modulate = Color(1.0, 0.3, 0.3, 1.0)
+	var tween: Tween = create_tween()
+	tween.tween_property(fuse_button, "modulate", original_color, 0.4)

@@ -17,3 +17,5 @@
 - no way to pause or go to menu in mobile
 - tower preview does not follow mouse position
 - add information about game modes in codex
+- the boss hp bar does not seem to update
+- tower panel always shows after building the tower. it should be hidden unless player explicitly clicks a tower

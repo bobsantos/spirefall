@@ -86,6 +86,22 @@ func get_legendary_result(tier2_elements: Array[String], third_element: String) 
 	return null
 
 
+func get_fusion_cost(element_a: String, element_b: String) -> int:
+	## Returns the gold cost of the fusion result, or -1 if no fusion exists.
+	var result: TowerData = get_fusion_result(element_a, element_b)
+	if result == null:
+		return -1
+	return result.cost
+
+
+func get_legendary_cost(tier2_elements: Array[String], third_element: String) -> int:
+	## Returns the gold cost of the legendary fusion result, or -1 if no fusion exists.
+	var result: TowerData = get_legendary_result(tier2_elements, third_element)
+	if result == null:
+		return -1
+	return result.cost
+
+
 func can_fuse(tower_a: Node, tower_b: Node) -> bool:
 	## Returns true if two towers can be fused together.
 	## Both must be Superior (tier 1, no upgrade_to) and different elements.

@@ -62,6 +62,7 @@ func _ready() -> void:
 	TowerSystem.tower_created.connect(_on_tower_created)
 	TowerSystem.tower_sold.connect(_on_tower_sold)
 	TowerSystem.tower_upgraded.connect(_on_tower_upgraded)
+	TowerSystem.fusion_failed.connect(_on_fusion_failed)
 	UIManager.tower_selected.connect(_on_tower_selected_for_range)
 	UIManager.tower_deselected.connect(_on_tower_deselected_for_range)
 	_range_indicator = RangeIndicator.new()
@@ -457,6 +458,14 @@ func _on_tower_sold(tower: Node, _refund: int) -> void:
 	# If the sold tower was the fusion source, cancel fusion selection
 	if _fusing_tower == tower:
 		_cancel_fusion_selection()
+
+
+func _on_fusion_failed(tower: Node, reason: String) -> void:
+	if not is_instance_valid(tower):
+		return
+	var label: Label = FusionErrorPopup.spawn(reason, tower.global_position)
+	game_board.add_child(label)
+	FusionErrorPopup.animate(label)
 
 
 func _on_projectile_spawned(projectile: Node) -> void:
