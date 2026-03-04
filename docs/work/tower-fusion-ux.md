@@ -173,13 +173,13 @@ The panel uses `anchors_preset = 3` (bottom-right) in `TowerInfoPanel.tscn`, pos
 - Throttle repositioning to avoid jitter: only reposition if the tower's screen position has moved by more than 2px since last frame.
 
 **Acceptance criteria:**
-- [ ] TowerInfoPanel appears adjacent to the selected tower (right side preferred)
-- [ ] Panel flips to left side when tower is near the right edge of the screen
-- [ ] Panel stays fully on-screen (clamped to viewport bounds with 8px margin)
-- [ ] Panel follows the tower when the camera pans or zooms
-- [ ] Panel repositions correctly when a different tower is selected
-- [ ] Panel hides correctly when tower is deselected (no position artifacts)
-- [ ] Touch-friendly: panel does not overlap the tower sprite itself (offset by at least 40px)
+- [x] TowerInfoPanel appears adjacent to the selected tower (right side preferred)
+- [x] Panel flips to left side when tower is near the right edge of the screen
+- [x] Panel stays fully on-screen (clamped to viewport bounds with 8px margin)
+- [x] Panel follows the tower when the camera pans or zooms
+- [x] Panel repositions correctly when a different tower is selected
+- [x] Panel hides correctly when tower is deselected (no position artifacts)
+- [x] Touch-friendly: panel does not overlap the tower sprite itself (offset by at least 40px)
 
 **TDD approach:**
 1. Write unit tests for the screen-position calculation helper: given mock camera position/zoom and tower world position, verify correct screen coordinates

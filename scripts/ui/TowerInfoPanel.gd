@@ -26,6 +26,10 @@ signal fuse_requested(tower: Node)
 @onready var fuse_button: Button = $VBoxContainer/FuseButton
 
 var _tower: Node = null
+var _last_screen_pos: Vector2 = Vector2.ZERO
+
+const PANEL_MARGIN: float = 8.0   # Minimum distance from screen edge
+const TOWER_OFFSET: float = 40.0  # Offset from tower to avoid overlap
 
 # Element colors matching BuildMenu for visual consistency
 const ELEMENT_COLORS: Dictionary = {
@@ -83,6 +87,7 @@ func display_tower(tower: Node) -> void:
 	if _tower:
 		target_mode_dropdown.selected = _tower.target_mode
 	_refresh()
+	_reposition()
 
 
 func _refresh() -> void:
@@ -341,9 +346,50 @@ func _apply_panel_style(element: String) -> void:
 	add_theme_stylebox_override("panel", style)
 
 
+func _get_tower_screen_pos() -> Vector2:
+	if not _tower or not is_instance_valid(_tower):
+		return Vector2.ZERO
+	return _tower.get_global_transform_with_canvas().origin
+
+
+func _reposition() -> void:
+	if not _tower or not is_instance_valid(_tower):
+		return
+	var screen_pos: Vector2 = _get_tower_screen_pos()
+	_reposition_at(screen_pos)
+
+
+func _reposition_at(screen_pos: Vector2) -> void:
+	var panel_size: Vector2 = size
+	var viewport_size: Vector2 = Vector2(1280, 960)
+	if get_viewport():
+		var vp_rect: Rect2 = get_viewport().get_visible_rect()
+		if vp_rect.size.x > 0 and vp_rect.size.y > 0:
+			viewport_size = vp_rect.size
+
+	# Preferred: right of tower
+	var x: float = screen_pos.x + TOWER_OFFSET
+	var y: float = screen_pos.y - panel_size.y * 0.5
+
+	# Flip to left if it would go off the right edge
+	if x + panel_size.x + PANEL_MARGIN > viewport_size.x:
+		x = screen_pos.x - TOWER_OFFSET - panel_size.x
+
+	# Clamp to viewport bounds
+	y = clampf(y, PANEL_MARGIN, viewport_size.y - panel_size.y - PANEL_MARGIN)
+	x = clampf(x, PANEL_MARGIN, viewport_size.x - panel_size.x - PANEL_MARGIN)
+
+	position = Vector2(x, y)
+	_last_screen_pos = screen_pos
+
+
 func _process(_delta: float) -> void:
 	if not visible or not _tower or not is_instance_valid(_tower):
 		return
+	# Reposition if tower screen pos changed (camera pan/zoom)
+	var current_screen_pos: Vector2 = _get_tower_screen_pos()
+	if current_screen_pos.distance_to(_last_screen_pos) > 2.0:
+		_reposition_at(current_screen_pos)
 	# Keep upgrade button affordability up to date
 	var data: TowerData = _tower.tower_data
 	if data.upgrade_to != null:
