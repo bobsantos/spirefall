@@ -457,8 +457,12 @@ static func get_fallback_sprite_path(data: TowerData) -> String:
 	## Fusion/legendary towers fall back to the element sprite in the base directory.
 	var texture_name: String = data.tower_name.to_lower().replace(" ", "_")
 	if data.tier == 1:
-		# Strip enhanced/superior/ascended suffix to find the base tower sprite
-		var base_name: String = texture_name.replace("_enhanced", "").replace("_superior", "").replace("_ascended", "")
+		# Ascended towers fall back to the superior sprite first, then base
+		if texture_name.ends_with("_ascended"):
+			var superior_name: String = texture_name.replace("_ascended", "_superior")
+			return "res://assets/sprites/towers/%s.png" % superior_name
+		# Strip enhanced/superior suffix to find the base tower sprite
+		var base_name: String = texture_name.replace("_enhanced", "").replace("_superior", "")
 		if base_name != texture_name:
 			return "res://assets/sprites/towers/%s.png" % base_name
 		# Base tower with no suffix: fall back to element sprite

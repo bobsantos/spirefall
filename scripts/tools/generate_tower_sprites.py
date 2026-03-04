@@ -162,6 +162,59 @@ def generate_superior(name, element):
     return path
 
 
+def generate_ascended(name, element):
+    """Ascended: superior shape with golden outer glow ring and brighter colors."""
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    color = brighten(ELEMENT_COLORS[element], 0.6)
+    accent = lighten(ELEMENT_COLORS[element], 0.8)
+    gold = (255, 215, 60)
+    gold_light = (255, 240, 150)
+    cx, cy = SIZE // 2, SIZE // 2
+
+    # Golden outer glow ring
+    glow_r = 30
+    draw.ellipse(
+        [cx - glow_r, cy - glow_r, cx + glow_r, cy + glow_r],
+        fill=None,
+        outline=gold_light,
+        width=2,
+    )
+
+    # 4-point star accent (same as superior, slightly larger)
+    star_size = 28
+    star_points = [
+        (cx, cy - star_size),       # top
+        (cx + 6, cy - 6),
+        (cx + star_size, cy),       # right
+        (cx + 6, cy + 6),
+        (cx, cy + star_size),       # bottom
+        (cx - 6, cy + 6),
+        (cx - star_size, cy),       # left
+        (cx - 6, cy - 6),
+    ]
+    draw.polygon(star_points, fill=accent)
+
+    # Inner shape (brighter than superior)
+    r = 17
+    draw.rounded_rectangle(
+        [cx - r, cy - r, cx + r, cy + r],
+        radius=6,
+        fill=color,
+        outline=gold,
+        width=2,
+    )
+
+    # Golden corner ornaments (small dots at star tips)
+    for px, py in [(cx, cy - star_size), (cx + star_size, cy),
+                   (cx, cy + star_size), (cx - star_size, cy)]:
+        draw.ellipse([px - 3, py - 3, px + 3, py + 3], fill=gold)
+
+    path = TOWERS_DIR / f"{name}_ascended.png"
+    img.save(path)
+    return path
+
+
 def generate_fusion(name, elements):
     """Fusion: diamond shape blending both element colors."""
     img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
@@ -259,6 +312,11 @@ def main():
     # Superior (6)
     for name, element in BASE_TOWERS.items():
         p = generate_superior(name, element)
+        generated.append(p)
+
+    # Ascended (6)
+    for name, element in BASE_TOWERS.items():
+        p = generate_ascended(name, element)
         generated.append(p)
 
     # Fusions (15)
