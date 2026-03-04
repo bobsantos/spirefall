@@ -15,7 +15,7 @@ Initial request: $ARGUMENTS
 
 ## Phase 1: Understand the Task
 
-1. Read `docs/work/plan.md` to find the relevant group/task
+1. Read specific file if given or `docs/work/plan.md` and any files to find the relevant group/task
 2. Read any referenced files to understand scope and acceptance criteria
 3. Create a task list from the acceptance criteria / checklist items using **TaskCreate**
    - Each checklist item or acceptance criterion becomes its own task
@@ -53,6 +53,7 @@ For each task, launch a **godot-developer** agent with these explicit instructio
 > 3. **REFACTOR** — Clean up the code while keeping tests green. Run the test suite one final time.
 >
 > **Rules:**
+>
 > - Never write production code without a failing test first
 > - Each test should be small and focused on one behavior
 > - Run `./run_tests.sh` (or the appropriate test command) after each step to verify red/green status
@@ -60,6 +61,7 @@ For each task, launch a **godot-developer** agent with these explicit instructio
 > - Use existing test patterns from `tests/` as reference for structure and conventions
 >
 > **When done with each acceptance criterion:**
+>
 > - Confirm all tests pass
 > - State which acceptance criterion is satisfied
 > - List the test file(s) and production file(s) created/modified
