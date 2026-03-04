@@ -78,7 +78,9 @@ func before_test() -> void:
 	if get_tree().paused:
 		get_tree().paused = false
 	# Build a fresh DraftPickPanel for each test
-	_panel = auto_free(_build_draft_pick_panel())
+	_panel = _build_draft_pick_panel()
+	# Add to scene tree before set_script to avoid orphan node detection
+	add_child(_panel)
 	var script: GDScript = load(DRAFT_PICK_PANEL_SCRIPT_PATH)
 	_panel.set_script(script)
 	# Wire up @onready refs manually (no scene tree, no _ready())
@@ -92,6 +94,10 @@ func before_test() -> void:
 func after_test() -> void:
 	if get_tree().paused:
 		get_tree().paused = false
+	if is_instance_valid(_panel):
+		if _panel.is_inside_tree():
+			remove_child(_panel)
+		_panel.free()
 	_panel = null
 	_reset_draft_manager()
 

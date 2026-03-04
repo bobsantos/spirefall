@@ -131,7 +131,9 @@ func before_test() -> void:
 	SceneManager.is_transitioning = false
 	_scene_change_paths.clear()
 	# Build a fresh PauseMenu for each test
-	_pause_menu = auto_free(_build_pause_menu())
+	_pause_menu = _build_pause_menu()
+	# Add to scene tree before set_script to avoid orphan node detection
+	add_child(_pause_menu)
 	var script: GDScript = load(PAUSE_MENU_SCRIPT_PATH)
 	_pause_menu.set_script(script)
 	# Wire up @onready refs manually (no scene tree, no _ready())
@@ -146,6 +148,10 @@ func after_test() -> void:
 	# Always unpause so subsequent tests aren't affected
 	if get_tree().paused:
 		get_tree().paused = false
+	if is_instance_valid(_pause_menu):
+		if _pause_menu.is_inside_tree():
+			remove_child(_pause_menu)
+		_pause_menu.free()
 	_pause_menu = null
 	for enemy: Node in EnemySystem._active_enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():

@@ -37,6 +37,8 @@ func _create_effect(script: GDScript) -> Node2D:
 	var cpu_particles := CPUParticles2D.new()
 	cpu_particles.name = "Particles"
 	node.add_child(cpu_particles)
+	# Add to tree before set_script to avoid orphan tracking issues
+	add_child(node)
 	node.set_script(script)
 	# @onready vars don't resolve outside the scene tree; assign manually
 	node.particles = cpu_particles

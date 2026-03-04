@@ -31,9 +31,13 @@ func before_test() -> void:
 
 func after_test() -> void:
 	if _mode_select != null:
+		if _mode_select.is_inside_tree():
+			remove_child(_mode_select)
 		_mode_select.free()
 		_mode_select = null
 	if _map_select != null:
+		if _map_select.is_inside_tree():
+			remove_child(_map_select)
 		_map_select.free()
 		_map_select = null
 	MetaProgression.reset()
@@ -77,6 +81,8 @@ func _build_mode_select() -> Control:
 	back_btn.name = "BackButton"
 	vbox.add_child(back_btn)
 
+	# Add to scene tree before set_script to avoid orphan node detection
+	add_child(root)
 	_apply_mode_script(root)
 	return root
 
@@ -161,6 +167,8 @@ func _build_map_select() -> Control:
 	back_btn.name = "BackButton"
 	vbox.add_child(back_btn)
 
+	# Add to scene tree before set_script to avoid orphan node detection
+	add_child(root)
 	_apply_map_script(root)
 	return root
 

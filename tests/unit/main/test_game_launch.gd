@@ -73,7 +73,16 @@ func before_test() -> void:
 	SceneManager.current_game_config = {}
 
 
+var _game_node: Node2D = null
+
+
 func after_test() -> void:
+	# Free game node and all its children (including loaded maps)
+	if is_instance_valid(_game_node):
+		if _game_node.is_inside_tree():
+			remove_child(_game_node)
+		_game_node.free()
+		_game_node = null
 	# Free any enemy nodes that EnemySystem._process() may have spawned
 	for enemy: Node in EnemySystem._active_enemies:
 		if is_instance_valid(enemy) and not enemy.is_queued_for_deletion():
@@ -232,24 +241,25 @@ func test_game_loads_map_from_config() -> void:
 	# Set config with a specific map path
 	SceneManager.current_game_config = {"map": FOREST_MAP, "mode": "classic"}
 
-	var game_node: Node2D = auto_free(_build_game_node())
+	_game_node = _build_game_node()
+	add_child(_game_node)
 	var script: GDScript = load(GAME_SCRIPT_PATH)
-	game_node.set_script(script)
+	_game_node.set_script(script)
 
 	# Manually assign @onready vars
-	game_node.game_board = game_node.get_node("GameBoard")
-	game_node.ui_layer = game_node.get_node("UILayer")
-	game_node.camera = game_node.get_node("Camera2D")
+	_game_node.game_board = _game_node.get_node("GameBoard")
+	_game_node.ui_layer = _game_node.get_node("UILayer")
+	_game_node.camera = _game_node.get_node("Camera2D")
 
 	# _load_map() is what we really want to test; call it directly
 	# to avoid _ready() connecting signals to UIManager etc.
-	game_node._load_map()
+	_game_node._load_map()
 
 	# Clean up spawned enemies from start_game
 	EnemySystem._enemies_to_spawn.clear()
 
 	# GameBoard should have a child (the loaded map)
-	assert_int(game_node.game_board.get_child_count()).is_greater(0)
+	assert_int(_game_node.game_board.get_child_count()).is_greater(0)
 
 
 # -- 15. Game defaults to ForestClearing when config is empty ------------------
@@ -257,20 +267,21 @@ func test_game_loads_map_from_config() -> void:
 func test_game_defaults_to_forest_clearing_when_config_empty() -> void:
 	SceneManager.current_game_config = {}
 
-	var game_node: Node2D = auto_free(_build_game_node())
+	_game_node = _build_game_node()
+	add_child(_game_node)
 	var script: GDScript = load(GAME_SCRIPT_PATH)
-	game_node.set_script(script)
+	_game_node.set_script(script)
 
-	game_node.game_board = game_node.get_node("GameBoard")
-	game_node.ui_layer = game_node.get_node("UILayer")
-	game_node.camera = game_node.get_node("Camera2D")
+	_game_node.game_board = _game_node.get_node("GameBoard")
+	_game_node.ui_layer = _game_node.get_node("UILayer")
+	_game_node.camera = _game_node.get_node("Camera2D")
 
-	game_node._load_map()
+	_game_node._load_map()
 
 	EnemySystem._enemies_to_spawn.clear()
 
 	# Should still have a child (ForestClearing as fallback)
-	assert_int(game_node.game_board.get_child_count()).is_greater(0)
+	assert_int(_game_node.game_board.get_child_count()).is_greater(0)
 
 
 # -- 16. Game reads mode from config and passes to start_game -----------------
@@ -278,16 +289,17 @@ func test_game_defaults_to_forest_clearing_when_config_empty() -> void:
 func test_game_reads_mode_from_config() -> void:
 	SceneManager.current_game_config = {"mode": "endless"}
 
-	var game_node: Node2D = auto_free(_build_game_node())
+	_game_node = _build_game_node()
+	add_child(_game_node)
 	var script: GDScript = load(GAME_SCRIPT_PATH)
-	game_node.set_script(script)
+	_game_node.set_script(script)
 
-	game_node.game_board = game_node.get_node("GameBoard")
-	game_node.ui_layer = game_node.get_node("UILayer")
-	game_node.camera = game_node.get_node("Camera2D")
+	_game_node.game_board = _game_node.get_node("GameBoard")
+	_game_node.ui_layer = _game_node.get_node("UILayer")
+	_game_node.camera = _game_node.get_node("Camera2D")
 
 	# Call _start_game_from_config() which reads config and calls GameManager.start_game
-	game_node._start_game_from_config()
+	_game_node._start_game_from_config()
 
 	EnemySystem._enemies_to_spawn.clear()
 
@@ -300,15 +312,16 @@ func test_game_reads_mode_from_config() -> void:
 func test_game_defaults_to_classic_when_no_mode_in_config() -> void:
 	SceneManager.current_game_config = {"map": FOREST_MAP}
 
-	var game_node: Node2D = auto_free(_build_game_node())
+	_game_node = _build_game_node()
+	add_child(_game_node)
 	var script: GDScript = load(GAME_SCRIPT_PATH)
-	game_node.set_script(script)
+	_game_node.set_script(script)
 
-	game_node.game_board = game_node.get_node("GameBoard")
-	game_node.ui_layer = game_node.get_node("UILayer")
-	game_node.camera = game_node.get_node("Camera2D")
+	_game_node.game_board = _game_node.get_node("GameBoard")
+	_game_node.ui_layer = _game_node.get_node("UILayer")
+	_game_node.camera = _game_node.get_node("Camera2D")
 
-	game_node._start_game_from_config()
+	_game_node._start_game_from_config()
 
 	EnemySystem._enemies_to_spawn.clear()
 
@@ -322,18 +335,19 @@ func test_game_load_map_uses_config_path() -> void:
 	# Use a known map that exists
 	SceneManager.current_game_config = {"map": FOREST_MAP}
 
-	var game_node: Node2D = auto_free(_build_game_node())
+	_game_node = _build_game_node()
+	add_child(_game_node)
 	var script: GDScript = load(GAME_SCRIPT_PATH)
-	game_node.set_script(script)
+	_game_node.set_script(script)
 
-	game_node.game_board = game_node.get_node("GameBoard")
-	game_node.ui_layer = game_node.get_node("UILayer")
-	game_node.camera = game_node.get_node("Camera2D")
+	_game_node.game_board = _game_node.get_node("GameBoard")
+	_game_node.ui_layer = _game_node.get_node("UILayer")
+	_game_node.camera = _game_node.get_node("Camera2D")
 
-	game_node._load_map()
+	_game_node._load_map()
 
 	# The child should be a map instance
-	var map_child: Node = game_node.game_board.get_child(0)
+	var map_child: Node = _game_node.game_board.get_child(0)
 	assert_object(map_child).is_not_null()
 
 
