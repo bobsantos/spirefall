@@ -384,6 +384,7 @@ func test_queued_enemy_count_with_entries() -> void:
 	EnemySystem._enemies_to_spawn.append(EnemyData.new())
 	EnemySystem._enemies_to_spawn.append(EnemyData.new())
 	assert_int(EnemySystem.get_queued_enemy_count()).is_equal(3)
+	EnemySystem._enemies_to_spawn.clear()
 
 
 # ==============================================================================

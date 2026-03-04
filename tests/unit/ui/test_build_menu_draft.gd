@@ -91,7 +91,9 @@ func before_test() -> void:
 	DraftManager.drafted_elements.clear()
 	EconomyManager.gold = 9999  # Enough to afford everything
 
-	_menu = auto_free(_build_menu_node())
+	_menu = _build_menu_node()
+	# Add to scene tree before set_script to avoid orphan node detection
+	add_child(_menu)
 	_apply_script(_menu)
 
 
@@ -101,6 +103,10 @@ func after_test() -> void:
 	EconomyManager.gold = _original_gold
 	UIManager.build_menu = null
 
+	if is_instance_valid(_menu):
+		if _menu.is_inside_tree():
+			remove_child(_menu)
+		_menu.free()
 	_menu = null
 
 
