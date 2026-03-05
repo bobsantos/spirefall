@@ -34,6 +34,7 @@ var _combat_timer: float = 0.0
 var _combat_timer_max: float = 0.0
 var _enemies_leaked_this_wave: int = 0
 var _boss_escaped_this_wave: bool = false
+var _previous_wave_timed_out: bool = false
 var _game_running: bool = false
 var game_speed: float = 1.0
 var _previous_gold: int = 0
@@ -77,6 +78,7 @@ func start_game(mode: String = "classic") -> void:
 		max_waves = 30
 	current_wave = 0
 	lives = starting_lives
+	_previous_wave_timed_out = false
 	_previous_gold = EconomyManager.gold
 	run_stats = {
 		"waves_survived": 0,
@@ -96,7 +98,9 @@ func start_game(mode: String = "classic") -> void:
 
 func start_wave_early() -> void:
 	if game_state == GameState.BUILD_PHASE:
-		var bonus: int = int(_build_timer) * 3
+		var bonus: int = 0
+		if not _previous_wave_timed_out:
+			bonus = int(_build_timer) * 3
 		_transition_to(GameState.COMBAT_PHASE)
 		EconomyManager.add_gold(bonus)
 		if bonus > 0:
@@ -116,10 +120,12 @@ func _process(delta: float) -> void:
 		GameState.COMBAT_PHASE:
 			_combat_timer -= delta
 			if EnemySystem.get_active_enemy_count() == 0 and EnemySystem.is_wave_finished():
+				_previous_wave_timed_out = false
 				_on_wave_cleared()
 			elif _combat_timer <= 0.0:
 				# Timer expired: auto-advance. Surviving enemies remain on the field
 				# and can still leak lives. The next wave spawns on top of them.
+				_previous_wave_timed_out = true
 				_on_wave_cleared()
 
 
