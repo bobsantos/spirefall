@@ -45,19 +45,27 @@ theme_override_constants/separation = 4
 
 [node name="TowersTab" type="Button" parent="VBoxContainer/TabBar"]
 layout_mode = 2
+size_flags_horizontal = 3
+clip_text = false
 text = "Towers"
 
 [node name="ElementsTab" type="Button" parent="VBoxContainer/TabBar"]
 layout_mode = 2
+size_flags_horizontal = 3
+clip_text = false
 text = "Elements"
-
-[node name="FusionsTab" type="Button" parent="VBoxContainer/TabBar"]
-layout_mode = 2
-text = "Fusions"
 
 [node name="EnemiesTab" type="Button" parent="VBoxContainer/TabBar"]
 layout_mode = 2
+size_flags_horizontal = 3
+clip_text = false
 text = "Enemies"
+
+[node name="ModesTab" type="Button" parent="VBoxContainer/TabBar"]
+layout_mode = 2
+size_flags_horizontal = 3
+clip_text = false
+text = "Modes"
 
 [node name="ScrollContainer" type="ScrollContainer" parent="VBoxContainer"]
 layout_mode = 2

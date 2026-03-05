@@ -78,18 +78,18 @@ func test_show_range_sets_radius() -> void:
 func test_show_range_sets_color_with_alpha() -> void:
 	var input_color := Color(0.9, 0.25, 0.15)
 	_indicator.show_range(Vector2.ZERO, 100.0, input_color)
-	# Color should be stored at 20% alpha
+	# Color should be stored at RING_ALPHA (50%) alpha
 	assert_float(_indicator._color.r).is_equal_approx(input_color.r, 0.01)
 	assert_float(_indicator._color.g).is_equal_approx(input_color.g, 0.01)
 	assert_float(_indicator._color.b).is_equal_approx(input_color.b, 0.01)
-	assert_float(_indicator._color.a).is_equal_approx(0.2, 0.01)
+	assert_float(_indicator._color.a).is_equal_approx(0.5, 0.01)
 
 
 func test_show_range_preserves_alpha_override() -> void:
-	# If caller passes a color with custom alpha, show_range still forces 20%
+	# If caller passes a color with custom alpha, show_range still forces RING_ALPHA
 	var input_color := Color(1.0, 0.0, 0.0, 0.8)
 	_indicator.show_range(Vector2.ZERO, 100.0, input_color)
-	assert_float(_indicator._color.a).is_equal_approx(0.2, 0.01)
+	assert_float(_indicator._color.a).is_equal_approx(0.5, 0.01)
 
 
 func test_show_range_triggers_redraw() -> void:
@@ -199,11 +199,11 @@ func test_ice_element_color() -> void:
 func test_unknown_element_defaults_to_white() -> void:
 	var data: TowerData = _make_tower_data("chaos", 4)
 	_indicator.show_range_for_tower(Vector2.ZERO, data)
-	# Unknown element -> white at 20% alpha
+	# Unknown element -> white at RING_ALPHA (50%) alpha
 	assert_float(_indicator._color.r).is_equal_approx(1.0, 0.01)
 	assert_float(_indicator._color.g).is_equal_approx(1.0, 0.01)
 	assert_float(_indicator._color.b).is_equal_approx(1.0, 0.01)
-	assert_float(_indicator._color.a).is_equal_approx(0.2, 0.01)
+	assert_float(_indicator._color.a).is_equal_approx(0.5, 0.01)
 
 
 # -- Section 6: show_range_for_tower() convenience ----------------------------
@@ -226,10 +226,10 @@ func test_show_range_for_tower_makes_visible() -> void:
 	assert_bool(_indicator.visible).is_true()
 
 
-func test_show_range_for_tower_alpha_always_20_percent() -> void:
+func test_show_range_for_tower_alpha_always_50_percent() -> void:
 	var data: TowerData = _make_tower_data("lightning", 4)
 	_indicator.show_range_for_tower(Vector2.ZERO, data)
-	assert_float(_indicator._color.a).is_equal_approx(0.2, 0.01)
+	assert_float(_indicator._color.a).is_equal_approx(0.5, 0.01)
 
 
 # -- Section 7: Repeated show/hide cycles -------------------------------------
@@ -254,8 +254,8 @@ func test_show_range_overwrites_previous() -> void:
 
 # -- Section 8: Ring width constant -------------------------------------------
 
-func test_ring_width_is_two_pixels() -> void:
-	assert_float(_indicator.RING_WIDTH).is_equal(2.0)
+func test_ring_width() -> void:
+	assert_float(_indicator.RING_WIDTH).is_equal(2.5)
 
 
 # -- Section 9: z_index for rendering above towers ----------------------------

@@ -97,7 +97,9 @@ func apply_tower_data() -> void:
 
 func _process(delta: float) -> void:
 	if GameManager.game_state != GameManager.GameState.COMBAT_PHASE:
-		return
+		# Keep attacking during build phase if enemies are still alive on the field
+		if GameManager.game_state != GameManager.GameState.BUILD_PHASE or EnemySystem.get_active_enemy_count() == 0:
+			return
 
 	# Disable mechanic: count down timer and skip all tower behavior while disabled
 	if _is_disabled:
@@ -124,7 +126,7 @@ func _process(delta: float) -> void:
 
 	# Normal projectile attack
 	_current_target = _find_target()
-	if _current_target and attack_cooldown.is_stopped():
+	if _current_target and attack_cooldown and attack_cooldown.is_stopped():
 		_attack(_current_target)
 		attack_cooldown.start()
 
@@ -457,6 +459,10 @@ static func get_fallback_sprite_path(data: TowerData) -> String:
 	## Fusion/legendary towers fall back to the element sprite in the base directory.
 	var texture_name: String = data.tower_name.to_lower().replace(" ", "_")
 	if data.tier == 1:
+		# Ascended towers fall back to the superior sprite first, then base
+		if texture_name.ends_with("_ascended"):
+			var superior_name: String = texture_name.replace("_ascended", "_superior")
+			return "res://assets/sprites/towers/%s.png" % superior_name
 		# Strip enhanced/superior suffix to find the base tower sprite
 		var base_name: String = texture_name.replace("_enhanced", "").replace("_superior", "")
 		if base_name != texture_name:

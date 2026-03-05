@@ -7,11 +7,25 @@ signal tower_created(tower: Node)
 signal tower_upgraded(tower: Node)
 signal tower_sold(tower: Node, refund: int)
 signal tower_fused(tower: Node)
+signal tower_ascended(tower: Node)
 signal fusion_failed(tower: Node, reason: String)
 
 const FUSE_FAIL_CANT_AFFORD := "Not enough gold"
 const FUSE_FAIL_INVALID_COMBO := "Invalid fusion combination"
 const FUSE_FAIL_NO_RESULT := "No fusion result exists"
+
+const ASCEND_COST: int = 95
+const ASCEND_MIN_SAME_ELEMENT: int = 3
+
+# Maps element -> ascended resource path
+const ASCENDED_PATHS: Dictionary = {
+	"fire": "res://resources/towers/flame_spire_ascended.tres",
+	"water": "res://resources/towers/tidal_obelisk_ascended.tres",
+	"earth": "res://resources/towers/stone_bastion_ascended.tres",
+	"wind": "res://resources/towers/gale_tower_ascended.tres",
+	"lightning": "res://resources/towers/thunder_pylon_ascended.tres",
+	"ice": "res://resources/towers/frost_sentinel_ascended.tres",
+}
 
 var _tower_scene: PackedScene = preload("res://scenes/towers/BaseTower.tscn")
 var _active_towers: Array[Node] = []
@@ -62,6 +76,63 @@ func sell_tower(tower: Node) -> void:
 	_active_towers.erase(tower)
 	tower_sold.emit(tower, refund)
 	tower.queue_free()
+
+
+func _is_superior(tower: Node) -> bool:
+	## A tower is Superior when it is tier 1 with no further upgrade path.
+	if not tower or not tower.tower_data:
+		return false
+	return tower.tower_data.tier == 1 and tower.tower_data.upgrade_to == null
+
+
+func _is_ascended(tower: Node) -> bool:
+	## An Ascended tower has an ascended resource name (ends with " Ascended").
+	if not tower or not tower.tower_data:
+		return false
+	return tower.tower_data.tower_name.ends_with(" Ascended")
+
+
+func _count_same_element_towers(element: String) -> int:
+	## Count tier-1 towers of the given element (base, enhanced, superior, ascended).
+	var count: int = 0
+	for t: Node in _active_towers:
+		if not is_instance_valid(t) or not t.tower_data:
+			continue
+		if t.tower_data.tier == 1 and t.tower_data.element == element:
+			count += 1
+	return count
+
+
+func can_ascend(tower: Node) -> bool:
+	## Tower can ascend if it is Superior (not already Ascended), the player owns
+	## 3+ same-element towers, and can afford the cost.
+	if not _is_superior(tower):
+		return false
+	if _is_ascended(tower):
+		return false
+	var element: String = tower.tower_data.element
+	if element not in ASCENDED_PATHS:
+		return false
+	if _count_same_element_towers(element) < ASCEND_MIN_SAME_ELEMENT:
+		return false
+	if not EconomyManager.can_afford(ASCEND_COST):
+		return false
+	return true
+
+
+func ascend_tower(tower: Node) -> bool:
+	## Upgrade a Superior tower to its Ascended variant.
+	if not can_ascend(tower):
+		return false
+	var element: String = tower.tower_data.element
+	var ascended_data: TowerData = load(ASCENDED_PATHS[element]) as TowerData
+	if ascended_data == null:
+		return false
+	EconomyManager.spend_gold(ASCEND_COST)
+	tower.tower_data = ascended_data
+	tower.apply_tower_data()
+	tower_ascended.emit(tower)
+	return true
 
 
 func fuse_towers(tower_a: Node, tower_b: Node) -> bool:

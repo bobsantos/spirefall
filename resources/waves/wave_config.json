@@ -98,9 +98,10 @@
 	{
 	  "wave": 13,
 	  "enemies": [
-		{ "type": "fast", "count": 10 },
-		{ "type": "elemental", "count": 4 },
-		{ "type": "healer", "count": 3 }
+		{ "type": "normal", "count": 6 },
+		{ "type": "fast", "count": 8 },
+		{ "type": "elemental", "count": 3 },
+		{ "type": "healer", "count": 2 }
 	  ]
 	},
 	{
@@ -134,10 +135,11 @@
 	{
 	  "wave": 17,
 	  "enemies": [
-		{ "type": "fast", "count": 12 },
-		{ "type": "flying", "count": 6 },
-		{ "type": "elemental", "count": 4 },
-		{ "type": "healer", "count": 3 }
+		{ "type": "fast", "count": 8 },
+		{ "type": "flying", "count": 4 },
+		{ "type": "armored", "count": 4 },
+		{ "type": "elemental", "count": 3 },
+		{ "type": "healer", "count": 2 }
 	  ]
 	},
 	{

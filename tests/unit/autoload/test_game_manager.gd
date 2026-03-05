@@ -17,6 +17,10 @@ func _reset_game_manager() -> void:
 	GameManager._combat_timer = 0.0
 	GameManager._combat_timer_max = 0.0
 	GameManager._enemies_leaked_this_wave = 0
+	GameManager._overtime_active = false
+	GameManager._overtime_elapsed = 0.0
+	GameManager._overtime_drain_accumulator = 0.0
+	GameManager._boss_killed_this_wave = false
 
 
 func _reset_enemy_system() -> void:
@@ -141,8 +145,8 @@ func test_start_wave_early_bonus_gold() -> void:
 	GameManager.start_wave_early()
 	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
 	EnemySystem._enemies_to_spawn.clear()
-	# Bonus = int(15.0) * 10 = 150
-	assert_int(EconomyManager.gold).is_equal(gold_before + 150)
+	# Bonus = int(15.0) * 3 = 45
+	assert_int(EconomyManager.gold).is_equal(gold_before + 45)
 
 
 # -- 10. start_wave_early emits early_wave_bonus signal -----------------------
@@ -157,9 +161,9 @@ func test_start_wave_early_emits_bonus_signal() -> void:
 	# Clear spawn queue to prevent EnemySystem._process() from spawning real nodes
 	EnemySystem._enemies_to_spawn.clear()
 	GameManager.early_wave_bonus.disconnect(conn)
-	# Bonus = int(10.0) * 10 = 100
+	# Bonus = int(10.0) * 3 = 30
 	assert_int(emitted_args.size()).is_greater_equal(1)
-	assert_int(emitted_args[0]).is_equal(100)
+	assert_int(emitted_args[0]).is_equal(30)
 
 
 # -- 11. start_wave_early ignored in COMBAT -----------------------------------
@@ -236,6 +240,7 @@ func test_game_over_victory_true_at_max() -> void:
 	GameManager.start_game()
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
 	GameManager.current_wave = GameManager.max_waves
+	GameManager._boss_killed_this_wave = true  # Victory requires boss killed
 	var emitted_args: Array = []
 	var conn: Callable = func(victory: bool) -> void: emitted_args.append(victory)
 	GameManager.game_over.connect(conn)

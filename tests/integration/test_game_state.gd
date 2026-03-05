@@ -97,6 +97,10 @@ func _reset_autoloads() -> void:
 	GameManager.lives = GameManager.starting_lives
 	GameManager._build_timer = 0.0
 	GameManager._enemies_leaked_this_wave = 0
+	GameManager._overtime_active = false
+	GameManager._overtime_elapsed = 0.0
+	GameManager._overtime_drain_accumulator = 0.0
+	GameManager._boss_killed_this_wave = false
 	# EnemySystem
 	EnemySystem._active_enemies.clear()
 	EnemySystem._wave_finished_spawning = false
@@ -263,6 +267,7 @@ func test_victory_at_wave_30() -> void:
 	GameManager.start_game()
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
 	GameManager.current_wave = 30  # Final wave
+	GameManager._boss_killed_this_wave = true  # Victory requires boss killed
 
 	var emitted_args: Array = []
 	var conn: Callable = func(victory: bool) -> void: emitted_args.append(victory)
@@ -313,8 +318,8 @@ func test_early_wave_start_bonus() -> void:
 	# Should transition to COMBAT_PHASE
 	assert_int(GameManager.game_state).is_equal(GameManager.GameState.COMBAT_PHASE)
 
-	# Bonus = int(20.0) * 10 = 200 gold
-	var expected_bonus: int = 200
+	# Bonus = int(20.0) * 3 = 60 gold
+	var expected_bonus: int = 60
 	assert_int(EconomyManager.gold).is_equal(gold_before + expected_bonus)
 
 	# Verify the early_wave_bonus signal was emitted with the correct amount

@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """Generate 64x64 placeholder tower sprites for Spirefall.
 
-Generates 33 sprites:
+Generates 35 sprites:
 - 6 enhanced (base shape + 2px glow border)
 - 6 superior (base shape + 4-point star accent, brighter)
 - 15 fusion (diamond shape blending both element colors)
-- 6 legendary (circle with 3-color gradient ring)
+- 8 legendary (circle with 3-color gradient ring)
 
 Run from project root: python3 scripts/tools/generate_tower_sprites.py
 """
@@ -20,14 +20,14 @@ TOWERS_DIR = PROJECT_ROOT / "assets" / "sprites" / "towers"
 FUSIONS_DIR = TOWERS_DIR / "fusions"
 LEGENDARIES_DIR = TOWERS_DIR / "legendaries"
 
-# Element colors
+# Element colors — matched to ElementMatrix.COLORS in-game values
 ELEMENT_COLORS = {
-    "fire": (0xFF, 0x66, 0x33),
-    "water": (0x33, 0x99, 0xFF),
-    "earth": (0x88, 0xAA, 0x44),
-    "wind": (0xAA, 0xDD, 0xFF),
-    "lightning": (0xFF, 0xDD, 0x33),
-    "ice": (0x99, 0xEE, 0xFF),
+    "fire": (0xFF, 0x66, 0x33),       # orange-red
+    "water": (0x4D, 0x80, 0xFF),      # medium blue
+    "earth": (0x8B, 0x75, 0x2A),      # olive brown
+    "wind": (0x55, 0xCC, 0x88),       # teal green
+    "lightning": (0xFF, 0xFF, 0x4D),  # yellow
+    "ice": (0xB3, 0xE6, 0xFF),        # light cyan
 }
 
 # Base tower -> element mapping
@@ -63,6 +63,8 @@ FUSION_TOWERS = {
 LEGENDARY_TOWERS = {
     "arctic_maelstrom": ["ice", "water", "wind"],
     "crystalline_monolith": ["earth", "ice", "lightning"],
+    "cyclone_conductor": ["lightning", "water", "wind"],
+    "frostfire_cataclysm": ["fire", "ice", "water"],
     "primordial_nexus": ["earth", "fire", "water"],
     "supercell_obelisk": ["fire", "lightning", "wind"],
     "tectonic_dynamo": ["earth", "lightning", "water"],
@@ -158,6 +160,59 @@ def generate_superior(name, element):
     )
 
     path = TOWERS_DIR / f"{name}_superior.png"
+    img.save(path)
+    return path
+
+
+def generate_ascended(name, element):
+    """Ascended: superior shape with golden outer glow ring and brighter colors."""
+    img = Image.new("RGBA", (SIZE, SIZE), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    color = brighten(ELEMENT_COLORS[element], 0.6)
+    accent = lighten(ELEMENT_COLORS[element], 0.8)
+    gold = (255, 215, 60)
+    gold_light = (255, 240, 150)
+    cx, cy = SIZE // 2, SIZE // 2
+
+    # Golden outer glow ring
+    glow_r = 30
+    draw.ellipse(
+        [cx - glow_r, cy - glow_r, cx + glow_r, cy + glow_r],
+        fill=None,
+        outline=gold_light,
+        width=2,
+    )
+
+    # 4-point star accent (same as superior, slightly larger)
+    star_size = 28
+    star_points = [
+        (cx, cy - star_size),       # top
+        (cx + 6, cy - 6),
+        (cx + star_size, cy),       # right
+        (cx + 6, cy + 6),
+        (cx, cy + star_size),       # bottom
+        (cx - 6, cy + 6),
+        (cx - star_size, cy),       # left
+        (cx - 6, cy - 6),
+    ]
+    draw.polygon(star_points, fill=accent)
+
+    # Inner shape (brighter than superior)
+    r = 17
+    draw.rounded_rectangle(
+        [cx - r, cy - r, cx + r, cy + r],
+        radius=6,
+        fill=color,
+        outline=gold,
+        width=2,
+    )
+
+    # Golden corner ornaments (small dots at star tips)
+    for px, py in [(cx, cy - star_size), (cx + star_size, cy),
+                   (cx, cy + star_size), (cx - star_size, cy)]:
+        draw.ellipse([px - 3, py - 3, px + 3, py + 3], fill=gold)
+
+    path = TOWERS_DIR / f"{name}_ascended.png"
     img.save(path)
     return path
 
@@ -261,12 +316,17 @@ def main():
         p = generate_superior(name, element)
         generated.append(p)
 
+    # Ascended (6)
+    for name, element in BASE_TOWERS.items():
+        p = generate_ascended(name, element)
+        generated.append(p)
+
     # Fusions (15)
     for name, elements in FUSION_TOWERS.items():
         p = generate_fusion(name, elements)
         generated.append(p)
 
-    # Legendaries (6)
+    # Legendaries (8)
     for name, elements in LEGENDARY_TOWERS.items():
         p = generate_legendary(name, elements)
         generated.append(p)

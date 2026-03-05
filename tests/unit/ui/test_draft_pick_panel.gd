@@ -519,8 +519,15 @@ func test_card_includes_tower_name_label() -> void:
 	_panel.show_choices(_choices(["fire"]))
 	var card: Button = _panel.cards_container.get_child(0) as Button
 	var vbox: VBoxContainer = card.get_child(0) as VBoxContainer
-	# VBox children: element name label, tower sprite, tower name label
-	var tower_label: Label = vbox.get_child(vbox.get_child_count() - 1) as Label
+	# VBox children: element name label, tower sprite, tower name label, [legendary label]
+	# Find the tower name label by searching for its text (not last child, since legendary label may follow)
+	var tower_label: Label = null
+	for i: int in range(vbox.get_child_count()):
+		var child: Node = vbox.get_child(i)
+		if child is Label and child.text == "Flame Spire":
+			tower_label = child as Label
+			break
+	assert_object(tower_label).is_not_null()
 	assert_str(tower_label.text).is_equal("Flame Spire")
 
 

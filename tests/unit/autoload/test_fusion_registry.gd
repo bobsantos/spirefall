@@ -115,10 +115,10 @@ func test_all_15_dual_fusions_registered() -> void:
 	assert_int(FusionRegistry._dual_fusions.size()).is_equal(15)
 
 
-# -- 2. All 6 legendary fusions registered ------------------------------------
+# -- 2. All 8 legendary fusions registered ------------------------------------
 
-func test_all_6_legendary_fusions_registered() -> void:
-	assert_int(FusionRegistry._legendary_fusions.size()).is_equal(6)
+func test_all_8_legendary_fusions_registered() -> void:
+	assert_int(FusionRegistry._legendary_fusions.size()).is_equal(8)
 
 
 # -- 3. _make_key sorts alphabetically ----------------------------------------
@@ -389,10 +389,10 @@ func test_get_all_dual_fusions_returns_dict() -> void:
 	assert_object(fusions).is_same(FusionRegistry._dual_fusions)
 
 
-# -- 24. get_all_legendary_fusions returns dict with 6 entries ---------------
+# -- 24. get_all_legendary_fusions returns dict with 8 entries ---------------
 
 func test_get_all_legendary_fusions_returns_dict() -> void:
 	var fusions: Dictionary = FusionRegistry.get_all_legendary_fusions()
-	assert_int(fusions.size()).is_equal(6)
+	assert_int(fusions.size()).is_equal(8)
 	# Verify it's the same dictionary reference
 	assert_object(fusions).is_same(FusionRegistry._legendary_fusions)

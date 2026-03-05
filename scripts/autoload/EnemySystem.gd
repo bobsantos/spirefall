@@ -84,6 +84,35 @@ func get_active_enemies() -> Array[Node]:
 	return _active_enemies
 
 
+## Returns all active boss enemies currently on the field.
+func get_active_bosses() -> Array[Node]:
+	var bosses: Array[Node] = []
+	for enemy: Node in _active_enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var data: EnemyData = enemy.get("enemy_data") as EnemyData
+		if data != null and data.is_boss:
+			bosses.append(enemy)
+	return bosses
+
+
+## Apply overtime speed boost to all active boss enemies.
+## Multiplies the boss's current speed by the given factor.
+func apply_overtime_speed_boost(speed_mult: float) -> void:
+	for enemy: Node in _active_enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var data: EnemyData = enemy.get("enemy_data") as EnemyData
+		if data == null or not data.is_boss:
+			continue
+		# Boost the speed_multiplier on the data so _recalculate_speed picks it up
+		if enemy.has_method("_recalculate_speed"):
+			data.speed_multiplier *= speed_mult
+			enemy._recalculate_speed()
+		elif "speed" in enemy:
+			enemy.speed *= speed_mult
+
+
 func get_wave_config(wave_number: int) -> Dictionary:
 	## Returns the raw wave_config.json entry for the given wave number.
 	## For endless waves (> configured range), generates a synthetic config dict.
@@ -146,7 +175,12 @@ func on_enemy_killed(enemy: Node) -> void:
 
 
 func on_enemy_reached_exit(enemy: Node) -> void:
-	GameManager.lose_life(1)
+	var life_cost: int = 1
+	if enemy.enemy_data and enemy.enemy_data.escape_life_cost > 0:
+		life_cost = enemy.enemy_data.escape_life_cost
+	if enemy.enemy_data and enemy.enemy_data.is_boss:
+		GameManager.record_boss_escaped()
+	GameManager.lose_life(life_cost)
 	GameManager.record_enemy_leak()
 	enemy_reached_exit.emit(enemy)
 	_remove_enemy(enemy)
@@ -248,6 +282,7 @@ func _build_wave_queue(wave_number: int) -> Array:
 		_spawn_interval = DEFAULT_SPAWN_INTERVAL
 
 	var enemy_groups: Array = wave_entry["enemies"]
+	var healers: Array = []
 	for group: Dictionary in enemy_groups:
 		var enemy_type: String = group["type"]
 		var count: int = int(group["count"])
@@ -262,7 +297,19 @@ func _build_wave_queue(wave_number: int) -> Array:
 
 		for i: int in range(actual_count):
 			var data: EnemyData = _create_scaled_enemy(template, wave_number)
-			queue.append(data)
+			if enemy_type == "healer":
+				healers.append(data)
+			else:
+				queue.append(data)
+
+	# Spread healers evenly throughout the queue so they never clump together
+	if not healers.is_empty() and not queue.is_empty():
+		var spacing: int = maxi(queue.size() / (healers.size() + 1), 1)
+		for h_idx: int in range(healers.size()):
+			var insert_pos: int = mini(spacing * (h_idx + 1) + h_idx, queue.size())
+			queue.insert(insert_pos, healers[h_idx])
+	else:
+		queue.append_array(healers)
 
 	return queue
 
@@ -290,6 +337,7 @@ func _create_scaled_enemy(template: EnemyData, wave_number: int) -> EnemyData:
 	data.minion_data = template.minion_data
 	data.minion_spawn_interval = template.minion_spawn_interval
 	data.minion_spawn_count = template.minion_spawn_count
+	data.escape_life_cost = template.escape_life_cost
 
 	# Apply GDD scaling formulas
 	# HP = Base HP * (1 + 0.15 * wave)^2

@@ -3,6 +3,7 @@ extends Control
 ## Top bar HUD: wave counter, lives, gold, build timer.
 
 @onready var wave_label: Label = $TopBar/WaveLabel
+@onready var topbar_timer_label: Label = $TopBar/TopBarTimerLabel
 @onready var lives_label: Label = $TopBar/LivesLabel
 @onready var gold_label: Label = $TopBar/GoldLabel
 @onready var xp_label: Label = $TopBar/XPLabel
@@ -18,6 +19,7 @@ extends Control
 @onready var boss_announcement: Control = $BossAnnouncement
 @onready var wave_progress_bar: ProgressBar = $WaveProgressBar
 @onready var enemy_count_label: Label = $WaveControls/EnemyCountLabel
+@onready var overtime_label: Label = $OvertimeLabel
 
 const SPEEDS: Array[float] = [1.0, 1.5, 2.0, 0.5]
 const SPEED_LABELS: Array[String] = ["1x", "1.5x", "2x", "0.5x"]
@@ -44,8 +46,12 @@ func _ready() -> void:
 	speed_button.pressed.connect(_on_speed_pressed)
 	start_wave_button.pressed.connect(_on_start_wave_pressed)
 	GameManager.speed_changed.connect(_on_speed_changed)
+	GameManager.overtime_started.connect(_on_overtime_started)
+	GameManager.lives_changed.connect(_on_lives_changed)
 	countdown_label.visible = false
 	xp_notif_label.visible = false
+	if overtime_label:
+		overtime_label.visible = false
 	_update_speed_display()
 	update_display()
 	if UIManager.is_mobile():
@@ -80,10 +86,16 @@ func _process(_delta: float) -> void:
 			timer_label.text = "Place towers!"
 			timer_label.visible = true
 			countdown_label.visible = false
+			# No topbar timer for wave 1 build phase
+			topbar_timer_label.text = ""
+			topbar_timer_label.visible = false
 		else:
 			var t: float = GameManager._build_timer
 			timer_label.text = "Next wave in: %ds" % ceili(t)
 			timer_label.visible = true
+			# Persistent topbar timer
+			topbar_timer_label.text = "Next: %ds" % ceili(t)
+			topbar_timer_label.visible = true
 			# Prominent centered countdown for last 5 seconds
 			if t <= 5.0 and t > 0.0:
 				countdown_label.text = "%d" % ceili(t)
@@ -105,25 +117,51 @@ func _process(_delta: float) -> void:
 		if enemy_count_label:
 			enemy_count_label.text = "%d remaining" % remaining
 			enemy_count_label.visible = true
-		# Prominent countdown for last 10 seconds of combat
-		var t: float = GameManager._combat_timer
-		if t <= 10.0 and t > 0.0:
-			countdown_label.text = "%d" % ceili(t)
-			countdown_label.visible = true
-			var urgency: float = 1.0 - (t / 10.0)
-			countdown_label.add_theme_color_override("font_color",
-				Color(1.0, 1.0 - urgency * 0.5, 1.0 - urgency * 0.7, 1.0))
-			var pulse: float = 1.0 + 0.1 * sin(t * TAU * 1.5)
-			countdown_label.scale = Vector2(pulse, pulse)
-		else:
+
+		if GameManager._overtime_active:
+			# Overtime: show elapsed overtime time and pulsing warning
+			var ot: float = GameManager._overtime_elapsed
+			topbar_timer_label.text = "OVERTIME: %ds" % ceili(ot)
+			topbar_timer_label.visible = true
+			topbar_timer_label.add_theme_color_override("font_color",
+				Color(1.0, 0.2, 0.15, 1.0))
+			# Pulse the overtime label
+			if overtime_label:
+				overtime_label.visible = true
+				var pulse: float = 0.7 + 0.3 * abs(sin(ot * TAU * 0.8))
+				overtime_label.modulate = Color(1, 1, 1, pulse)
 			countdown_label.visible = false
 			countdown_label.scale = Vector2.ONE
+		else:
+			# Normal combat: persistent topbar timer
+			var t: float = GameManager._combat_timer
+			topbar_timer_label.text = "Time: %ds" % ceili(t)
+			topbar_timer_label.visible = true
+			topbar_timer_label.remove_theme_color_override("font_color")
+			if overtime_label:
+				overtime_label.visible = false
+			# Prominent countdown for last 10 seconds of combat
+			if t <= 10.0 and t > 0.0:
+				countdown_label.text = "%d" % ceili(t)
+				countdown_label.visible = true
+				var urgency: float = 1.0 - (t / 10.0)
+				countdown_label.add_theme_color_override("font_color",
+					Color(1.0, 1.0 - urgency * 0.5, 1.0 - urgency * 0.7, 1.0))
+				var pulse: float = 1.0 + 0.1 * sin(t * TAU * 1.5)
+				countdown_label.scale = Vector2(pulse, pulse)
+			else:
+				countdown_label.visible = false
+				countdown_label.scale = Vector2.ONE
 	else:
 		timer_label.visible = false
 		if enemy_count_label:
 			enemy_count_label.visible = false
 		countdown_label.visible = false
 		countdown_label.scale = Vector2.ONE
+		topbar_timer_label.text = ""
+		topbar_timer_label.visible = false
+		if overtime_label:
+			overtime_label.visible = false
 
 
 func _on_gold_changed(_new_amount: int) -> void:
@@ -142,13 +180,13 @@ func _on_wave_started(_wave: int) -> void:
 
 
 func _on_wave_completed(wave_number: int) -> void:
-	var bonus: int = EconomyManager.calculate_wave_bonus(
-		wave_number, GameManager._enemies_leaked_this_wave
-	)
 	var no_leak: bool = GameManager._enemies_leaked_this_wave == 0
+	var timed_out: bool = GameManager._previous_wave_timed_out
+	if timed_out or not no_leak:
+		return
+	var bonus: int = EconomyManager.calculate_wave_bonus(wave_number, 0)
 	var text: String = "+%dg Wave Bonus!" % bonus
-	if no_leak:
-		text += "\nNo Leaks!"
+	text += "\nNo Leaks!"
 	_show_bonus_notification(text)
 
 
@@ -237,3 +275,13 @@ func _on_boss_wave_cleared(wave_number: int) -> void:
 func _on_boss_wave_started(wave_number: int) -> void:
 	if boss_announcement:
 		boss_announcement.on_wave_started(wave_number)
+
+
+func _on_overtime_started() -> void:
+	if overtime_label:
+		overtime_label.visible = true
+	update_display()
+
+
+func _on_lives_changed(_new_lives: int) -> void:
+	lives_label.text = "Lives: %d" % GameManager.lives

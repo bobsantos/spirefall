@@ -409,38 +409,6 @@ func test_fusion_tower_no_draft_always_visible() -> void:
 	assert_int(_count_visible_buttons(_menu)).is_equal(1)
 
 
-# -- Section 8: Element group headers visibility follow buttons ----------------
-
-func test_element_header_hidden_when_all_towers_filtered() -> void:
-	DraftManager.is_draft_active = true
-	DraftManager.drafted_elements = ["fire"] as Array[String]
-
-	var towers: Array[TowerData] = [
-		_make_tower_data("Flame Spire", "fire"),
-		_make_tower_data("Tidal Obelisk", "water"),
-	]
-	_inject_towers(_menu, towers)
-	_menu._create_buttons()
-
-	# Check that separator/header nodes for water element are hidden
-	# The container should have: fire header, fire button, separator, water header, water button
-	# Water header and separator before it should be hidden
-	var container: HBoxContainer = _menu.button_container
-	var fire_visible: bool = false
-	var water_header_visible: bool = true  # We expect it to be hidden
-	for child: Node in container.get_children():
-		if child is VBoxContainer:
-			# Element header -- check if it contains a label
-			for sub: Node in child.get_children():
-				if sub is Label:
-					if sub.text == "F":
-						fire_visible = child.visible
-					elif sub.text == "W":
-						water_header_visible = child.visible
-	assert_bool(fire_visible).is_true()
-	assert_bool(water_header_visible).is_false()
-
-
 # -- Section 9: Refresh rebuilds button visibility correctly -------------------
 
 func test_refresh_buttons_updates_visibility() -> void:

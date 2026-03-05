@@ -13,7 +13,6 @@ signal tower_build_selected(tower_data: TowerData)
 var _tower_buttons: Array[Button] = []
 var _available_towers: Array[TowerData] = []
 var _draft_indicator: HBoxContainer
-var _element_group_nodes: Dictionary = {}  # element -> Array[Node] (headers + separators)
 
 # Canonical element order for build menu button layout
 const ELEMENT_ORDER: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
@@ -111,24 +110,7 @@ func _update_draft_indicator() -> void:
 
 
 func _create_buttons() -> void:
-	var last_element: String = ""
-	_element_group_nodes.clear()
-
 	for tower: TowerData in _available_towers:
-		# Add a colored separator + element label between element groups
-		if tower.element != last_element:
-			if last_element != "":
-				var sep: VSeparator = _add_separator()
-				# Track separator with the NEW element group it precedes
-				if not _element_group_nodes.has(tower.element):
-					_element_group_nodes[tower.element] = []
-				_element_group_nodes[tower.element].append(sep)
-			var header: VBoxContainer = _add_element_header(tower.element)
-			if not _element_group_nodes.has(tower.element):
-				_element_group_nodes[tower.element] = []
-			_element_group_nodes[tower.element].append(header)
-			last_element = tower.element
-
 		var btn := _create_tower_button(tower)
 		button_container.add_child(btn)
 		_tower_buttons.append(btn)
@@ -136,42 +118,15 @@ func _create_buttons() -> void:
 	_refresh_draft_filter()
 
 
-func _add_element_header(element: String) -> VBoxContainer:
-	var header := VBoxContainer.new()
-	header.custom_minimum_size = Vector2(14, 0)
-	header.alignment = BoxContainer.ALIGNMENT_CENTER
-
-	# Small colored circle as element icon
-	var icon := _create_element_icon(element, 10)
-	header.add_child(icon)
-
-	# Element initial letter label
-	var label := Label.new()
-	label.text = element.substr(0, 1).to_upper()
-	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 9)
-	var element_color: Color = ELEMENT_COLORS.get(element, Color.WHITE)
-	label.add_theme_color_override("font_color", element_color)
-	header.add_child(label)
-
-	button_container.add_child(header)
-	return header
-
-
-func _add_separator() -> VSeparator:
-	var sep := VSeparator.new()
-	sep.custom_minimum_size = Vector2(4, 0)
-	button_container.add_child(sep)
-	return sep
-
 
 func _create_tower_button(tower: TowerData) -> Button:
 	var btn := Button.new()
 	if UIManager.is_mobile():
 		btn.custom_minimum_size = UIManager.MOBILE_TOWER_BUTTON_MIN
 	else:
-		btn.custom_minimum_size = Vector2(96, 64)
-	btn.clip_text = true
+		btn.custom_minimum_size = Vector2(120, 64)
+	btn.clip_text = false
+	btn.focus_mode = Control.FOCUS_NONE
 	btn.pressed.connect(_on_tower_selected.bind(tower))
 
 	# Build the button content as an HBoxContainer child
@@ -207,6 +162,9 @@ func _create_tower_button(tower: TowerData) -> Button:
 	name_label.text = tower.tower_name
 	name_label.add_theme_font_size_override("font_size", 11)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	name_label.clip_text = true
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.add_child(name_label)
 
 	# Cost row with a small element dot
@@ -316,23 +274,23 @@ func _on_element_drafted(_element: String) -> void:
 func _refresh_draft_filter() -> void:
 	_update_draft_indicator()
 
-	# Track which elements have at least one visible tower
-	var visible_elements: Dictionary = {}
-
 	for i: int in range(_available_towers.size()):
 		if i < _tower_buttons.size():
 			var tower: TowerData = _available_towers[i]
-			var tower_visible: bool = DraftManager.is_tower_available(tower)
-			_tower_buttons[i].visible = tower_visible
-			if tower_visible:
-				visible_elements[tower.element] = true
+			_tower_buttons[i].visible = DraftManager.is_tower_available(tower)
 
-	# Show/hide element group headers and separators
-	for element: String in _element_group_nodes:
-		var nodes: Array = _element_group_nodes[element]
-		var element_visible: bool = visible_elements.has(element)
-		for node: Node in nodes:
-			node.visible = element_visible
+
+func get_tower_data_by_index(index: int) -> TowerData:
+	## Return the TowerData at the given 0-based index in the build menu order.
+	## Only considers towers that are visible (not filtered out by draft mode).
+	## Returns null if index is out of range.
+	var visible_index: int = 0
+	for i: int in range(_available_towers.size()):
+		if i < _tower_buttons.size() and _tower_buttons[i].visible:
+			if visible_index == index:
+				return _available_towers[i]
+			visible_index += 1
+	return null
 
 
 func _process(_delta: float) -> void:

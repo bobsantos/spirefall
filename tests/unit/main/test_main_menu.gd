@@ -121,6 +121,24 @@ func _build_menu() -> Control:
 	credits_close.text = "Close"
 	credits_vbox.add_child(credits_close)
 
+	# Codex button
+	var codex_btn := Button.new()
+	codex_btn.name = "CodexButton"
+	codex_btn.text = "Codex"
+	button_box.add_child(codex_btn)
+
+	# Codex overlay (hidden by default)
+	var codex_overlay := Control.new()
+	codex_overlay.name = "CodexOverlay"
+	codex_overlay.visible = false
+	root.add_child(codex_overlay)
+
+	# Version label
+	var version_label := Label.new()
+	version_label.name = "VersionLabel"
+	version_label.text = ""
+	root.add_child(version_label)
+
 	return root
 
 
@@ -137,6 +155,9 @@ func _apply_script(node: Control) -> void:
 	node.credits_overlay = node.get_node("CreditsOverlay")
 	node.credits_close_button = node.get_node("CreditsOverlay/CreditsVBox/CreditsCloseButton")
 	node.title_label = node.get_node("CenterContainer/VBoxContainer/TitleLabel")
+	node.codex_button = node.get_node("CenterContainer/VBoxContainer/ButtonContainer/CodexButton")
+	node.codex_overlay = node.get_node("CodexOverlay")
+	node.version_label = node.get_node("VersionLabel")
 
 
 # -- Setup / Teardown ----------------------------------------------------------

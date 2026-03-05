@@ -41,6 +41,8 @@ func _register_legendary_fusions() -> void:
 	_legendary_fusions["earth+ice+lightning"] = "res://resources/towers/legendaries/crystalline_monolith.tres"
 	_legendary_fusions["earth+fire+wind"] = "res://resources/towers/legendaries/volcanic_tempest.tres"
 	_legendary_fusions["earth+lightning+water"] = "res://resources/towers/legendaries/tectonic_dynamo.tres"
+	_legendary_fusions["fire+ice+water"] = "res://resources/towers/legendaries/frostfire_cataclysm.tres"
+	_legendary_fusions["lightning+water+wind"] = "res://resources/towers/legendaries/cyclone_conductor.tres"
 
 
 func get_all_dual_fusions() -> Dictionary:
@@ -104,10 +106,13 @@ func get_legendary_cost(tier2_elements: Array[String], third_element: String) ->
 
 func can_fuse(tower_a: Node, tower_b: Node) -> bool:
 	## Returns true if two towers can be fused together.
-	## Both must be Superior (tier 1, no upgrade_to) and different elements.
+	## Both must be Superior (tier 1, no upgrade_to, not Ascended) and different elements.
 	if tower_a.tower_data.tier != 1 or tower_b.tower_data.tier != 1:
 		return false
 	if tower_a.tower_data.upgrade_to != null or tower_b.tower_data.upgrade_to != null:
+		return false
+	# Ascended towers cannot be used in fusions
+	if tower_a.tower_data.tower_name.ends_with(" Ascended") or tower_b.tower_data.tower_name.ends_with(" Ascended"):
 		return false
 	if tower_a.tower_data.element == tower_b.tower_data.element:
 		return false
@@ -121,6 +126,9 @@ func can_fuse_legendary(tower_tier2: Node, tower_superior: Node) -> bool:
 	if tower_tier2.tower_data.tier != 2:
 		return false
 	if tower_superior.tower_data.tier != 1 or tower_superior.tower_data.upgrade_to != null:
+		return false
+	# Ascended towers cannot be used in legendary fusions
+	if tower_superior.tower_data.tower_name.ends_with(" Ascended"):
 		return false
 	# The third element must NOT already be in the tier2's fusion_elements
 	var third_element: String = tower_superior.tower_data.element

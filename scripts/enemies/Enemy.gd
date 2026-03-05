@@ -27,6 +27,8 @@ var _is_revealed: bool = false
 # Healer visual feedback
 var _heal_flash_timer: float = 0.0
 const HEAL_FLASH_DURATION: float = 0.15
+const HEAL_RADIUS_CELLS: float = 1.5
+const MAX_HEAL_TARGETS: int = 3
 
 # Flying bobbing effect
 var _is_flying: bool = false
@@ -92,6 +94,17 @@ func _apply_enemy_data() -> void:
 		_assign_elemental_affinity()
 
 
+static func _ensure_visible_tint(color: Color) -> Color:
+	## Lighten dark element tints so sprites remain visible against any background.
+	## Blends toward white until luminance reaches at least 0.45.
+	const MIN_LUMINANCE: float = 0.45
+	var luminance: float = color.r * 0.299 + color.g * 0.587 + color.b * 0.114
+	if luminance < MIN_LUMINANCE:
+		var blend: float = (MIN_LUMINANCE - luminance) / (1.0 - luminance)
+		color = color.lerp(Color.WHITE, blend)
+	return color
+
+
 func _assign_elemental_affinity() -> void:
 	## Assign random immune and weak elements for Elemental enemy type.
 	## Seeded by wave number for deterministic results within a wave,
@@ -110,9 +123,10 @@ func _assign_elemental_affinity() -> void:
 		# Fallback: pick a different random element
 		var weak_idx: int = (immune_idx + 1) % elements.size()
 		enemy_data.weak_element = elements[weak_idx]
-	# Tint sprite to immune element color
+	# Tint sprite to immune element color (ensure minimum brightness for visibility)
 	var tint: Color = ElementMatrix.get_color(enemy_data.immune_element)
 	if tint != Color.WHITE:
+		tint = _ensure_visible_tint(tint)
 		sprite.modulate = tint
 		_original_modulate = tint
 
@@ -180,6 +194,10 @@ func take_damage(amount: int, element: String = "") -> void:
 	# Stunned enemies take 2x damage from all sources (Crystalline Monolith synergy)
 	if has_status(StatusEffect.Type.STUN):
 		final_amount = int(final_amount * 2.0)
+	# Floating damage number
+	if SettingsManager.show_damage_numbers:
+		var multiplier: float = _get_effective_multiplier(element)
+		DamageNumberManager.spawn(global_position, final_amount, element, multiplier)
 	current_health -= final_amount
 	_update_health_bar()
 	if current_health <= 0:
@@ -202,6 +220,21 @@ func _apply_resistance(amount: int, element: String) -> int:
 		if enemy_data.physical_resist > 0.0 and element == "earth":
 			return int(amount * (1.0 - enemy_data.physical_resist))
 	return amount
+
+
+func _get_effective_multiplier(element: String) -> float:
+	## Returns the effective damage multiplier for display categorization.
+	if not enemy_data:
+		return 1.0
+	if enemy_data.immune_element != "" and element == enemy_data.immune_element:
+		return 0.0
+	if enemy_data.weak_element != "" and element == enemy_data.weak_element:
+		return 2.0
+	if enemy_data.physical_resist > 0.0 and element == "earth":
+		return 1.0 - enemy_data.physical_resist
+	if element != "" and enemy_data.element != "" and enemy_data.element != "none" and enemy_data.element != "chaos":
+		return ElementMatrix.get_multiplier(element, enemy_data.element)
+	return 1.0
 
 
 func _die() -> void:
@@ -270,21 +303,31 @@ func _update_health_bar() -> void:
 # -- Healer Behavior --------------------------------------------------------
 
 func _heal_nearby(delta: float) -> void:
-	## Heal all ally enemies within 2-cell radius (128px). Does NOT heal self.
-	var heal_radius_px: float = 2.0 * GridManager.CELL_SIZE  # 128px
+	## Heal up to MAX_HEAL_TARGETS nearest damaged allies within HEAL_RADIUS_CELLS.
+	var heal_radius_px: float = HEAL_RADIUS_CELLS * GridManager.CELL_SIZE  # 96px
 	var heal_amount: float = enemy_data.heal_per_second * delta
 	var enemies: Array[Node] = EnemySystem.get_active_enemies()
 
+	# Collect valid heal candidates with their distances
+	var candidates: Array[Array] = []
 	for ally: Node in enemies:
 		if ally == self:
 			continue
 		if not is_instance_valid(ally) or ally.current_health <= 0:
 			continue
-		if position.distance_to(ally.position) > heal_radius_px:
+		var dist: float = position.distance_to(ally.position)
+		if dist > heal_radius_px:
 			continue
-		# Only heal if ally is actually damaged
 		if ally.current_health >= ally.max_health:
 			continue
+		candidates.append([dist, ally])
+
+	# Sort by distance (nearest first) and cap to MAX_HEAL_TARGETS
+	candidates.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
+	var target_count: int = mini(candidates.size(), MAX_HEAL_TARGETS)
+
+	for i: int in range(target_count):
+		var ally: Node = candidates[i][1]
 		ally.current_health = mini(ally.current_health + int(ceil(heal_amount)), ally.max_health)
 		ally._update_health_bar()
 		# Brief green flash on healed ally (don't override if already flashing)
@@ -563,6 +606,6 @@ func _boss_element_cycle() -> void:
 
 	# Visual: tint sprite to match current immune element
 	if sprite:
-		var tint: Color = ElementMatrix.get_color(new_element)
+		var tint: Color = _ensure_visible_tint(ElementMatrix.get_color(new_element))
 		sprite.modulate = tint
 		_original_modulate = tint
