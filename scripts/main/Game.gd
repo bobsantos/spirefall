@@ -58,6 +58,7 @@ var _shoot_effect_scene: PackedScene = preload("res://scenes/effects/particles/T
 
 func _ready() -> void:
 	UIManager.build_requested.connect(_on_build_requested)
+	UIManager.placement_cancelled.connect(_cancel_placement)
 	EnemySystem.enemy_spawned.connect(_on_enemy_spawned)
 	EnemySystem.enemy_killed.connect(_on_enemy_killed)
 	TowerSystem.tower_created.connect(_on_tower_created)
@@ -359,6 +360,7 @@ func _handle_click(screen_pos: Vector2) -> void:
 			_placing_tower = null
 			_clear_ghost()
 			_placement_cooldown = 2  # Prevent auto-selecting the just-placed tower
+			UIManager.placement_ended.emit()
 	elif _placement_cooldown <= 0:
 		# Try to select existing tower
 		var tower: Node = GridManager.get_tower_at(grid_pos)
@@ -393,6 +395,7 @@ func _on_enemy_spawned(enemy: Node) -> void:
 func _cancel_placement() -> void:
 	_placing_tower = null
 	_clear_ghost()
+	UIManager.placement_ended.emit()
 
 
 func _create_ghost(tower_data: TowerData) -> void:

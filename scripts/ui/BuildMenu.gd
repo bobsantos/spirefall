@@ -13,6 +13,7 @@ signal tower_build_selected(tower_data: TowerData)
 var _tower_buttons: Array[Button] = []
 var _available_towers: Array[TowerData] = []
 var _draft_indicator: HBoxContainer
+var _cancel_button: Button
 
 # Canonical element order for build menu button layout
 const ELEMENT_ORDER: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
@@ -46,7 +47,10 @@ func _ready() -> void:
 	_load_available_towers()
 	_create_draft_indicator()
 	_create_buttons()
+	_create_cancel_button()
 	_connect_draft_signals()
+	UIManager.build_requested.connect(_on_placement_started)
+	UIManager.placement_ended.connect(_on_placement_ended)
 
 
 func _load_available_towers() -> void:
@@ -244,6 +248,54 @@ func _on_tower_selected(tower_data: TowerData) -> void:
 	AudioManager.play_sfx("ui_click")
 	UIManager.request_build(tower_data)
 	tower_build_selected.emit(tower_data)
+
+
+func _create_cancel_button() -> void:
+	_cancel_button = Button.new()
+	_cancel_button.text = "X Cancel"
+	_cancel_button.focus_mode = Control.FOCUS_NONE
+	if UIManager.is_mobile():
+		_cancel_button.custom_minimum_size = Vector2(100, 80)
+	else:
+		_cancel_button.custom_minimum_size = Vector2(80, 64)
+
+	# Red-tinted style
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.5, 0.12, 0.1, 0.9)
+	style.border_color = Color(1.0, 0.3, 0.2)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(4)
+	_cancel_button.add_theme_stylebox_override("normal", style)
+
+	var style_hover := style.duplicate()
+	style_hover.bg_color = Color(0.6, 0.15, 0.12, 0.95)
+	_cancel_button.add_theme_stylebox_override("hover", style_hover)
+
+	var style_pressed := style.duplicate()
+	style_pressed.bg_color = Color(0.35, 0.08, 0.06, 0.9)
+	_cancel_button.add_theme_stylebox_override("pressed", style_pressed)
+
+	_cancel_button.add_theme_font_size_override("font_size", 13)
+	_cancel_button.add_theme_color_override("font_color", Color(1.0, 0.85, 0.8))
+	_cancel_button.pressed.connect(_on_cancel_pressed)
+	_cancel_button.visible = false
+	button_container.add_child(_cancel_button)
+	# Move to front so it's the first visible button
+	button_container.move_child(_cancel_button, 0)
+
+
+func _on_cancel_pressed() -> void:
+	AudioManager.play_sfx("ui_click")
+	UIManager.cancel_placement()
+
+
+func _on_placement_started(_tower_data: TowerData) -> void:
+	_cancel_button.visible = true
+
+
+func _on_placement_ended() -> void:
+	_cancel_button.visible = false
 
 
 ## Connect to DraftManager signals for live updates when draft starts or new elements are drafted.

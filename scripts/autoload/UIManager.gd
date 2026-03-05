@@ -6,6 +6,8 @@ extends Node
 signal tower_selected(tower: Node)
 signal tower_deselected()
 signal build_requested(tower_data: TowerData)
+signal placement_cancelled
+signal placement_ended
 
 ## Minimum touch-target sizes for mobile (px). Desktop uses default sizes.
 const MOBILE_BUTTON_MIN: Vector2 = Vector2(56, 56)
@@ -65,6 +67,10 @@ func deselect_tower() -> void:
 
 func request_build(tower_data: TowerData) -> void:
 	build_requested.emit(tower_data)
+
+
+func cancel_placement() -> void:
+	placement_cancelled.emit()
 
 
 func update_hud() -> void:

@@ -1,5 +1,5 @@
 ---
-name: plan
+name: work-plan
 description: Collaborative planning skill. Coordinates godot-developer, game-designer, and pixel-artist agents to create a detailed implementation plan from a given input. Overwrites docs/work/plan.md with the result (or a custom output path if specified).
   TRIGGER when: user asks to "create a plan", "make a plan", "plan this", "write an implementation plan", asks all three agents to collaborate on planning, or references creating/updating the work plan.
   DO NOT TRIGGER when: user asks to implement/develop/code a feature (use develop skill), asks a single agent a question, or is just reading/reviewing an existing plan.
