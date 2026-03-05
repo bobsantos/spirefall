@@ -17,6 +17,10 @@ func _reset_game_manager() -> void:
 	GameManager._combat_timer = 0.0
 	GameManager._combat_timer_max = 0.0
 	GameManager._enemies_leaked_this_wave = 0
+	GameManager._overtime_active = false
+	GameManager._overtime_elapsed = 0.0
+	GameManager._overtime_drain_accumulator = 0.0
+	GameManager._boss_killed_this_wave = false
 
 
 func _reset_enemy_system() -> void:
@@ -236,6 +240,7 @@ func test_game_over_victory_true_at_max() -> void:
 	GameManager.start_game()
 	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
 	GameManager.current_wave = GameManager.max_waves
+	GameManager._boss_killed_this_wave = true  # Victory requires boss killed
 	var emitted_args: Array = []
 	var conn: Callable = func(victory: bool) -> void: emitted_args.append(victory)
 	GameManager.game_over.connect(conn)

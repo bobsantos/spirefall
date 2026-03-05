@@ -10,13 +10,12 @@ signal closed
 @onready var tab_buttons: Array[Button] = [
 	$VBoxContainer/TabBar/TowersTab,
 	$VBoxContainer/TabBar/ElementsTab,
-	$VBoxContainer/TabBar/FusionsTab,
 	$VBoxContainer/TabBar/EnemiesTab,
 	$VBoxContainer/TabBar/ModesTab,
 ]
 @onready var close_button: Button = $VBoxContainer/HeaderBar/CloseButton
 
-const TABS: Array[String] = ["Towers", "Elements", "Fusions", "Enemies", "Modes"]
+const TABS: Array[String] = ["Towers", "Elements", "Enemies", "Modes"]
 var _current_tab: int = 0
 # Tracks whether the scene tree was already paused when we opened,
 # so we only unpause on close if we were the ones who paused it.
@@ -130,201 +129,14 @@ func _build_tab_content(tab_index: int) -> void:
 		1:
 			_build_elements_tab()
 		2:
-			_build_fusions_tab()
-		3:
 			_build_enemies_tab()
-		4:
+		3:
 			_build_modes_tab()
 
 
 func _clear_content() -> void:
 	for child: Node in content_container.get_children():
 		child.queue_free()
-
-
-# --- Fusions Tab ---
-
-func _build_fusions_tab() -> void:
-	# Dual Fusions section
-	_add_section_header("Dual Fusions (Tier 2)")
-	_add_section_subtitle("Fuse two max-upgraded (Superior) towers of different elements")
-
-	var dual_fusions: Dictionary = FusionRegistry.get_all_dual_fusions()
-	# Sort keys for consistent display
-	var dual_keys: Array = dual_fusions.keys()
-	dual_keys.sort()
-
-	for key: String in dual_keys:
-		var path: String = dual_fusions[key]
-		var tower_data: TowerData = load(path)
-		if tower_data == null:
-			continue
-		var elements: PackedStringArray = key.split("+")
-		if elements.size() != 2:
-			continue
-		var entry: VBoxContainer = _create_fusion_row(elements[0], elements[1], tower_data)
-		content_container.add_child(entry)
-
-	_add_spacer(12)
-
-	# Legendary Fusions section
-	_add_section_header("Legendary Fusions (Tier 3)")
-	_add_section_subtitle("Fuse a Tier 2 fusion tower with a Superior tower of the 3rd element")
-
-	var legendary_fusions: Dictionary = FusionRegistry.get_all_legendary_fusions()
-	var legendary_keys: Array = legendary_fusions.keys()
-	legendary_keys.sort()
-
-	for key: String in legendary_keys:
-		var path: String = legendary_fusions[key]
-		var tower_data: TowerData = load(path)
-		if tower_data == null:
-			continue
-		var elements: PackedStringArray = key.split("+")
-		if elements.size() != 3:
-			continue
-		var row: Control = _create_legendary_row(elements, tower_data, dual_fusions)
-		content_container.add_child(row)
-
-
-func _create_fusion_row(element_a: String, element_b: String, tower_data: TowerData) -> VBoxContainer:
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-
-	# Element A dot
-	row.add_child(_create_element_dot(element_a))
-
-	# Plus sign
-	var plus := Label.new()
-	plus.text = "+"
-	plus.add_theme_font_size_override("font_size", 13)
-	plus.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	row.add_child(plus)
-
-	# Element B dot
-	row.add_child(_create_element_dot(element_b))
-
-	# Equals sign
-	var equals := Label.new()
-	equals.text = "="
-	equals.add_theme_font_size_override("font_size", 13)
-	equals.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	row.add_child(equals)
-
-	# Tower name + cost
-	var name_label := Label.new()
-	name_label.text = "%s (%dg)" % [tower_data.tower_name, tower_data.cost]
-	name_label.add_theme_font_size_override("font_size", 13)
-	name_label.add_theme_color_override("font_color", Color(0.95, 0.9, 0.7))
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(name_label)
-
-	# Wrap in a VBox to include special description below
-	var wrapper := VBoxContainer.new()
-	wrapper.add_theme_constant_override("separation", 2)
-	wrapper.add_child(row)
-
-	if tower_data.special_description != "":
-		var desc := Label.new()
-		desc.text = "    %s" % tower_data.special_description
-		desc.add_theme_font_size_override("font_size", 11)
-		desc.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		wrapper.add_child(desc)
-
-	return wrapper
-
-
-func _create_legendary_row(elements: PackedStringArray, tower_data: TowerData, dual_fusions: Dictionary) -> VBoxContainer:
-	# Determine which dual fusion feeds into this legendary
-	# Find the dual pair that exists as a key in dual_fusions
-	var dual_key: String = ""
-	var third_element: String = ""
-	var sorted_elements: Array[String] = []
-	for e: String in elements:
-		sorted_elements.append(e)
-	sorted_elements.sort()
-
-	# Try each pair of 2 elements to find a dual fusion
-	for i: int in 3:
-		for j: int in range(i + 1, 3):
-			var pair_key: String = "%s+%s" % [sorted_elements[i], sorted_elements[j]]
-			if pair_key in dual_fusions:
-				dual_key = pair_key
-				# Third element is the one not in this pair
-				for k: int in 3:
-					if k != i and k != j:
-						third_element = sorted_elements[k]
-						break
-				break
-		if dual_key != "":
-			break
-
-	var wrapper := VBoxContainer.new()
-	wrapper.add_theme_constant_override("separation", 2)
-
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-
-	if dual_key != "":
-		var dual_data: TowerData = load(dual_fusions[dual_key])
-		var dual_name: String = dual_data.tower_name if dual_data else dual_key
-
-		# [Dual Tower Name] + [Element Dot] = Legendary Name
-		var dual_label := Label.new()
-		dual_label.text = dual_name
-		dual_label.add_theme_font_size_override("font_size", 13)
-		dual_label.add_theme_color_override("font_color", Color(0.8, 0.75, 0.6))
-		row.add_child(dual_label)
-
-		var plus := Label.new()
-		plus.text = "+"
-		plus.add_theme_font_size_override("font_size", 13)
-		plus.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		row.add_child(plus)
-
-		row.add_child(_create_element_dot(third_element))
-
-		var sup_label := Label.new()
-		sup_label.text = "(Sup.)"
-		sup_label.add_theme_font_size_override("font_size", 11)
-		sup_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
-		row.add_child(sup_label)
-	else:
-		# Fallback: just show all 3 element dots
-		for e: String in sorted_elements:
-			row.add_child(_create_element_dot(e))
-			if e != sorted_elements[-1]:
-				var plus := Label.new()
-				plus.text = "+"
-				plus.add_theme_font_size_override("font_size", 13)
-				plus.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-				row.add_child(plus)
-
-	var equals := Label.new()
-	equals.text = "="
-	equals.add_theme_font_size_override("font_size", 13)
-	equals.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	row.add_child(equals)
-
-	var name_label := Label.new()
-	name_label.text = "%s (%dg)" % [tower_data.tower_name, tower_data.cost]
-	name_label.add_theme_font_size_override("font_size", 13)
-	name_label.add_theme_color_override("font_color", Color(1.0, 0.8, 0.4))
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	row.add_child(name_label)
-
-	wrapper.add_child(row)
-
-	if tower_data.special_description != "":
-		var desc := Label.new()
-		desc.text = "    %s" % tower_data.special_description
-		desc.add_theme_font_size_override("font_size", 11)
-		desc.add_theme_color_override("font_color", Color(0.55, 0.55, 0.65))
-		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		wrapper.add_child(desc)
-
-	return wrapper
 
 
 # --- Towers Tab ---

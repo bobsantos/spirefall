@@ -84,6 +84,35 @@ func get_active_enemies() -> Array[Node]:
 	return _active_enemies
 
 
+## Returns all active boss enemies currently on the field.
+func get_active_bosses() -> Array[Node]:
+	var bosses: Array[Node] = []
+	for enemy: Node in _active_enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var data: EnemyData = enemy.get("enemy_data") as EnemyData
+		if data != null and data.is_boss:
+			bosses.append(enemy)
+	return bosses
+
+
+## Apply overtime speed boost to all active boss enemies.
+## Multiplies the boss's current speed by the given factor.
+func apply_overtime_speed_boost(speed_mult: float) -> void:
+	for enemy: Node in _active_enemies:
+		if not is_instance_valid(enemy):
+			continue
+		var data: EnemyData = enemy.get("enemy_data") as EnemyData
+		if data == null or not data.is_boss:
+			continue
+		# Boost the speed_multiplier on the data so _recalculate_speed picks it up
+		if enemy.has_method("_recalculate_speed"):
+			data.speed_multiplier *= speed_mult
+			enemy._recalculate_speed()
+		elif "speed" in enemy:
+			enemy.speed *= speed_mult
+
+
 func get_wave_config(wave_number: int) -> Dictionary:
 	## Returns the raw wave_config.json entry for the given wave number.
 	## For endless waves (> configured range), generates a synthetic config dict.

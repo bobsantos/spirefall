@@ -13,6 +13,8 @@ signal game_over(victory: bool)
 signal early_wave_bonus(amount: int)
 signal paused_changed(is_paused: bool)
 signal speed_changed(speed: float)
+signal overtime_started
+signal lives_changed(new_lives: int)
 
 @export var max_waves: int = 30
 @export var starting_lives: int = 20
@@ -39,6 +41,20 @@ var _game_running: bool = false
 var game_speed: float = 1.0
 var _previous_gold: int = 0
 
+# Boss Overtime system: escalating life drain when boss wave timer expires
+var _overtime_active: bool = false
+var _overtime_elapsed: float = 0.0
+var _overtime_drain_accumulator: float = 0.0
+var _boss_killed_this_wave: bool = false
+
+## Overtime drain intervals per phase (seconds between each 1-life drain).
+const OVERTIME_PHASE_1_INTERVAL: float = 5.0   # 0-10s: grace period
+const OVERTIME_PHASE_2_INTERVAL: float = 3.0   # 10-30s: pressure
+const OVERTIME_PHASE_3_INTERVAL: float = 2.0   # 30s+: critical
+const OVERTIME_PHASE_2_THRESHOLD: float = 10.0
+const OVERTIME_PHASE_3_THRESHOLD: float = 30.0
+const OVERTIME_BOSS_SPEED_MULT: float = 1.5
+
 ## Run statistics tracked during gameplay. Populated in start_game(),
 ## updated on wave completion / enemy kills / gold changes, finalized on game over.
 ## GameOverScreen reads these to display end-of-run stats.
@@ -55,6 +71,7 @@ const _MODE_MAP: Dictionary = {
 func _ready() -> void:
 	lives = starting_lives
 	EnemySystem.enemy_killed.connect(_on_stat_enemy_killed)
+	EnemySystem.enemy_killed.connect(_on_enemy_killed_boss_check_signal)
 	EconomyManager.gold_earned.connect(_on_stat_gold_earned)
 
 
@@ -66,6 +83,7 @@ func set_game_speed(speed: float) -> void:
 
 func start_game(mode: String = "classic") -> void:
 	set_game_speed(1.0)
+	EconomyManager.reset()
 	_game_running = true
 	current_mode = _MODE_MAP.get(mode, GameMode.CLASSIC)
 	if current_mode == GameMode.DRAFT:
@@ -79,6 +97,10 @@ func start_game(mode: String = "classic") -> void:
 	current_wave = 0
 	lives = starting_lives
 	_previous_wave_timed_out = false
+	_overtime_active = false
+	_overtime_elapsed = 0.0
+	_overtime_drain_accumulator = 0.0
+	_boss_killed_this_wave = false
 	_previous_gold = EconomyManager.gold
 	run_stats = {
 		"waves_survived": 0,
@@ -118,15 +140,21 @@ func _process(delta: float) -> void:
 				if _build_timer <= 0.0:
 					_transition_to(GameState.COMBAT_PHASE)
 		GameState.COMBAT_PHASE:
-			_combat_timer -= delta
-			if EnemySystem.get_active_enemy_count() == 0 and EnemySystem.is_wave_finished():
-				_previous_wave_timed_out = false
-				_on_wave_cleared()
-			elif _combat_timer <= 0.0:
-				# Timer expired: auto-advance. Surviving enemies remain on the field
-				# and can still leak lives. The next wave spawns on top of them.
-				_previous_wave_timed_out = true
-				_on_wave_cleared()
+			if _overtime_active:
+				_process_overtime(delta)
+			else:
+				_combat_timer -= delta
+				if EnemySystem.get_active_enemy_count() == 0 and EnemySystem.is_wave_finished():
+					_previous_wave_timed_out = false
+					_on_wave_cleared()
+				elif _combat_timer <= 0.0:
+					if _is_boss_wave():
+						_enter_overtime()
+					else:
+						# Timer expired: auto-advance. Surviving enemies remain on the field
+						# and can still leak lives. The next wave spawns on top of them.
+						_previous_wave_timed_out = true
+						_on_wave_cleared()
 
 
 func _transition_to(new_state: GameState) -> void:
@@ -138,6 +166,10 @@ func _transition_to(new_state: GameState) -> void:
 		GameState.COMBAT_PHASE:
 			_enemies_leaked_this_wave = 0
 			_boss_escaped_this_wave = false
+			_overtime_active = false
+			_overtime_elapsed = 0.0
+			_overtime_drain_accumulator = 0.0
+			_boss_killed_this_wave = false
 			# Boss waves get a longer combat timer
 			var wave_config: Dictionary = EnemySystem.get_wave_config(current_wave)
 			if wave_config.get("is_boss_wave", false):
@@ -152,7 +184,8 @@ func _transition_to(new_state: GameState) -> void:
 			_transition_to(GameState.BUILD_PHASE)
 		GameState.GAME_OVER:
 			_game_running = false
-			var victory: bool = current_wave >= max_waves and not _boss_escaped_this_wave
+			_overtime_active = false
+			var victory: bool = current_wave >= max_waves and not _boss_escaped_this_wave and _boss_killed_this_wave
 			_finalize_run_stats(victory)
 			# Pause the tree so gameplay stops. GameOverScreen and SceneManager
 			# use PROCESS_MODE_WHEN_PAUSED / ALWAYS to remain interactive.
@@ -202,7 +235,10 @@ func lose_life(amount: int = 1) -> void:
 	lives -= amount
 	if lives <= 0:
 		lives = 0
+		lives_changed.emit(lives)
 		_transition_to(GameState.GAME_OVER)
+		return
+	lives_changed.emit(lives)
 
 
 func record_boss_escaped() -> void:
@@ -258,3 +294,73 @@ func _on_stat_enemy_killed(_enemy: Node) -> void:
 func _on_stat_gold_earned(amount: int) -> void:
 	if run_stats.has("total_gold_earned"):
 		run_stats["total_gold_earned"] += amount
+
+
+# -- Boss Overtime System -------------------------------------------------------
+
+## Returns true if the current wave is a boss wave.
+func _is_boss_wave() -> bool:
+	var wave_config: Dictionary = EnemySystem.get_wave_config(current_wave)
+	return wave_config.get("is_boss_wave", false)
+
+
+## Enter overtime phase when boss wave combat timer expires.
+func _enter_overtime() -> void:
+	_overtime_active = true
+	_overtime_elapsed = 0.0
+	_overtime_drain_accumulator = 0.0
+	# Boost boss speed by 50%
+	EnemySystem.apply_overtime_speed_boost(OVERTIME_BOSS_SPEED_MULT)
+	overtime_started.emit()
+
+
+## Process overtime: tick elapsed time and drain lives at escalating intervals.
+func _process_overtime(delta: float) -> void:
+	# Check if all enemies are dead (boss killed during overtime)
+	if EnemySystem.get_active_enemy_count() == 0 and EnemySystem.is_wave_finished():
+		_overtime_active = false
+		_previous_wave_timed_out = false
+		_on_wave_cleared()
+		return
+
+	_overtime_elapsed += delta
+	_overtime_drain_accumulator += delta
+
+	# Determine drain interval based on overtime phase
+	var drain_interval: float = _get_overtime_drain_interval()
+
+	# Drain lives when accumulator reaches the interval
+	while _overtime_drain_accumulator >= drain_interval:
+		_overtime_drain_accumulator -= drain_interval
+		lose_life(1)
+		if lives <= 0:
+			return  # lose_life triggers GAME_OVER
+		# Recalculate interval in case we crossed a phase boundary
+		drain_interval = _get_overtime_drain_interval()
+
+
+## Returns the life drain interval for the current overtime phase.
+func _get_overtime_drain_interval() -> float:
+	if _overtime_elapsed >= OVERTIME_PHASE_3_THRESHOLD:
+		return OVERTIME_PHASE_3_INTERVAL
+	elif _overtime_elapsed >= OVERTIME_PHASE_2_THRESHOLD:
+		return OVERTIME_PHASE_2_INTERVAL
+	else:
+		return OVERTIME_PHASE_1_INTERVAL
+
+
+## Called when an enemy is killed. Checks if it was a boss and sets the flag.
+## Connected to EnemySystem.enemy_killed via _ready().
+func _on_enemy_killed_boss_check_signal(enemy: Node) -> void:
+	if enemy == null:
+		return
+	var data: EnemyData = enemy.get("enemy_data") as EnemyData
+	if data != null:
+		_on_enemy_killed_boss_check(enemy, data)
+
+
+## Check if a killed enemy was a boss and set the _boss_killed_this_wave flag.
+## Callable directly from tests.
+func _on_enemy_killed_boss_check(_enemy: Node, data: EnemyData) -> void:
+	if data != null and data.is_boss:
+		_boss_killed_this_wave = true

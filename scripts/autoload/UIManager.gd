@@ -49,6 +49,8 @@ func toggle_codex() -> void:
 func select_tower(tower: Node) -> void:
 	selected_tower = tower
 	tower_selected.emit(tower)
+	if wave_preview_panel:
+		wave_preview_panel.hide()
 	if tower_info_panel:
 		tower_info_panel.show()
 		tower_info_panel.display_tower(tower)
@@ -71,6 +73,8 @@ func update_hud() -> void:
 
 
 func show_wave_preview(wave_number: int) -> void:
+	if selected_tower:
+		deselect_tower()
 	if wave_preview_panel:
 		wave_preview_panel.display_wave(wave_number)
 

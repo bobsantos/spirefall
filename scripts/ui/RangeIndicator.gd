@@ -15,8 +15,8 @@ const ELEMENT_COLORS: Dictionary = {
 	"ice": Color(0.3, 0.85, 0.9),
 }
 
-const RING_WIDTH: float = 2.0
-const RING_ALPHA: float = 0.2
+const RING_WIDTH: float = 2.5
+const RING_ALPHA: float = 0.5
 const ARC_POINT_COUNT: int = 64
 const ARC_START_ANGLE: float = 0.0
 const ARC_END_ANGLE: float = TAU

@@ -286,6 +286,10 @@ func _reset_autoloads() -> void:
 	GameManager.lives = GameManager.starting_lives
 	GameManager._build_timer = 0.0
 	GameManager._enemies_leaked_this_wave = 0
+	GameManager._overtime_active = false
+	GameManager._overtime_elapsed = 0.0
+	GameManager._overtime_drain_accumulator = 0.0
+	GameManager._boss_killed_this_wave = false
 	# EconomyManager
 	EconomyManager.reset()
 	# ElementSynergy
