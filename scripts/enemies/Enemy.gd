@@ -194,6 +194,10 @@ func take_damage(amount: int, element: String = "") -> void:
 	# Stunned enemies take 2x damage from all sources (Crystalline Monolith synergy)
 	if has_status(StatusEffect.Type.STUN):
 		final_amount = int(final_amount * 2.0)
+	# Floating damage number
+	if SettingsManager.show_damage_numbers:
+		var multiplier: float = _get_effective_multiplier(element)
+		DamageNumberManager.spawn(global_position, final_amount, element, multiplier)
 	current_health -= final_amount
 	_update_health_bar()
 	if current_health <= 0:
@@ -216,6 +220,21 @@ func _apply_resistance(amount: int, element: String) -> int:
 		if enemy_data.physical_resist > 0.0 and element == "earth":
 			return int(amount * (1.0 - enemy_data.physical_resist))
 	return amount
+
+
+func _get_effective_multiplier(element: String) -> float:
+	## Returns the effective damage multiplier for display categorization.
+	if not enemy_data:
+		return 1.0
+	if enemy_data.immune_element != "" and element == enemy_data.immune_element:
+		return 0.0
+	if enemy_data.weak_element != "" and element == enemy_data.weak_element:
+		return 2.0
+	if enemy_data.physical_resist > 0.0 and element == "earth":
+		return 1.0 - enemy_data.physical_resist
+	if element != "" and enemy_data.element != "" and enemy_data.element != "none" and enemy_data.element != "chaos":
+		return ElementMatrix.get_multiplier(element, enemy_data.element)
+	return 1.0
 
 
 func _die() -> void:

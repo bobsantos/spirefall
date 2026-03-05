@@ -796,13 +796,9 @@ func test_wave_clear_awards_bonus() -> void:
 	# and calls _on_wave_cleared() which awards the wave bonus.
 	GameManager._process(0.016)
 
-	# Gold should increase by: enemy gold (5) + wave bonus
-	# Wave 4 bonus with 2 leaks: base = 10 + (4 * 3) = 22 (no no-leak bonus)
+	# Gold should increase by enemy gold only — no wave bonus when enemies leaked
 	var expected_enemy_gold: int = 5
-	var expected_wave_bonus: int = EconomyManager.calculate_wave_bonus(4, 2)
-	assert_int(expected_wave_bonus).is_equal(22)
-
-	var total_expected: int = gold_before + expected_enemy_gold + expected_wave_bonus
+	var total_expected: int = gold_before + expected_enemy_gold
 	assert_int(EconomyManager.gold).is_equal(total_expected)
 
 

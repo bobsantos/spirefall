@@ -179,9 +179,10 @@ func _finalize_run_stats(victory: bool) -> void:
 
 
 func _on_wave_cleared() -> void:
-	# Award wave clear bonus (with no-leak bonus if applicable)
-	var bonus: int = EconomyManager.calculate_wave_bonus(current_wave, _enemies_leaked_this_wave)
-	EconomyManager.add_gold(bonus)
+	# Award wave clear bonus only if all enemies were killed (no leaks, no timeout)
+	if not _previous_wave_timed_out and _enemies_leaked_this_wave == 0:
+		var bonus: int = EconomyManager.calculate_wave_bonus(current_wave, _enemies_leaked_this_wave)
+		EconomyManager.add_gold(bonus)
 	wave_completed.emit(current_wave)
 	if current_mode == GameMode.ENDLESS:
 		# Endless mode: never game over from wave completion, only from lives == 0

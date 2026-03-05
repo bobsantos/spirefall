@@ -62,6 +62,12 @@ layout_mode = 2
 custom_minimum_size = Vector2(280, 50)
 text = "Settings"
 
+[node name="CodexButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer"]
+unique_name_in_owner = true
+layout_mode = 2
+custom_minimum_size = Vector2(280, 50)
+text = "Codex"
+
 [node name="CreditsButton" type="Button" parent="CenterContainer/VBoxContainer/ButtonContainer"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -81,6 +87,23 @@ layout_mode = 2
 custom_minimum_size = Vector2(280, 50)
 disabled = true
 text = "Leaderboards (Coming Soon)"
+
+[node name="VersionLabel" type="Label" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -200.0
+offset_top = -30.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.5, 0.5, 0.5, 0.6)
+theme_override_font_sizes/font_size = 14
+text = "v0.1.0-alpha"
+horizontal_alignment = 2
 
 [node name="SettingsOverlay" type="Control" parent="."]
 unique_name_in_owner = true
@@ -113,6 +136,24 @@ offset_right = 250.0
 offset_bottom = 260.0
 grow_horizontal = 2
 grow_vertical = 2
+
+[node name="CodexOverlay" type="Control" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Dimmer" type="ColorRect" parent="CodexOverlay"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+color = Color(0, 0, 0, 0.7)
 
 [node name="CreditsOverlay" type="PanelContainer" parent="."]
 unique_name_in_owner = true
@@ -151,9 +192,11 @@ size_flags_horizontal = 3
 size_flags_vertical = 3
 text = "SPIREFALL
 
+Developed by xHolyWrath
+
 A classic tower defense game inspired by Element TD, Green TD, and Legion TD.
 
-Developed with Godot Engine 4.6
+Built with Godot Engine 4.6
 
 Thank you for playing!"
 

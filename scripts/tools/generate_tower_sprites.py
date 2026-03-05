@@ -24,7 +24,7 @@ LEGENDARIES_DIR = TOWERS_DIR / "legendaries"
 ELEMENT_COLORS = {
     "fire": (0xFF, 0x66, 0x33),       # orange-red
     "water": (0x4D, 0x80, 0xFF),      # medium blue
-    "earth": (0x99, 0x66, 0x33),      # brown
+    "earth": (0x8B, 0x75, 0x2A),      # olive brown
     "wind": (0x55, 0xCC, 0x88),       # teal green
     "lightning": (0xFF, 0xFF, 0x4D),  # yellow
     "ice": (0xB3, 0xE6, 0xFF),        # light cyan

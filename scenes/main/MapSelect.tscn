@@ -82,7 +82,7 @@ autowrap_mode = 2
 [node name="ForestDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Difficulty: ★☆☆☆"
+text = "Difficulty: Easy"
 horizontal_alignment = 1
 
 [node name="ForestLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/ForestCard/CardVBox"]
@@ -130,7 +130,7 @@ autowrap_mode = 2
 [node name="MountainDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Difficulty: ★★☆☆"
+text = "Difficulty: Medium"
 horizontal_alignment = 1
 
 [node name="MountainLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/MountainCard/CardVBox"]
@@ -178,7 +178,7 @@ autowrap_mode = 2
 [node name="RiverDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Difficulty: ★★★☆"
+text = "Difficulty: Hard"
 horizontal_alignment = 1
 
 [node name="RiverLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/RiverCard/CardVBox"]
@@ -226,7 +226,7 @@ autowrap_mode = 2
 [node name="VolcanoDifficultyLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
 unique_name_in_owner = true
 layout_mode = 2
-text = "Difficulty: ★★★★"
+text = "Difficulty: Expert"
 horizontal_alignment = 1
 
 [node name="VolcanoLockLabel" type="Label" parent="CenterContainer/VBoxContainer/MapGrid/VolcanoCard/CardVBox"]
