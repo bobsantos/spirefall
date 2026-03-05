@@ -253,6 +253,7 @@ func _build_wave_queue(wave_number: int) -> Array:
 		_spawn_interval = DEFAULT_SPAWN_INTERVAL
 
 	var enemy_groups: Array = wave_entry["enemies"]
+	var healers: Array = []
 	for group: Dictionary in enemy_groups:
 		var enemy_type: String = group["type"]
 		var count: int = int(group["count"])
@@ -267,7 +268,19 @@ func _build_wave_queue(wave_number: int) -> Array:
 
 		for i: int in range(actual_count):
 			var data: EnemyData = _create_scaled_enemy(template, wave_number)
-			queue.append(data)
+			if enemy_type == "healer":
+				healers.append(data)
+			else:
+				queue.append(data)
+
+	# Spread healers evenly throughout the queue so they never clump together
+	if not healers.is_empty() and not queue.is_empty():
+		var spacing: int = maxi(queue.size() / (healers.size() + 1), 1)
+		for h_idx: int in range(healers.size()):
+			var insert_pos: int = mini(spacing * (h_idx + 1) + h_idx, queue.size())
+			queue.insert(insert_pos, healers[h_idx])
+	else:
+		queue.append_array(healers)
 
 	return queue
 
