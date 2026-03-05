@@ -1,1504 +1,434 @@
-# Spirefall Phase 3: Content and Polish Implementation Plan
+# Mobile UI/UX Overhaul Plan
 
-**Goal:** Transform Spirefall from a functional prototype into a shippable game on itch.io (HTML5) and Android. This phase adds the remaining content (3 maps, Draft mode, meta progression), complete menu flow, save/load, touch support, audio integration, visual polish, and export configuration.
+**Goal:** Make Spirefall fully playable on mobile phones (regular and foldable) by fixing touch interaction blockers, increasing UI element sizes, and improving menu navigation for finger-based input.
 
-**Reference:** GDD Section 13.3 (Weeks 9-12: Content and Polish)
+**Reference:** `docs/work/testing-notes.md` — playtesting on regular phone and Galaxy Z Fold
 
-**Prerequisites:** Phase 1 (core systems) and Phase 2 (gameplay) are complete. All 300+ GdUnit4 tests pass. The game is playable in Classic mode on the Forest Clearing map with keyboard+mouse input.
+**Prerequisites:** Phase 3 touch support is implemented (touch input handlers in Game.gd, `UIManager.is_mobile()` detection, basic mobile sizing constants). The game runs on Android via APK export.
 
 ---
 
 ## Architecture Overview
 
-Phase 3 introduces several new systems and modifies existing ones. The high-level changes are:
+This plan does not introduce new systems. It modifies existing UI scripts and scenes to be mobile-friendly. The core change is a systematic mobile sizing pass with centralized constants, plus targeted UX fixes for mobile-specific interaction gaps.
 
 ```
-NEW SYSTEMS:
-  SaveSystem (autoload)       - Persistent save/load via JSON to user://
-  SettingsManager (autoload)  - Volume, controls, display prefs
-  MetaProgression (autoload)  - XP, unlocks, run history
-  DraftManager (autoload)     - Element draft picks, tower filtering
-  SceneManager (autoload)     - Scene transitions with loading screen
+MODIFIED SYSTEMS:
+  UIManager (autoload)       - Expanded mobile size constants, mobile scale factor
+  HUD                        - Pause button, expanded mobile sizing for all elements
+  BuildMenu                  - Larger buttons, fonts, spacing on mobile
+  TowerInfoPanel             - Close button, bottom-docked layout on mobile
+  PauseMenu                  - Mobile button sizing
+  ModeSelect                 - Clickable cards, mobile layout
+  MapSelect                  - Clickable cards, mobile layout
+  GameOverScreen             - Mobile button/font sizing
+  DraftPickPanel             - Mobile button/font sizing
+  WavePreviewPanel           - Mobile font sizing
+  CodexPanel                 - Mobile font/layout sizing
 
-NEW SCENES:
-  scenes/main/MainMenu.tscn        - Title screen, entry point
-  scenes/main/ModeSelect.tscn      - Classic / Draft / Endless mode picker
-  scenes/main/MapSelect.tscn       - Map grid with previews
-  scenes/ui/PauseMenu.tscn         - In-game pause overlay
-  scenes/ui/DraftPickPanel.tscn    - Element draft pick UI
-  scenes/ui/BossAnnouncement.tscn  - Boss intro splash
-  scenes/ui/SettingsPanel.tscn     - Audio/display/controls settings
-  scenes/maps/MountainPass.tscn    - Map 2
-  scenes/maps/RiverDelta.tscn      - Map 3
-  scenes/maps/VolcanicCaldera.tscn - Map 4
-
-MODIFIED FILES:
-  project.godot            - Main scene -> MainMenu, new autoloads, touch input actions
-  scripts/main/Game.gd     - Parameterized map/mode, pause, return-to-menu
-  scripts/autoload/GameManager.gd    - Game mode enum, draft hooks, pause, stats tracking
-  scripts/autoload/UIManager.gd      - Scene navigation, pause menu, draft panel registration
-  scripts/autoload/AudioManager.gd   - Crossfade, bus volume API, phase-reactive music
-  scripts/autoload/EconomyManager.gd - Stats tracking for meta progression
-  scripts/autoload/EnemySystem.gd    - Stats tracking, boss announcement signal
-  scripts/ui/BuildMenu.gd           - Element filtering for Draft mode
-  scripts/ui/GameOverScreen.gd      - Stats display, XP award, menu return
-  scripts/ui/HUD.gd                 - Boss HP bar, touch-friendly sizing
+NO NEW FILES REQUIRED (all changes to existing scripts/scenes)
 ```
 
 ---
 
 ## Task Groups
 
-### Group A: Scene Navigation and Menu Flow (P0)
+### Group A: Mobile Sizing Foundation (P0)
 
-The game currently launches directly into gameplay. This group adds a proper menu flow: MainMenu -> ModeSelect -> MapSelect -> Game -> GameOver -> MainMenu.
+Establish centralized mobile size constants and scale factor in UIManager. All subsequent tasks reference these constants.
 
 ---
 
-#### Task A1: SceneManager Autoload ✅ COMPLETE
+#### Task A1: Mobile Size Constants in UIManager
 
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 10.3
+**Priority:** P0 | **Effort:** Small | **GDD Ref:** N/A
 
 **New files:**
-- `scripts/autoload/SceneManager.gd`
-- `tests/unit/autoload/test_scene_manager.gd` (19 tests)
+- None
 
 **Modified files:**
-- `project.godot` (add autoload)
+- `scripts/autoload/UIManager.gd`
 
 **Implementation notes:**
-- Autoload singleton that manages scene transitions
-- `change_scene(scene_path: String)` with optional fade transition
-- Uses a `CanvasLayer` with a `ColorRect` overlay for fade-to-black transitions
-- Stores `current_game_config: Dictionary` to pass parameters between scenes (mode, map, difficulty)
-- Provides `go_to_main_menu()`, `go_to_game(config: Dictionary)`, `restart_game()` convenience methods
-- Fade duration: 0.3s out, 0.3s in (tweened alpha)
-- Signal: `scene_changing()` so systems can clean up
+- Add `MOBILE_SCALE: float = 1.5` constant for systematic scaling
+- Minimum mobile touch target: 100px in viewport coordinates (derived from 48dp physical minimum at ~56% viewport scale on typical phones with `keep_height` aspect)
+- Updated constants:
+  - `MOBILE_BUTTON_MIN`: 56x56 -> 64x64
+  - `MOBILE_TOWER_BUTTON_MIN`: 128x80 -> 150x100
+  - `MOBILE_ACTION_BUTTON_MIN_HEIGHT`: 48 -> 56
+  - `MOBILE_START_WAVE_MIN`: 140x56 -> 160x64
+  - Add `MOBILE_FONT_SIZE_BODY: int = 16` (minimum readable on phone)
+  - Add `MOBILE_FONT_SIZE_LABEL: int = 14`
+  - Add `MOBILE_FONT_SIZE_TITLE: int = 24`
+  - Add `MOBILE_TOPBAR_HEIGHT: int = 72`
+  - Add `MOBILE_BUILD_MENU_HEIGHT: int = 140`
+  - Add `MOBILE_CARD_MIN_HEIGHT: int = 160`
+- Rationale for 100px minimum touch target: viewport height 960 maps to ~1080 physical pixels on a typical 6.1" phone in landscape (2.7" physical height, 403 PPI). 1 viewport pixel = ~0.07mm. 7mm minimum touch target = 100 viewport pixels.
 
 **Acceptance criteria:**
-- [x] Calling `SceneManager.change_scene("res://scenes/main/MainMenu.tscn")` fades out, loads scene, fades in
-- [x] `SceneManager.current_game_config` persists across scene changes
-- [x] No orphan nodes after transition (0 orphans in test run)
+- [ ] `UIManager` has `MOBILE_SCALE` constant set to 1.5
+- [ ] All existing mobile constants are updated to larger values
+- [ ] New font size and layout constants are added
+- [ ] `is_mobile()` continues to work correctly (no behavioral change)
 
 ---
 
-#### Task A2: MainMenu Scene ✅ COMPLETE
+### Group B: Critical Interaction Fixes (P0)
 
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 10.3
+Fix the three mobile interaction blockers: no way to close tower info panel, no way to access pause menu, and build menu too small to use.
+
+---
+
+#### Task B1: Add Close Button to TowerInfoPanel
+
+**Priority:** P0 | **Effort:** Small | **GDD Ref:** N/A
 
 **New files:**
-- `scenes/main/MainMenu.tscn`
-- `scripts/main/MainMenu.gd`
-- `tests/unit/main/test_main_menu.gd` (31 tests)
-
-**Implementation notes:**
-- `Control` root node, full-screen, centered layout
-- Title "SPIREFALL" in large text at top
-- Buttons: Play, Settings, Credits (Collection and Leaderboards are P2, grayed out with "Coming Soon")
-- Play button navigates to ModeSelect via SceneManager
-- Settings button opens SettingsPanel overlay
-- Credits button opens a simple scrollable label overlay
-- Background: solid dark gradient or static artwork placeholder
-- Trigger `AudioManager.play_music("menu")` on ready
-- Update `project.godot` to set `run/main_scene="res://scenes/main/MainMenu.tscn"`
-
-**Acceptance criteria:**
-- [x] Game launches to MainMenu, not directly into gameplay
-- [x] Play button navigates to ModeSelect with fade transition
-- [x] Settings button opens settings overlay
-- [x] All buttons have hover/press feedback
-
----
-
-#### Task A3: ModeSelect Scene ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 6, Section 10.3
-
-**New files:**
-- `scenes/main/ModeSelect.tscn`
-- `scripts/main/ModeSelect.gd`
-- `tests/unit/main/test_mode_select.gd` (40 tests)
-
-**Implementation notes:**
-- Display mode cards: Classic (always unlocked), Draft (unlocked at 500 XP), Endless (unlocked at 2000 XP)
-- Each card shows: mode name, brief description, lock status
-- Locked modes are visually grayed out with unlock requirement text
-- Selecting a mode stores it in `SceneManager.current_game_config["mode"]` and navigates to MapSelect
-- Back button returns to MainMenu
-- Mode descriptions from GDD:
-  - Classic: "30 waves of increasing difficulty. Build, maze, and survive."
-  - Draft: "Start with 1 random element. Draft 2 more across 10 waves."
-  - Endless: "Waves never stop. How far can you go?"
-- `unlock_overrides` Dictionary for test-friendly lock control; `_is_mode_unlocked()` ready for MetaProgression (Task E1)
-
-**Acceptance criteria:**
-- [x] Three mode cards displayed with correct descriptions
-- [x] Locked modes show requirement and cannot be selected
-- [x] Selected mode stored in game config, navigates to MapSelect
-- [x] Back button returns to MainMenu
-
----
-
-#### Task A4: MapSelect Scene ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 9.3, Section 10.3
-
-**New files:**
-- `scenes/main/MapSelect.tscn`
-- `scripts/main/MapSelect.gd`
-- `tests/unit/main/test_map_select.gd` (47 tests)
-
-**Implementation notes:**
-- Grid of map cards (2x2 GridContainer layout)
-- Each card: map name, gimmick description, difficulty stars (1-4), colored preview rectangle
-- Forest Clearing: always unlocked, 1 star
-- Mountain Pass: unlocked at 1000 XP, 2 stars
-- River Delta: unlocked at 3000 XP, 3 stars
-- Volcanic Caldera: unlocked at 6000 XP, 4 stars
-- Locked maps show grayed card (modulate.a = 0.5) + unlock requirement text
-- Selecting a map preserves existing mode in config, adds `"map"` key with scene path, calls `SceneManager.go_to_game(config)`
-- Back button returns to ModeSelect via `SceneManager.change_scene()` (preserves config, does NOT clear mode)
-- Map preview thumbnails: programmatic solid-color ColorRect per map (green/gray/blue/red-orange); replace with screenshots later
-- `unlock_overrides` Dictionary for test-friendly lock control; `_is_map_unlocked()` ready for MetaProgression (Task E1)
-
-**Acceptance criteria:**
-- [x] Four map cards displayed with names, descriptions, difficulty
-- [x] Locked maps cannot be selected, show unlock requirement
-- [x] Selecting a map navigates to Game scene with correct config
-- [x] Back button returns to ModeSelect
-
----
-
-#### Task A5: Modify Game.gd for Parameterized Launch ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 13.3
+- None
 
 **Modified files:**
-- `scripts/main/Game.gd`
-- `scripts/autoload/GameManager.gd`
-- `tests/unit/main/test_game_launch.gd` (24 tests)
-
-**Implementation notes:**
-- `Game._ready()` reads `SceneManager.current_game_config` to determine map and mode
-- Replace hardcoded `_load_map()` with dynamic map loading:
-  ```gdscript
-  var map_path: String = SceneManager.current_game_config.get("map", "res://scenes/maps/ForestClearing.tscn")
-  ```
-- Pass game mode to `GameManager.start_game(mode: String)` where mode is "classic", "draft", or "endless"
-- Add `GameManager.GameMode` enum: `CLASSIC, DRAFT, ENDLESS`
-- For Endless mode: set `max_waves = 999` and scale wave_config beyond wave 30
-- Fallback: if `SceneManager.current_game_config` is empty (e.g., direct scene launch for testing), default to ForestClearing + Classic
-
-**Acceptance criteria:**
-- [x] Game loads the map specified in game config
-- [x] Game mode is passed to GameManager and affects behavior
-- [x] Direct launch of Game.tscn still works (fallback defaults)
-- [x] Endless mode does not end at wave 30
-
----
-
-#### Task A6: Pause Menu ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Small | **GDD Ref:** Section 10.3
-
-**New files:**
-- `scenes/ui/PauseMenu.tscn`
-- `scripts/ui/PauseMenu.gd`
-- `tests/unit/ui/test_pause_menu.gd` (35 tests)
-
-**Modified files:**
-- `scripts/main/Game.gd` (Escape key toggles pause)
-- `scripts/autoload/GameManager.gd` (toggle_pause, pause, unpause methods + paused_changed signal)
-
-**Implementation notes:**
-- `Control` overlay with semi-transparent dark background
-- Buttons: Resume, Restart, Settings, Quit to Menu
-- Resume: unpause and hide
-- Restart: `SceneManager.restart_game()` (reloads Game.tscn with same config)
-- Settings: no-op print until Task D3 (SettingsPanel not yet built)
-- Quit to Menu: `SceneManager.go_to_main_menu()` (resets all manager state)
-- `GameManager.toggle_pause()` sets `get_tree().paused` and emits `paused_changed(is_paused: bool)`
-- `GameManager.pause()` / `GameManager.unpause()` for explicit state control
-- PauseMenu delegates all tree-pause calls to GameManager (autoload always in tree); safe for unit tests
-- PauseMenu's `process_mode` set to `PROCESS_MODE_WHEN_PAUSED` in `_ready()`
-- Escape key in Game.gd: if placing → cancel placement; if fusing → cancel fusion; else → toggle pause
-
-**Acceptance criteria:**
-- [x] Pressing Escape during gameplay opens pause menu
-- [x] Game logic freezes while paused (enemies stop, timers stop)
-- [x] Resume closes menu and resumes gameplay
-- [x] Quit to Menu returns to MainMenu with clean state
-- [x] Restart reloads the same map/mode
-
----
-
-#### Task A7: Update GameOverScreen for Menu Flow -- ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Small | **GDD Ref:** Section 10.3
-
-**Modified files:**
-- `scripts/ui/GameOverScreen.gd`
-- `scenes/ui/GameOverScreen.tscn`
-
-**Implementation notes:**
-- Add stats display: waves survived, enemies killed, total gold earned, time played
-- Add XP earned display (calculated by MetaProgression, or placeholder if MetaProgression not yet built)
-- Replace "Play Again" reload with two buttons: "Play Again" (restart same config) and "Main Menu" (return to menu)
-- Play Again: `SceneManager.restart_game()`
-- Main Menu: `SceneManager.go_to_main_menu()`
-- Stats sourced from `GameManager.run_stats` dictionary (added in Task A5)
-
-**Acceptance criteria:**
-- [x] Game over screen shows run statistics
-- [x] Play Again restarts with same map/mode
-- [x] Main Menu returns to MainMenu scene
-- [x] No more `get_tree().reload_current_scene()` calls
-
----
-
-### Group B: Maps (P0)
-
-Three new maps with unique layouts and gimmicks. Each map is a scene + script that calls `GridManager.load_map_data()` with its grid layout.
-
----
-
-#### Task B1: Map Base Class ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Small | **GDD Ref:** Section 9.3
-
-**New files:**
-- `scripts/maps/MapBase.gd`
-- `tests/unit/maps/test_map_base.gd` (34 tests)
-
-**Implementation notes:**
-- `class_name MapBase extends Node2D`
-- Extracts common logic from `ForestClearing.gd`: `_create_tile_visuals()`, `_on_grid_updated()`, `_get_tile_texture()`, `TILE_TEXTURES` dictionary
-- Abstract methods (implemented by subclasses): `_setup_grid() -> void`, `get_map_name() -> String`, `get_spawn_points() -> Array[Vector2i]`, `get_exit_points() -> Array[Vector2i]`
-- Refactor `ForestClearing.gd` to extend `MapBase` and only implement `_setup_grid()`
-- Added `_get_visual_type()` for testable TOWER->BUILDABLE mapping
-- Added `_get_tile_texture_path()` for headless-testable texture path resolution
-- Added `_get_merged_tile_textures()` merging base TILE_TEXTURES with `_get_custom_tile_textures()` overrides
-
-**Acceptance criteria:**
-- [x] MapBase contains all shared tile visual logic
-- [x] ForestClearing extends MapBase and still works identically
-- [x] New maps can be created by extending MapBase and implementing `_setup_grid()`
-
----
-
-#### Task B2: Mountain Pass Map ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 9.3
-
-**New files:**
-- `scenes/maps/MountainPass.tscn`
-- `scripts/maps/MountainPass.gd`
-- `tests/unit/maps/test_mountain_pass.gd` (35 tests)
-
-**Implementation notes:**
-- Extends `MapBase`
-- Layout: pre-built walls (UNBUILDABLE cells) create a partial S-curve maze
-- Spawn at (0, 2), exit at (19, 12)
-- ~34% of cells are UNBUILDABLE (103 mountain walls), creating natural chokepoints
-- S-curve path: right across top (y=2), down through right gap (x=17), left across middle (y=6), down through left gap (x=2), right across bottom (y=12)
-- Top/bottom ridges, left/right cliffs, horizontal walls at y=5 and y=10 with gaps, central rock island at x=8..12 y=7..8
-
-**Acceptance criteria:**
-- [x] Map loads and displays correctly with wall tiles
-- [x] PathfindingSystem finds valid path from spawn to exit
-- [x] Mazing is possible in open areas but walls constrain it
-- [x] Tower placement cannot occur on UNBUILDABLE cells
-
----
-
-#### Task B3: River Delta Map ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Large | **GDD Ref:** Section 9.3
-
-**New files:**
-- `scenes/maps/RiverDelta.tscn`
-- `scripts/maps/RiverDelta.gd`
-- `tests/unit/maps/test_river_delta.gd` (45 tests)
-
-**Implementation notes:**
-- Extends `MapBase`
-- Two vertical rivers at x=7 and x=13 splitting map into 3 islands (left x=0-6, middle x=8-12, right x=14-19)
-- 3 spawn points: (0, 2), (0, 7), (0, 12); 3 exit points: (19, 2), (19, 7), (19, 12)
-- Three horizontal PATH lanes at y=2, y=7, y=12 matching spawn/exit rows
-- Five bridge rows at y=2, 5, 7, 10, 12 enabling cross-lane pathing
-- Rivers are 1 cell wide; bridge cells are PATH (not buildable)
-- All 9 spawn-to-exit path combinations valid
-- PathfindingSystem.is_path_valid() already validates all pairs natively
-- Note: EnemySystem multi-spawn distribution (round-robin across spawn points) deferred to a future task
-
-**Acceptance criteria:**
-- [x] Map displays with river and island visuals
-- [x] 3 spawn points and 3 exit points function correctly
-- [ ] Enemies distribute across spawn points (deferred: EnemySystem multi-spawn support)
-- [x] Bridges are the only way across the river
-- [x] Mazing works on each island independently
-
----
-
-#### Task B4: Volcanic Caldera Map ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Large | **GDD Ref:** Section 9.3
-
-**New files:**
-- `scenes/maps/VolcanicCaldera.tscn`
-- `scripts/maps/VolcanicCaldera.gd`
-- `tests/unit/maps/test_volcanic_caldera.gd` (37 tests)
-
-**Implementation notes:**
-- Extends `MapBase`
-- Spawn at center: (10, 7), exits at 4 edges: (0, 7), (19, 7), (10, 0), (10, 14)
-- UNBUILDABLE diamond ring around center (Manhattan distance <= 2)
-- Cross-shaped PATH along x=10 (vertical) and y=7 (horizontal) radiating from center to all exits
-- UNBUILDABLE border cells (1 cell each side) around all 4 exits
-- >60% of cells are BUILDABLE for mazing
-- All 4 spawn->exit paths valid via PathfindingSystem
-- Note: Per-enemy random exit assignment deferred to EnemySystem multi-path support task
-
-**Acceptance criteria:**
-- [x] Map displays with central spawn and edge exits
-- [ ] Enemies spawn from center and path outward to edges (deferred: per-enemy exit assignment)
-- [x] Players can maze around the center to create longer paths
-- [x] All 4 exits function as valid enemy destinations
-
----
-
-#### Task B5: Map-Specific Tile Textures ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 11.2
-
-**New files:**
-- `assets/sprites/tiles/mountain_wall.png` (dark slate gray #4a4a5a with diagonal crack lines)
-- `assets/sprites/tiles/river.png` (medium blue #2a6aaa with horizontal wave lines)
-- `assets/sprites/tiles/bridge.png` (warm brown #8a6a3a with plank lines and nail dots)
-- `assets/sprites/tiles/lava.png` (red-orange #cc4422 with central glow)
-
-**Implementation notes:**
-- 64x64 programmatic PNGs with 1px border and pattern overlays
-- Each map overrides `_get_custom_tile_textures()`:
-  - MountainPass: UNBUILDABLE -> mountain_wall.png
-  - RiverDelta: UNBUILDABLE -> river.png, PATH -> bridge.png
-  - VolcanicCaldera: UNBUILDABLE -> lava.png
-- 14 new tests across 3 existing test files verifying overrides and base fallbacks
-
-**Acceptance criteria:**
-- [x] Each map has visually distinct tile types
-- [x] Mountain walls look different from river cells
-- [x] Tiles are clearly distinguishable at gameplay zoom
-
----
-
-### Group C: Draft Mode (P1)
-
-Implements the element drafting mechanic where players start with 1 random element and draft 2 more.
-
----
-
-#### Task C1: DraftManager Autoload ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 6.2
-
-**New files:**
-- `scripts/autoload/DraftManager.gd`
-- `tests/unit/autoload/test_draft_manager.gd` (42 tests)
-
-**Modified files:**
-- `project.godot` (add autoload)
-
-**Implementation notes:**
-- `class_name DraftManagerClass extends Node`
-- State: `drafted_elements: Array[String]`, `is_draft_active: bool`, `picks_remaining: int`
-- Constants: `STARTING_ELEMENTS: int = 1`, `DRAFT_WAVES: Array[int] = [5, 10]`, `CHOICES_PER_PICK: int = 3`
-- Methods:
-  - `start_draft()` -- randomly assigns 1 starting element, sets picks_remaining = 2
-  - `get_draft_choices() -> Array[String]` -- returns 3 random elements not yet drafted
-  - `pick_element(element: String) -> void` -- adds to drafted_elements, decrements picks_remaining
-  - `is_tower_available(tower_data: TowerData) -> bool` -- returns true if tower's element(s) are all in drafted_elements
-  - `reset()` -- clears state
-- Signals: `draft_started(starting_element: String)`, `draft_pick_available(choices: Array[String])`, `element_drafted(element: String)`
-- On `GameManager.wave_completed`, if wave is in DRAFT_WAVES and picks_remaining > 0, emit `draft_pick_available`
-
-**Acceptance criteria:**
-- [x] Starting a draft assigns 1 random element
-- [x] Draft picks trigger at waves 5 and 10
-- [x] 3 choices presented, excluding already-drafted elements
-- [x] `is_tower_available()` correctly filters by drafted elements
-- [x] Dual-element fusion towers require both elements to be drafted
-
----
-
-#### Task C2: DraftPickPanel UI ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 6.2
-
-**New files:**
-- `scenes/ui/DraftPickPanel.tscn`
-- `scripts/ui/DraftPickPanel.gd`
-- `tests/unit/ui/test_draft_pick_panel.gd` (44 tests)
-
-**Implementation notes:**
-- Full-screen overlay (pauses game while draft is active)
-- Shows 3 element cards with: element name, color, icon, list of towers that element unlocks
-- Clicking a card calls `DraftManager.pick_element(element)`
-- Panel hides after pick, game resumes
-- Uses `call_deferred("_clear_cards")` to avoid freeing buttons mid-signal
-- `process_mode = PROCESS_MODE_WHEN_PAUSED`
-- `ELEMENT_TOWERS` const maps elements to tier-1 tower names
-
-**Acceptance criteria:**
-- [x] Panel appears at correct waves during draft mode
-- [x] 3 element choices displayed with correct info
-- [x] Selecting an element adds it to drafted set and closes panel
-- [x] Game pauses while panel is open
-
----
-
-#### Task C3: BuildMenu Element Filtering ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 6.2
-
-**Modified files:**
-- `scripts/ui/BuildMenu.gd`
-
-**New files:**
-- `tests/unit/ui/test_build_menu_draft.gd` (22 tests)
-
-**Implementation notes:**
-- When `DraftManager.is_draft_active` is true, filter towers through `DraftManager.is_tower_available()`
-- Connected to `DraftManager.element_drafted` signal to call `_refresh_draft_filter()` when new elements are picked
-- Added "Draft: [colored dots]" indicator at the top of the build menu showing currently drafted elements
-- Element group headers/separators hidden when all towers in that element are filtered out
-- No existing functionality broken -- when draft not active, all towers remain visible
-
-**Acceptance criteria:**
-- [x] In draft mode, only towers matching drafted elements appear
-- [x] New towers appear in build menu after each draft pick
-- [x] Non-draft mode shows all towers as before
-
----
-
-### Group D: Save/Load and Settings (P0)
-
-Persistent data storage for settings, meta progression, and optionally mid-game saves.
-
----
-
-#### Task D1: SaveSystem Autoload
-
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 8.3
-
-**New files:**
-- `scripts/autoload/SaveSystem.gd`
-
-**Modified files:**
-- `project.godot` (add autoload)
-
-**Implementation notes:**
-- `class_name SaveSystemClass extends Node`
-- Save path: `user://save_data.json`
-- Data structure:
-  ```json
-  {
-    "version": 1,
-    "settings": { "master_volume": 1.0, "sfx_volume": 1.0, "music_volume": 0.8 },
-    "progression": { "total_xp": 0, "unlocked_maps": ["forest_clearing"], "unlocked_modes": ["classic"], "run_history": [] },
-    "stats": { "total_runs": 0, "total_kills": 0, "total_waves": 0, "best_wave_classic": 0 }
-  }
-  ```
-- Methods:
-  - `save() -> void` -- serialize to JSON, write to user://
-  - `load_save() -> void` -- read from user://, parse JSON, populate data
-  - `has_save() -> bool`
-  - `reset_save() -> void` (debug/settings option)
-  - `get_progression() -> Dictionary`
-  - `get_settings() -> Dictionary`
-  - `update_settings(key: String, value: Variant) -> void`
-  - `record_run(run_data: Dictionary) -> void` -- appends to run_history, updates stats
-- Auto-load save data on `_ready()`
-- Auto-save after settings changes and after each run completes
-- Version field for future migration support
-- Error handling: if file is corrupt, reset to defaults and warn
-
-**Acceptance criteria:**
-- [x] Save file created at `user://save_data.json` on first run
-- [x] Settings persist across game restarts
-- [x] Progression data persists across game restarts
-- [x] Corrupt save file handled gracefully (reset to defaults)
-- [x] `has_save()` returns false on first launch
-
----
-
-#### Task D2: SettingsManager Autoload
-
-**Priority:** P0 | **Effort:** Small | **GDD Ref:** Section 10.3
-
-**New files:**
-- `scripts/autoload/SettingsManager.gd`
-
-**Modified files:**
-- `project.godot` (add autoload)
-
-**Implementation notes:**
-- `class_name SettingsManagerClass extends Node`
-- Reads initial values from `SaveSystem.get_settings()` on `_ready()`
-- Properties: `master_volume: float`, `sfx_volume: float`, `music_volume: float`, `screen_shake: bool`, `show_damage_numbers: bool`
-- Methods:
-  - `set_volume(bus_name: String, linear: float)` -- converts to dB, applies to AudioServer bus
-  - `apply_all()` -- applies all settings to engine (called on load)
-- Signals: `settings_changed()`
-- On any change, calls `SaveSystem.update_settings()` and emits signal
-
-**Acceptance criteria:**
-- [x] Volume sliders affect audio bus volumes
-- [x] Settings persist via SaveSystem
-- [x] Applying settings on startup restores previous values
-
----
-
-#### Task D3: SettingsPanel UI
-
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 10.3
-
-**New files:**
-- `scenes/ui/SettingsPanel.tscn`
-- `scripts/ui/SettingsPanel.gd`
-
-**Implementation notes:**
-- Reusable panel (used in MainMenu and PauseMenu)
-- Sections: Audio (master/SFX/music sliders), Display (screen shake toggle, damage numbers toggle)
-- Each slider: HSlider with value label, range 0-100, snapped to 5
-- Close/Back button
-- On slider change: `SettingsManager.set_volume(...)` immediately (live preview)
-- Layout: VBoxContainer with labeled rows
-
-**Acceptance criteria:**
-- [x] Three volume sliders that control audio in real-time
-- [x] Toggle switches for display options
-- [x] Settings save automatically when changed
-- [x] Panel works when accessed from both MainMenu and PauseMenu
-
----
-
-#### Task D4: Reset to Defaults Button
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.3
-
-**Modified files:**
-- `scripts/ui/SettingsPanel.gd`
-- `scenes/ui/SettingsPanel.tscn`
-- `scripts/autoload/SettingsManager.gd`
-
-**Implementation notes:**
-- Add a "Reset to Defaults" Button at the bottom of SettingsPanel, above the Close button
-- On press, call `SettingsManager.reset_to_defaults()` which restores all settings to their default values
-- `reset_to_defaults()` resets: master_volume=1.0, sfx_volume=1.0, music_volume=0.8, screen_shake=true, show_damage_numbers=true
-- After reset, update all sliders and toggles in SettingsPanel to reflect new values
-- Persist the reset via `SaveSystem.update_settings()` (already handled by SettingsManager setters)
-- Style the button to be visually distinct (muted/secondary style) to avoid accidental clicks
-
-**Acceptance criteria:**
-- [x] "Reset to Defaults" button visible in SettingsPanel
-- [x] Clicking resets all settings to default values
-- [x] Sliders and toggles update to reflect defaults immediately
-- [x] Reset persists via SaveSystem
-- [x] Audio buses update immediately on reset
-
----
-
-### Group E: Meta Progression (P1)
-
-XP system that unlocks maps, modes, and provides a sense of long-term advancement.
-
----
-
-#### Task E1: MetaProgression Autoload ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 8.3
-
-**New files:**
-- `scripts/autoload/MetaProgression.gd`
-- `tests/unit/autoload/test_meta_progression.gd` (38 tests)
-
-**Modified files:**
-- `project.godot` (add autoload)
-
-**Implementation notes:**
-- `class_name MetaProgressionClass extends Node`
-- Reads state from `SaveSystem.get_progression()` on `_ready()` via `_load_from_save()`
-- XP formula per run:
-  ```
-  base_xp = waves_survived * 10
-  kill_bonus = enemies_killed * 1
-  gold_bonus = floor(total_gold_earned / 100) * 5
-  victory_bonus = 200 (if won)
-  total_xp = base_xp + kill_bonus + gold_bonus + victory_bonus
-  ```
-- Unlock thresholds (cumulative XP):
-  - 500 XP: Draft mode
-  - 1000 XP: Mountain Pass map
-  - 2000 XP: Endless mode
-  - 3000 XP: River Delta map
-  - 6000 XP: Volcanic Caldera map
-- Methods:
-  - `calculate_run_xp(run_stats: Dictionary) -> int`
-  - `award_xp(amount: int) -> void` -- adds to total, checks unlocks, persists via SaveSystem
-  - `is_unlocked(unlock_id: String) -> bool`
-  - `get_total_xp() -> int`
-  - `get_new_unlocks(xp_before: int, xp_after: int) -> Array[String]` -- returns newly crossed thresholds
-  - `_load_from_save()` -- restores state from SaveSystem (called from _ready)
-  - `reset()` -- clears in-memory state for testing
-- Signals: `xp_awarded(amount: int, total: int)`, `unlocked(unlock_id: String)`
-- Unlock IDs: `"mode_draft"`, `"mode_endless"`, `"map_mountain_pass"`, `"map_river_delta"`, `"map_volcanic_caldera"`
-- `_persist_unlock()` routes map_ IDs to unlocked_maps and mode_ IDs to unlocked_modes with duplicate checks
-
-**Acceptance criteria:**
-- [x] XP calculated correctly from run stats
-- [x] Cumulative XP persists via SaveSystem
-- [x] Unlocks trigger at correct thresholds
-- [x] New unlocks displayed on GameOverScreen
-- [x] `is_unlocked()` used by ModeSelect and MapSelect to gate content
-
----
-
-#### Task E2: GameManager Stats Tracking ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 8.3
-
-**New files:**
-- `tests/unit/autoload/test_game_manager_stats.gd` (35 tests)
-
-**Modified files:**
-- `scripts/autoload/GameManager.gd`
-- `scripts/autoload/EconomyManager.gd`
-
-**Implementation notes:**
-- Expanded `run_stats` Dictionary in `start_game()` with: `enemies_leaked`, `towers_built`, `fusions_made`, `mode`, `map`
-- Connected `EnemySystem.enemy_killed` → `_on_stat_enemy_killed()` to track kills
-- Added `gold_earned(amount: int)` signal to EconomyManager, emitted in `add_gold()`
-- Connected `EconomyManager.gold_earned` → `_on_stat_gold_earned()` to track earned gold
-- `record_enemy_leak()` now also increments `run_stats["enemies_leaked"]`
-- `_finalize_run_stats()` calculates and awards XP via MetaProgression, calls `SaveSystem.record_run()`
-- Added `set_current_map(map_name: String)` for map identification in stats
-- Guard checks with `run_stats.has()` so stat handlers are no-ops before `start_game()`
-- `towers_built` and `fusions_made` initialized to 0, will be wired to TowerSystem later
-
-**Acceptance criteria:**
-- [x] All stats tracked accurately during a run
-- [x] Stats passed to GameOverScreen for display
-- [x] Stats passed to MetaProgression for XP calculation
-- [x] Stats include elapsed time (formatted as mm:ss)
-
----
-
-#### Task E3: XP HUD Display and Kill Rewards ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 8.3, Section 10.1
-
-**New files:**
-- `tests/unit/ui/test_hud_xp.gd` (27 tests)
-- `tests/unit/ui/test_game_over_xp.gd` (10 tests)
-
-**Modified files:**
-- `scripts/ui/HUD.gd`
-- `scenes/ui/HUD.tscn`
-- `scripts/ui/GameOverScreen.gd`
-- `scenes/ui/GameOverScreen.tscn`
-
-**Implementation notes:**
-- Added `XPLabel` to HUD TopBar showing running XP tally ("XP: N")
-- Added `XPNotifLabel` for floating "+1 XP" notifications on enemy kill (purple, fades in 0.8s)
-- `_run_xp` tracked locally: +1 per enemy kill, +wave_number*10 per wave completed
-- Resets to 0 on game start (BUILD_PHASE + wave 1)
-- Connected to `EnemySystem.enemy_killed` and `GameManager.wave_completed`
-- GameOverScreen now shows real XP via `MetaProgression.calculate_run_xp(stats)` (replaces `"XP Earned: --"`)
-- Added `UnlocksLabel` to GameOverScreen showing "New Unlock: Draft Mode!" etc. when thresholds are crossed
-- Added `_format_unlock_name()` helper for human-readable unlock names
-
-**Dependencies:** E1 (MetaProgression must exist for XP calculations)
-
-**Acceptance criteria:**
-- [x] HUD shows cumulative XP earned during the current run
-- [x] Floating "+XP" text appears near enemies when killed
-- [x] XP display updates in real-time
-- [x] GameOverScreen shows actual XP earned (not placeholder)
-- [x] Visual style consistent with existing gold display
-
----
-
-### Group E+: Game Speed Control (P1)
-
-In-game speed toggle on the HUD so players can fast-forward through repetitive waves or slow down for precise tower placement.
-
----
-
-#### Task E4: Game Speed HUD Button ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 10.1
-
-**New files:**
-- `tests/unit/ui/test_game_speed.gd` (22 tests)
-
-**Modified files:**
-- `scripts/ui/HUD.gd`
-- `scenes/ui/HUD.tscn`
-- `scripts/autoload/GameManager.gd`
-
-**Implementation notes:**
-- Added `SpeedButton` to HUD TopBar (before CodexButton), min width 50px
-- Cycle: `SPEEDS = [1.0, 1.5, 2.0, 0.5]` with labels `["1x", "1.5x", "2x", "0.5x"]`
-- GameManager: `game_speed: float`, `set_game_speed(speed)` sets `Engine.time_scale` and emits `speed_changed`
-- `start_game()` resets to 1x via `set_game_speed(1.0)`
-- `_finalize_run_stats()` resets `Engine.time_scale = 1.0; game_speed = 1.0`
-- HUD syncs via `GameManager.speed_changed` signal (handles external resets)
-- Yellow tint on button when speed != 1x (`self_modulate = Color.YELLOW`)
-
-**Acceptance criteria:**
-- [x] Speed button visible on HUD during gameplay
-- [x] Clicking cycles through 1x → 1.5x → 2x → 0.5x → 1x
-- [x] `Engine.time_scale` updates to match selected speed
-- [x] Button displays current speed multiplier
-- [x] Speed resets to 1x on game over
-- [x] Visual indicator when speed is not 1x
-- [x] Game timers, enemies, and projectiles respect time scale
-
----
-
-### Group F: Audio Integration (P1)
-
-Wire up AudioManager calls throughout gameplay code. Audio files are external dependencies -- this group focuses on integration points and placeholder hooks.
-
----
-
-#### Task F1: AudioManager Enhancements ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 11
-
-**Modified files:**
-- `scripts/autoload/AudioManager.gd`
-
-**New files:**
-- `tests/unit/autoload/test_audio_manager.gd` (31 tests, F1 + F2 combined)
-
-**Implementation notes:**
-- Music crossfade: when `play_music()` is called while music is playing, fade out old (0.5s) then fade in new (0.5s) using Tween
-- `set_bus_volume(bus_name: String, linear: float)` -- converts linear 0.0-1.0 to dB, mutes at 0
-- `play_sfx_pitched(sfx_name: String, pitch_scale: float)` for variation
-- OGG fallback for SFX: `_load_sfx_stream()` tries `.wav` then `.ogg`
-- MP3 fallback for music: `_load_music_stream()` tries `.ogg` then `.mp3`
-- `stop_sfx_all()` for scene transitions
-- `_current_track` tracking to skip restart when same track requested
-- `is_playing_music()` and `get_current_track()` getters
-- `_last_sfx_played` / `_last_music_requested` for test observability (set before file checks)
-- Warn-once pattern via `_missing_sfx_warned` / `_missing_music_warned` dictionaries for dev debugging
-
-**Acceptance criteria:**
-- [x] Music crossfades smoothly between tracks
-- [x] Bus volume API works with SettingsManager
-- [x] Missing audio files do not cause errors (graceful fallback with warn-once)
-
----
-
-#### Task F2: Gameplay Audio Hooks ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 11
-
-**Modified files:**
-- `scripts/autoload/AudioManager.gd` (centralized signal-driven hooks)
-- `scripts/ui/BuildMenu.gd` (single `AudioManager.play_sfx("ui_click")` line)
-
-**Implementation notes:**
-- All audio hooks centralized in `AudioManager._connect_gameplay_signals()` via signal connections -- no changes to GameManager, TowerSystem, EnemySystem, or EconomyManager
-- SFX hooks: `tower_place`, `tower_upgrade`, `tower_sell`, `tower_fuse`, `enemy_death`, `enemy_leak`, `life_lost`, `wave_start`, `gold_clink` (throttled 0.15s), `ui_click`
-- Music hooks via `GameManager.phase_changed`: `build_phase`, `combat_phase`, `boss_combat` (waves 10/20/30), `victory`, `defeat`
-- Same-track deduplication prevents music restart when already playing correct track
-- Tower shoot SFX (`tower_shoot_{element}`) deferred to F3/asset creation (6 element-specific sounds recommended per game designer)
-
-**Acceptance criteria:**
-- [x] All trigger points call AudioManager with correct SFX names
-- [x] Music changes on phase transitions
-- [x] Boss waves use different combat music
-- [x] No errors when audio files are missing (graceful degradation)
-- [x] Gold sound is throttled to avoid spam
-
----
-
-#### Task F3: Placeholder Audio Files
-
-**Priority:** P2 | **Effort:** Small | **GDD Ref:** Section 11
-
-**New files:**
-- `assets/audio/sfx/*.wav` (generated procedural tones)
-- `assets/audio/music/*.ogg` (generated ambient loops)
-
-**Implementation notes:**
-- Use a tool like sfxr/jsfxr to generate simple placeholder SFX:
-  - `tower_place.wav`, `tower_upgrade.wav`, `tower_sell.wav`
-  - `tower_shoot_fire.wav`, `tower_shoot_water.wav`, etc.
-  - `enemy_death.wav`, `enemy_leak.wav`
-  - `wave_start.wav`, `life_lost.wav`, `gold_clink.wav`, `ui_click.wav`
-- For music: generate simple ambient loops using a tool or source CC0 tracks
-  - `menu.ogg`, `build_phase.ogg`, `combat_phase.ogg`, `boss_combat.ogg`, `victory.ogg`, `defeat.ogg`
-- These are temporary -- final audio is an external art dependency
-- Document the expected file list in `assets/audio/README.md`
-
-**Acceptance criteria:**
-- [x] All expected audio files exist (even if placeholder quality)
-- [x] Game plays with sound effects and music
-- [x] Audio README documents the full expected file manifest
-
----
-
-### Group G: Touch Support and Mobile UI (P0)
-
-Make the game playable on touchscreens for Android and mobile browsers.
-
----
-
-#### Task G1: Touch Input Handling ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Large | **GDD Ref:** Section 12
-
-**Modified files:**
-- `scripts/main/Game.gd`
-- `project.godot` (input settings)
-
-**Implementation notes:**
-- Add `InputEventScreenTouch` and `InputEventScreenDrag` handling in `Game._unhandled_input()`:
-  - **Single tap** = left click (place tower / select tower)
-  - **Two-finger drag** = camera pan (replace WASD on mobile)
-  - **Pinch zoom** = camera zoom (replace scroll wheel on mobile)
-  - **Long press** (0.5s hold without move) = right click context (cancel placement, show tower info)
-  - **Double tap** = start wave early
-- Track touch state: `_touches: Dictionary` mapping finger index to position
-- Pinch zoom: track distance between 2 touch points, scale camera.zoom proportionally
-- Emulate mouse events: Godot 4 can emulate mouse from touch (`Input.emulate_mouse_from_touch` in project settings), but we want custom multi-touch, so set `emulate_mouse_from_touch = false` and handle everything manually
-- Alternatively, keep `emulate_mouse_from_touch = true` for basic single-touch and only add custom handlers for multi-touch gestures. This is simpler and recommended
-- Add to project.godot:
-  ```
-  [input_devices]
-  pointing/emulate_mouse_from_touch=true
-  pointing/emulate_touch_from_mouse=true
-  ```
-
-**Acceptance criteria:**
-- [x] Tapping places towers and selects towers
-- [x] Two-finger drag pans the camera
-- [x] Pinch gesture zooms the camera
-- [x] All existing mouse/keyboard input still works
-- [x] Touch input does not interfere with UI button presses
-
----
-
-#### Task G2: Mobile-Friendly UI Sizing ✅ COMPLETE
-
-**Priority:** P0 | **Effort:** Medium | **GDD Ref:** Section 12
-
-**Modified files:**
-- `scenes/ui/HUD.tscn`
-- `scenes/ui/BuildMenu.tscn`
-- `scenes/ui/TowerInfoPanel.tscn`
-- `scripts/ui/HUD.gd`
-- `scripts/ui/BuildMenu.gd`
-
-**Implementation notes:**
-- Minimum touch target size: 48x48 pixels (Android Material guidelines)
-- BuildMenu buttons: increase from 96x64 to 112x72, ensure scroll works with touch drag
-- TowerInfoPanel buttons (upgrade/sell/fuse): minimum 48px height
-- HUD text: minimum 14px font size
-- Add `is_mobile() -> bool` helper to detect touch devices:
-  ```gdscript
-  func is_mobile() -> bool:
-      return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
-  ```
-- Conditionally increase sizes on mobile
-- Ensure all `ScrollContainer` nodes work with touch drag (Godot 4 supports this natively)
-- Test with `emulate_touch_from_mouse` enabled in project settings
-
-**Acceptance criteria:**
-- [x] All interactive elements meet 48x48px minimum on mobile
-- [x] Build menu scrolls with touch drag
-- [x] Text is readable on a 6-inch phone screen
-- [x] Desktop UI is unchanged
-
----
-
-### Group H: Boss Encounter Polish (P1)
-
-Boss fights at waves 10, 20, 30 already function mechanically. This group adds presentation.
-
----
-
-#### Task H1: Boss HP Bar ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 5.3
-
-**New files:**
-- `scenes/ui/BossHPBar.tscn`
-- `scripts/ui/BossHPBar.gd`
-- `tests/unit/ui/test_boss_hp_bar.gd` (31 tests)
-
-**Modified files:**
-- `scripts/ui/HUD.gd` (show/hide boss HP bar, signal connections)
-- `scenes/ui/HUD.tscn` (added BossHPBar node below TopBar)
-
-**Implementation notes:**
-- Full-width PanelContainer bar below HUD TopBar (y=40-72), only visible during boss waves
-- Shows boss name (Label), HP bar (ProgressBar with element-colored StyleBoxFlat fill), and HP text (current/max)
-- `show_for_boss(enemy)` guards on `enemy.enemy_data.is_boss` -- non-boss enemies silently ignored
-- HP bar fill color set via `StyleBoxFlat` with `ElementMatrix.get_color(element)` (fire=red-orange, ice=light blue, none=white)
-- `_process()` calls `update_hp()` every frame while visible, reading `current_health`/`max_health` from tracked boss
-- `on_enemy_killed(enemy)` only hides if the killed enemy is the tracked boss
-- `on_wave_cleared()` always hides and clears the boss reference
-- Handles freed boss references via `is_instance_valid()` check
-- HUD connects `EnemySystem.enemy_spawned`, `EnemySystem.enemy_killed`, `EnemySystem.wave_cleared` signals
-
-**Acceptance criteria:**
-- [x] Boss HP bar appears at top of screen when boss spawns
-- [x] HP bar updates smoothly as boss takes damage
-- [x] Boss name and element color displayed
-- [x] Bar hides when boss is killed
-
----
-
-#### Task H2: Boss Announcement Splash ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 5.3
-
-**New files:**
-- `scenes/ui/BossAnnouncement.tscn`
-- `scripts/ui/BossAnnouncement.gd`
-- `tests/unit/ui/test_boss_announcement.gd` (28 tests)
-
-**Modified files:**
-- `scripts/ui/HUD.gd` (trigger announcement on wave_started)
-- `scenes/ui/HUD.tscn` (added BossAnnouncement node as full-screen overlay)
-
-**Implementation notes:**
-- Full-screen Control overlay with semi-transparent dark background (Color(0,0,0,0.4))
-- Shows boss name in large element-colored text, subtitle with ability hint
-- `BOSS_SUBTITLES` dictionary maps boss names to ability hints:
-  - "Ember Titan" -> "Leaves a trail of fire in its wake"
-  - "Glacial Wyrm" -> "Freezes towers caught in its gaze"
-  - "Chaos Elemental" -> "Shifts between elemental forms"
-- Animation: slide in from top (-80px offset, TRANS_BACK ease), hold 1.5s, fade out 0.5s (total 2.0s)
-- `mouse_filter = MOUSE_FILTER_IGNORE` so it does NOT block gameplay input
-- `on_wave_started(wave_number)` reads `EnemySystem.get_wave_config()` to determine if boss wave and extract boss data
-- Unknown bosses get fallback subtitle "A powerful foe approaches"
-- HUD connects `GameManager.wave_started` signal to trigger announcement
-
-**Acceptance criteria:**
-- [x] Announcement appears at start of boss waves
-- [x] Boss name and element color correct
-- [x] Animation plays smoothly without disrupting gameplay
-- [x] Announcement does not appear for non-boss waves
-
----
-
-### Group I: Visual Polish (P1)
-
-Improve the visual experience beyond programmer placeholders. Focus on effects that can be done programmatically (no external art dependency).
-
----
-
-#### Task I1: Tower Range Indicator ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.1
-
-**Modified files:**
-- `scripts/main/Game.gd`
 - `scripts/ui/TowerInfoPanel.gd`
+- `scenes/ui/TowerInfoPanel.tscn`
 
 **Implementation notes:**
-- When a tower is selected (or during placement ghost), draw a semi-transparent circle showing attack range
-- Use a `draw_arc()` or `draw_circle()` call in a custom `Node2D` child, or a `Sprite2D` with a ring texture
-- Color: element color at 20% alpha
-- For placement ghost: show range around ghost position
-- For selected tower: show range around tower position
-- Remove indicator when tower is deselected or placement cancelled
+- Add an "X" close button as a header row: replace standalone `NameLabel` with an `HBoxContainer` containing the name label (left, expand) and a close button (right, fixed)
+- Close button calls `UIManager.deselect_tower()` which already handles hiding the panel
+- On mobile: close button minimum size = `MOBILE_BUTTON_MIN` (64x64). On desktop: 28x28 or hidden
+- Style the close button with a subtle neutral `StyleBoxFlat` (dark gray bg, light border) so it does not compete with Upgrade/Sell/Fuse action buttons
+- On mobile, consider docking the panel at the bottom of the screen (above build menu) instead of floating beside the tower. The floating behavior works on desktop but obscures the game board on small screens. Add a mobile branch in `_reposition()` that sets `position` to bottom-center instead of beside-tower
 
 **Acceptance criteria:**
-- [x] Range circle visible during tower placement
-- [x] Range circle visible when tower is selected
-- [x] Circle radius matches tower's actual range_cells * CELL_SIZE
-- [x] Circle uses tower's element color
+- [ ] TowerInfoPanel has a visible close button
+- [ ] Pressing close button calls `UIManager.deselect_tower()` and hides the panel
+- [ ] Close button meets mobile minimum touch target size when `is_mobile()` is true
+- [ ] On mobile, panel is positioned at bottom of screen instead of floating beside tower
+- [ ] Close button does not visually compete with action buttons (Upgrade, Sell, Fuse)
 
 ---
 
-#### Task I2: Enemy HP Bars ✅ COMPLETE
+#### Task B2: Add Pause Button to HUD
 
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.1
-
-**Modified files:**
-- `scripts/enemies/Enemy.gd`
-- `scenes/enemies/BaseEnemy.tscn`
-
-**Implementation notes:**
-- Small HP bar above each enemy sprite
-- `ProgressBar` or custom `draw()` in a child Node2D
-- Green when > 50% HP, yellow 25-50%, red < 25%
-- Only visible when enemy has taken damage (hide at full HP to reduce clutter)
-- Width: 40px, height: 4px, offset above sprite by 20px
-- Boss enemies: do NOT show individual HP bar (they have the big HUD bar from Task H1)
-
-**Acceptance criteria:**
-- [x] HP bars appear above enemies when damaged
-- [x] Color changes based on HP percentage
-- [x] HP bars hidden at full HP
-- [x] Boss enemies do not show individual HP bars
-
----
-
-#### Task I3: Particle Effects ✅ COMPLETE
-
-**Priority:** P2 | **Effort:** Medium | **GDD Ref:** Section 11.2
+**Priority:** P0 | **Effort:** Small | **GDD Ref:** N/A
 
 **New files:**
-- `scenes/effects/particles/` directory with GPUParticles2D scenes
-
-**Implementation notes:**
-- Create `GPUParticles2D` effects for:
-  - Tower shoot: small burst at tower position (element colored)
-  - Projectile impact: burst at hit position (element colored)
-  - Enemy death: pop/explosion (small, white)
-  - Tower placement: dust poof
-  - Tower upgrade: sparkle upward
-- Each effect is a PackedScene that auto-frees after emission completes (`one_shot = true`, `emitting = true` on `_ready()`)
-- Use `CanvasItemMaterial` for additive blending on energy effects (lightning, fire)
-- Effects spawned by existing signal connections in Game.gd
-
-**Acceptance criteria:**
-- [x] Visual feedback for tower shots, hits, enemy deaths
-- [x] Effects are element-colored where appropriate
-- [x] Effects auto-cleanup (no orphan nodes)
-- [x] Particle count stays reasonable (< 500 particles total on screen)
-
----
-
-#### Task I4: Wave Progress Indicator ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Small | **GDD Ref:** Section 10.1
+- None
 
 **Modified files:**
 - `scripts/ui/HUD.gd`
 - `scenes/ui/HUD.tscn`
 
 **Implementation notes:**
-- Add a wave progress bar or segment indicator to the HUD
-- Shows: current wave / max waves as both text and visual bar
-- During combat: show enemies remaining count (text: "12 remaining")
-- During build phase: show countdown timer (if auto-start timer is active)
-- Build phase timer: show seconds remaining as "Next wave in: 15s"
-- Wave number text already exists in HUD -- enhance with progress bar beneath it
+- Add a `PauseButton` to the TopBar HBoxContainer, positioned as the rightmost element (after CodexButton)
+- Text: "||" (pause symbol) — matches the simple text style of SpeedButton and CodexButton
+- On press, call `GameManager.toggle_pause()` which triggers `paused_changed` signal that PauseMenu already listens to
+- Size: `MOBILE_BUTTON_MIN` (64x64) on mobile, 40x40 on desktop
+- The button does NOT need `PROCESS_MODE_WHEN_PAUSED` — it only needs to pause, not unpause. PauseMenu's Resume button handles unpausing
+- The HUD top bar is getting crowded (8 items). On mobile, the info labels (Wave, Timer, Lives, Gold, XP) should be allowed to compress/truncate, and the action buttons (Speed, Codex, Pause) should maintain their minimum sizes
+- Future polish: replace text with a 32x32 pixel art pause icon sprite
 
 **Acceptance criteria:**
-- [x] Wave progress visually displayed as a bar or segments
-- [x] Enemy count shown during combat phase
-- [x] Build timer countdown shown during build phase
-- [x] Clear distinction between build and combat phase states
+- [ ] HUD has a visible pause button in the top bar
+- [ ] Pressing pause button calls `GameManager.toggle_pause()`
+- [ ] PauseMenu appears when pause button is pressed
+- [ ] Pause button meets mobile minimum touch target size
+- [ ] Pause button is positioned at the right end of the top bar
 
 ---
 
-#### Task I5: Tower Sprites Per Tier ✅ COMPLETE
+#### Task B3: Increase Build Menu Sizing on Mobile
 
-**Priority:** P1 | **Effort:** Large | **GDD Ref:** Section 11.2, Section 12, Section 13.3
+**Priority:** P0 | **Effort:** Medium | **GDD Ref:** N/A
 
 **New files:**
-- `assets/sprites/towers/flame_spire_enhanced.png` (programmatic: base shape + glow border)
-- `assets/sprites/towers/flame_spire_superior.png` (programmatic: base shape + star accent)
-- `assets/sprites/towers/frost_sentinel_enhanced.png`
-- `assets/sprites/towers/frost_sentinel_superior.png`
-- `assets/sprites/towers/gale_tower_enhanced.png`
-- `assets/sprites/towers/gale_tower_superior.png`
-- `assets/sprites/towers/stone_bastion_enhanced.png`
-- `assets/sprites/towers/stone_bastion_superior.png`
-- `assets/sprites/towers/thunder_pylon_enhanced.png`
-- `assets/sprites/towers/thunder_pylon_superior.png`
-- `assets/sprites/towers/tidal_obelisk_enhanced.png`
-- `assets/sprites/towers/tidal_obelisk_superior.png`
-- `assets/sprites/towers/fusions/blizzard_tower.png`
-- `assets/sprites/towers/fusions/cryo_volt_array.png`
-- `assets/sprites/towers/fusions/glacier_keep.png`
-- `assets/sprites/towers/fusions/inferno_vortex.png`
-- `assets/sprites/towers/fusions/magma_forge.png`
-- `assets/sprites/towers/fusions/mud_pit.png`
-- `assets/sprites/towers/fusions/permafrost_pillar.png`
-- `assets/sprites/towers/fusions/plasma_cannon.png`
-- `assets/sprites/towers/fusions/sandstorm_citadel.png`
-- `assets/sprites/towers/fusions/seismic_coil.png`
-- `assets/sprites/towers/fusions/steam_engine.png`
-- `assets/sprites/towers/fusions/storm_beacon.png`
-- `assets/sprites/towers/fusions/tempest_spire.png`
-- `assets/sprites/towers/fusions/thermal_shock.png`
-- `assets/sprites/towers/fusions/tsunami_shrine.png`
-- `assets/sprites/towers/legendaries/arctic_maelstrom.png`
-- `assets/sprites/towers/legendaries/crystalline_monolith.png`
-- `assets/sprites/towers/legendaries/primordial_nexus.png`
-- `assets/sprites/towers/legendaries/supercell_obelisk.png`
-- `assets/sprites/towers/legendaries/tectonic_dynamo.png`
-- `assets/sprites/towers/legendaries/volcanic_tempest.png`
+- None
 
 **Modified files:**
-- `scripts/towers/Tower.gd` (update `apply_tower_data()` sprite path resolution for fusions/legendaries)
+- `scripts/ui/BuildMenu.gd`
+- `scenes/ui/BuildMenu.tscn` (if base offsets need adjustment)
 
 **Implementation notes:**
-- All sprites are 64x64 PNG programmatic placeholders using the pixel-artist agent's element color language
-- Tier visual differentiation system (must be distinguishable at a glance):
-  - **Base (T1)**: Simple solid shape with element color (existing sprites, already done)
-  - **Enhanced (T1 upgraded)**: Base shape with a bright 2px glow/border in a lighter shade of the element color
-  - **Superior (T1 max upgrade)**: Base shape with a 4-point star accent and brighter saturation
-  - **Fusion (T2, dual-element)**: Diamond or hexagonal shape blending both element colors (e.g. Steam Engine = fire + water gradient). Slightly larger visual footprint than T1
-  - **Legendary (T3, tri-element)**: Circular/ornate shape with a 3-color gradient ring. Largest visual footprint. Distinct silhouette from T1/T2
-- Sprite path convention:
-  - Base/Enhanced/Superior: `assets/sprites/towers/{tower_name}.png` (matches existing `tower_data.tower_name` to snake_case logic)
-  - Fusions: `assets/sprites/towers/fusions/{tower_name}.png`
-  - Legendaries: `assets/sprites/towers/legendaries/{tower_name}.png`
-- Update `Tower.apply_tower_data()` to check `tower_data.tier` and look in the correct subdirectory:
+- Increase tower button size on mobile to `MOBILE_TOWER_BUTTON_MIN` (150x100)
+- Increase cancel button to 130x100 on mobile
+- Increase build menu panel height from 110 to `MOBILE_BUILD_MENU_HEIGHT` (140)
+- Increase font sizes on mobile: tower name 11 -> 14, cost 10 -> 13
+- Increase element dot radius from 6 to 8 on mobile
+- Increase tower sprite thumbnail from 32x32 to 40x40 on mobile
+- Increase HBoxContainer separation from 6 to 10-12 on mobile for easier targeting
+- All 6 tower buttons at 150px + spacing = ~930px which fits within 1280px viewport without scrolling. If viewport is wider on phone (due to `keep_height`), even more room
+- Consolidate mobile sizing into an `_apply_mobile_sizing()` method for consistency with HUD pattern
+
+**Acceptance criteria:**
+- [ ] Tower build buttons are at least 150x100 on mobile
+- [ ] Cancel button is at least 130x100 on mobile
+- [ ] Build menu panel height is at least 140 on mobile
+- [ ] Font sizes are at least 14px (name) and 13px (cost) on mobile
+- [ ] Element dot indicators are at least 16px diameter on mobile
+- [ ] Tower sprite thumbnails are at least 40x40 on mobile
+- [ ] All buttons remain functional and tower selection triggers placement mode
+
+---
+
+### Group C: Menu Screen Improvements (P1)
+
+Make mode and map selection screens mobile-friendly with clickable cards and larger touch targets.
+
+---
+
+#### Task C1: Clickable Mode Selection Cards
+
+**Priority:** P1 | **Effort:** Medium | **GDD Ref:** N/A
+
+**New files:**
+- None
+
+**Modified files:**
+- `scripts/main/ModeSelect.gd`
+- `scenes/main/ModeSelect.tscn`
+
+**Implementation notes:**
+- Make each PanelContainer card clickable by connecting `gui_input` signal:
   ```gdscript
-  var texture_name: String = tower_data.tower_name.to_lower().replace(" ", "_")
-  var subdir: String = ""
-  if tower_data.tier == 2:
-      subdir = "fusions/"
-  elif tower_data.tier == 3:
-      subdir = "legendaries/"
-  var texture_path: String = "res://assets/sprites/towers/%s%s.png" % [subdir, texture_name]
+  func _on_card_input(event: InputEvent, mode_key: String) -> void:
+      if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+          _select_mode(mode_key)
+      elif event is InputEventScreenTouch and event.pressed:
+          _select_mode(mode_key)
   ```
-- Keep existing fallback logic: if specific tier sprite not found, fall back to base element sprite
-- Use the pixel-artist agent to generate the actual PNG files via SVG-to-PNG pipeline or Godot `Image` scripting
-- Total new sprites: 33 (12 enhanced/superior + 15 fusions + 6 legendaries)
+- Set `mouse_filter = MOUSE_FILTER_STOP` on each card PanelContainer
+- On mobile: hide the separate "Select" button (redundant with clickable card) or keep as visual anchor
+- Add card visual feedback: `StyleBoxFlat` overrides for hover (border glow, gold accent `Color(0.9, 0.75, 0.3)`) and pressed (darkened background) states on each PanelContainer
+- On mobile: increase card minimum height to `MOBILE_CARD_MIN_HEIGHT` (160), increase button minimum height to 56px
+- Consider vertical layout (1 column) on mobile instead of 3-across HBoxContainer, but test 3-across first — at 280px per card = 888px total, it fits in 1280px viewport with room
+- Locked cards should not respond to `gui_input` — check `_is_mode_unlocked()` in the handler
 
 **Acceptance criteria:**
-- [x] All 6 enhanced tower sprites exist and display correctly (one per base element)
-- [x] All 6 superior tower sprites exist and are visually distinct from enhanced
-- [x] All 15 dual-element fusion tower sprites exist with blended element colors
-- [x] All 6 legendary tower sprites exist with tri-color visual treatment
-- [x] Tier progression is visually clear: base < enhanced < superior < fusion < legendary
-- [x] `Tower.apply_tower_data()` correctly resolves sprite paths for all tiers
-- [x] Fallback to base sprite still works if a specific sprite is missing
-- [x] All sprites are 64x64 pixels and read clearly on the game grid
+- [ ] Tapping anywhere on a mode card selects that mode (not just the button)
+- [ ] Locked cards do not respond to taps
+- [ ] Cards have visible hover/pressed visual feedback
+- [ ] Card touch targets meet mobile minimum sizes
+- [ ] Mode selection still works correctly on desktop (no regression)
 
 ---
 
-#### Task I6: Enemy Sprites Per Type ✅ COMPLETE
+#### Task C2: Clickable Map Selection Cards
 
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 11.2, Section 12, Section 13.3
+**Priority:** P1 | **Effort:** Medium | **GDD Ref:** N/A
 
 **New files:**
-- `assets/sprites/enemies/healer.png` (programmatic: green cross shape)
-- `assets/sprites/enemies/split.png` (programmatic: two-lobed shape, dark cyan)
-- `assets/sprites/enemies/stealth.png` (programmatic: diamond/ghost shape, pale purple)
-- `assets/sprites/enemies/elemental.png` (programmatic: multi-colored ring)
-- `assets/sprites/enemies/boss_glacial_wyrm.png` (programmatic: large blue serpent shape)
-- `assets/sprites/enemies/boss_chaos_elemental.png` (programmatic: large multi-colored shape)
+- None
 
 **Modified files:**
-- `assets/sprites/enemies/normal.png` (redesign: gray circle -> distinct humanoid silhouette)
-- `assets/sprites/enemies/fast.png` (redesign: gray circle -> sleek arrow/wedge shape)
-- `assets/sprites/enemies/armored.png` (redesign: gray circle -> square/shield shape with metallic gray)
-- `assets/sprites/enemies/flying.png` (redesign: gray circle -> winged shape, light blue)
-- `assets/sprites/enemies/swarm.png` (redesign: gray circle -> small clustered dots shape)
-- `assets/sprites/enemies/boss_ember_titan.png` (redesign: ensure large + visually distinct from normal enemies)
+- `scripts/main/MapSelect.gd`
+- `scenes/main/MapSelect.tscn`
 
 **Implementation notes:**
-- All sprites are 64x64 PNG programmatic placeholders with distinct silhouettes per enemy type
-- Enemy visual differentiation strategy (each type must be identifiable by shape alone, not just color):
-  - **Normal**: Rounded square, neutral gray. Default grunt
-  - **Fast**: Narrow wedge/arrow pointing right, light green. Suggests speed
-  - **Armored**: Thick square with inner border, metallic gray/steel blue. Suggests heaviness
-  - **Flying**: Diamond shape with wing-like extensions, light blue. Elevated look
-  - **Swarm**: Small circle (50% scale of normal), yellow-green. Appears in groups
-  - **Healer**: Circle with a cross/plus overlay, bright green. Clearly a support unit
-  - **Split**: Figure-8 or two-lobed shape, dark cyan. Suggests it divides
-  - **Stealth**: Ghost/diamond shape with transparency gradient, pale purple. Suggests invisibility
-  - **Elemental**: Ring/donut shape, multi-colored (randomized tint applied at runtime via existing `_assign_elemental_affinity()`)
-  - **Boss Ember Titan**: Large (48x48 inner) flame-shaped silhouette, red-orange. 1.5x visual scale of normal enemies
-  - **Boss Glacial Wyrm**: Large serpentine shape, icy blue-white. 1.5x visual scale
-  - **Boss Chaos Elemental**: Large star/chaos shape, rainbow gradient. 1.5x visual scale
-- Sprite loading already works via `_apply_enemy_data()` which converts `enemy_data.enemy_name` to snake_case path -- no code changes needed for basic types
-- Boss sprites use the full `enemy_name` (e.g. "Boss Glacial Wyrm" -> "boss_glacial_wyrm.png") which already matches the naming convention
-- Stealth enemies have `sprite.modulate = Color(1, 1, 1, 0.15)` applied at runtime -- base sprite should be fully opaque
-- Elemental enemies get runtime tint from `ElementMatrix.get_color()` -- base sprite should be white/neutral to accept tinting
-- Consider adding `split_child.png` as a smaller version of `split.png` for the child enemies after splitting
-- Total new sprites: 6 new + 6 redesigned = 12 sprites
+- Same approach as Task C1: connect `gui_input` on each map card PanelContainer
+- Set `mouse_filter = MOUSE_FILTER_STOP` on each card
+- Add hover/pressed `StyleBoxFlat` visual feedback
+- On mobile: increase card minimum height, increase select button minimum height to 56px
+- The 2x2 GridContainer at 320px per card = ~664px total width — fits on phone with `keep_height` aspect
+- Locked cards should not respond to `gui_input` — check `_is_map_unlocked()` in the handler
 
 **Acceptance criteria:**
-- [x] All 10 enemy types have unique, visually distinct sprites
-- [x] Each enemy type is identifiable by silhouette shape alone (not just color)
-- [x] All 3 boss sprites exist and are visually larger/more imposing than regular enemies
-- [x] Healer, Split, Stealth, and Elemental sprites load correctly for their respective enemy types
-- [x] Stealth sprite accepts runtime transparency modulation
-- [x] Elemental sprite accepts runtime element color tinting
-- [x] All sprites are 64x64 pixels and read clearly on the game grid
-- [x] No missing sprite warnings in Godot console for any enemy type
+- [ ] Tapping anywhere on a map card selects that map (not just the button)
+- [ ] Locked cards do not respond to taps
+- [ ] Cards have visible hover/pressed visual feedback
+- [ ] Card touch targets meet mobile minimum sizes
+- [ ] Map selection still works correctly on desktop (no regression)
 
 ---
 
-### Group J: Endless Mode (P1)
+### Group D: Comprehensive Mobile Sizing Pass (P1)
 
-Endless mode generates waves beyond the 30 defined in wave_config.json.
-
----
-
-#### Task J1: Endless Wave Generation ✅ COMPLETE
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 6.3
-
-**Modified files:**
-- `scripts/autoload/EnemySystem.gd`
-- `scripts/autoload/GameManager.gd`
-- `tests/unit/autoload/test_enemy_system.gd` (9 new tests, 39 total)
-- `tests/unit/autoload/test_game_manager.gd` (3 new tests, 25 total)
-
-**Implementation notes:**
-- When mode is ENDLESS and wave > 30, procedurally generate wave data:
-  - Enemy count: `base_count + (wave - 30) * 2` (base_count = 12)
-  - HP multiplier: `1.0 + (wave - 30) * 0.15` applied to base HP
-  - Speed multiplier: `1.0 + (wave - 30) * 0.02` (capped at 2.0x)
-  - Gold multiplier: `1.0 + (wave - 30) * 0.1`
-  - Every 10th wave beyond 30 is a boss wave (cycling through the 3 bosses)
-  - Every 5th wave introduces a new enemy type mix (guaranteed Tier 3 types)
-- Enemy type selection: 3-tier weighted system shifting toward harder types:
-  - Tier 1 (normal, fast): weight = max(1, 10 - waves_past_30) — fades out
-  - Tier 2 (armored, swarm, elemental): weight = 5 + waves_past_30 — grows linearly
-  - Tier 3 (flying, healer, stealth, split): weight = waves_past_30 * 2 — grows fastest
-- New method `_build_endless_wave()` replaces `_build_fallback_queue()` for waves > 30
-- `get_wave_config()` returns synthetic `{"is_boss_wave": true}` for endless boss waves (90s timer)
-- GameManager in ENDLESS mode: `_on_wave_cleared()` skips game-over check entirely, only `lose_life()` ends game
-
-**Acceptance criteria:**
-- [x] Waves continue past 30 in Endless mode
-- [x] Difficulty scales progressively
-- [x] Boss waves cycle at intervals
-- [x] Game only ends on defeat (lives == 0)
-- [x] Leaderboard-ready: wave number tracked for high score
+Apply mobile sizing to all remaining UI elements not covered by Groups A-C.
 
 ---
 
-### Group K: Export and Platform (P0)
+#### Task D1: HUD Mobile Sizing Expansion
 
-Configure Godot export presets for HTML5 and Android.
-
----
-
-#### Task K1: HTML5 Export Configuration
-
-**Priority:** P0 | **Effort:** Small | **GDD Ref:** Section 12
+**Priority:** P1 | **Effort:** Medium | **GDD Ref:** N/A
 
 **New files:**
-- `export_presets.cfg`
-
-**Implementation notes:**
-- Add Web export preset in Godot editor or create `export_presets.cfg`
-- Settings:
-  - VRAM texture compression: ETC2 (for WebGL2 compatibility)
-  - Export type: Regular (not thread-based, for broader browser support)
-  - Head include: viewport meta tag for mobile scaling
-  - Custom HTML shell: optional, can use default initially
-- Output: `exports/web/` directory
-- Test in Chrome and Firefox
-- Ensure `gl_compatibility` renderer is set (already configured)
-- Add `exports/` to `.gitignore`
-
-**Acceptance criteria:**
-- [x] Game exports to HTML5 without errors
-- [x] Game runs in Chrome and Firefox
-- [x] No WebGL errors in console
-- [x] Game fits in browser viewport with correct aspect ratio
-
----
-
-#### Task K2: Android Export Configuration
-
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 12
+- None
 
 **Modified files:**
-- `export_presets.cfg`
+- `scripts/ui/HUD.gd`
+- `scenes/ui/HUD.tscn`
 
 **Implementation notes:**
-- Add Android export preset
-- Settings:
-  - Package name: `com.spirefall.game`
-  - Min SDK: 24 (Android 7.0)
-  - Target SDK: 34
-  - Screen orientation: Landscape
-  - VRAM texture compression: ETC2
-- Requires Android SDK, JDK, and export templates installed locally
-- Debug APK for testing, release AAB for store
-- Touch input must work (Task G1 prerequisite)
+- Expand `_apply_mobile_sizing()` to cover all HUD elements:
+  - Top bar height: 40 -> `MOBILE_TOPBAR_HEIGHT` (72)
+  - All label font sizes: bump to `MOBILE_FONT_SIZE_BODY` (16) minimum
+  - WaveControls area: increase height proportionally
+  - Countdown label: increase font size on mobile
+  - Bonus/XP notification labels: increase font size on mobile
+- The top bar has 8+ items in an HBoxContainer. On mobile with larger elements, verify no overflow. Info labels (Wave, Timer, Lives, Gold, XP) should use `SIZE_EXPAND_FILL` and allow text truncation. Action buttons (Speed, Codex, Pause) should have fixed sizes.
+- The `keep_height` stretch aspect gives MORE horizontal space on phones (wider aspect ratio), so horizontal overflow is unlikely
 
 **Acceptance criteria:**
-- [x] Game exports to APK without errors
-- [x] APK installs and runs on Android device/emulator
-- [x] Touch input works on Android
-- [x] Landscape orientation enforced
+- [ ] Top bar height is at least 72px on mobile
+- [ ] All HUD labels have font sizes >= 16px on mobile
+- [ ] Action buttons maintain minimum touch target sizes
+- [ ] No horizontal overflow or overlapping elements on mobile
+- [ ] HUD remains functional on desktop (no regression)
 
 ---
 
-#### Task K3: Performance Profiling Pass
+#### Task D2: TowerInfoPanel Mobile Sizing
 
-**Priority:** P1 | **Effort:** Medium | **GDD Ref:** Section 12
+**Priority:** P1 | **Effort:** Medium | **GDD Ref:** N/A
+
+**New files:**
+- None
+
+**Modified files:**
+- `scripts/ui/TowerInfoPanel.gd`
+- `scenes/ui/TowerInfoPanel.tscn`
 
 **Implementation notes:**
-- Profile the game under stress conditions:
-  - Wave 30 with 50+ enemies on screen
-  - 20+ towers active and firing
-  - Boss with ground effects active
-- Target: 60 FPS on desktop, 30 FPS on mid-range Android
-- Memory budget: < 200MB web, < 300MB Android
-- Check for:
-  - Object pool efficiency (enemy/projectile reuse)
-  - Pathfinding recalculation time (< 16ms)
-  - Draw call count (batch sprite draws)
-  - Per-frame allocations (avoid `new` in `_process`)
-- Use Godot's built-in profiler and monitor
-- Document findings and optimize bottlenecks
+- Expand `_apply_mobile_sizing()`:
+  - All action buttons (Upgrade, Sell, Fuse, Ascend): height >= `MOBILE_ACTION_BUTTON_MIN_HEIGHT` (56)
+  - Target mode dropdown: height >= 56 on mobile
+  - All label font sizes: bump to `MOBILE_FONT_SIZE_BODY` (16) minimum
+  - Panel minimum width: increase from 240 to 300 on mobile
+- When docked at bottom (from Task B1), the panel should span the full viewport width minus margins and use a horizontal layout for action buttons
 
 **Acceptance criteria:**
-- [x] 60 FPS maintained on desktop with 50 enemies + 20 towers
-- [x] No frame spikes > 32ms during pathfinding recalculation
-- [x] Memory usage stays within budget
-- [x] Performance report documented
+- [ ] All action buttons are at least 56px tall on mobile
+- [ ] Target mode dropdown is at least 56px tall on mobile
+- [ ] All labels have font sizes >= 16px on mobile
+- [ ] Panel is wide enough to accommodate larger text without clipping
+
+---
+
+#### Task D3: PauseMenu Mobile Sizing
+
+**Priority:** P1 | **Effort:** Small | **GDD Ref:** N/A
+
+**New files:**
+- None
+
+**Modified files:**
+- `scripts/ui/PauseMenu.gd`
+- `scenes/ui/PauseMenu.tscn`
+
+**Implementation notes:**
+- Add `_apply_mobile_sizing()` to PauseMenu:
+  - All buttons (Resume, Restart, Settings, Codex, Quit): minimum height 56 on mobile, minimum width 280
+  - Button font sizes: bump to `MOBILE_FONT_SIZE_BODY` (16) minimum
+  - Panel container: increase padding on mobile
+- PauseMenu already has `PROCESS_MODE_WHEN_PAUSED`, so no process mode changes needed
+
+**Acceptance criteria:**
+- [ ] All PauseMenu buttons are at least 56px tall on mobile
+- [ ] Button text is at least 16px font size on mobile
+- [ ] Buttons are easily tappable on phone screens
+
+---
+
+#### Task D4: GameOverScreen Mobile Sizing
+
+**Priority:** P1 | **Effort:** Small | **GDD Ref:** N/A
+
+**New files:**
+- None
+
+**Modified files:**
+- `scripts/ui/GameOverScreen.gd`
+- `scenes/ui/GameOverScreen.tscn`
+
+**Implementation notes:**
+- Add `_apply_mobile_sizing()` with:
+  - Button minimum heights: 56 on mobile
+  - Font sizes: body text 16, title 24 on mobile
+  - Ensure stats display and action buttons are finger-accessible
+
+**Acceptance criteria:**
+- [ ] All GameOverScreen buttons are at least 56px tall on mobile
+- [ ] Text is readable on phone screens (font sizes >= 16px)
+
+---
+
+#### Task D5: DraftPickPanel and Other UI Mobile Sizing
+
+**Priority:** P2 | **Effort:** Small | **GDD Ref:** N/A
+
+**New files:**
+- None
+
+**Modified files:**
+- `scripts/ui/DraftPickPanel.gd`
+- `scripts/ui/WavePreviewPanel.gd`
+- `scripts/ui/CodexPanel.gd`
+
+**Implementation notes:**
+- Apply consistent mobile sizing to remaining UI panels:
+  - DraftPickPanel: element pick buttons minimum 100x100 on mobile, font sizes bumped
+  - WavePreviewPanel: font sizes bumped for readability
+  - CodexPanel: font sizes bumped, close/navigation buttons sized for touch
+- These panels are less critical than the core gameplay UI but should still be usable
+
+**Acceptance criteria:**
+- [ ] DraftPickPanel buttons are finger-accessible on mobile
+- [ ] WavePreviewPanel text is readable on mobile
+- [ ] CodexPanel is navigable with touch on mobile
 
 ---
 
 ## Dependency Graph
 
 ```
-Phase 3 Task Dependencies
-=========================
-
-GROUP A: Scene Navigation (must come first -- everything depends on menu flow)
-  A1 (SceneManager) ──> A2 (MainMenu) ──> A3 (ModeSelect) ──> A4 (MapSelect)
-       │                                        │
-       │                                        v
-       ├──> A5 (Game.gd parameterized) ────────[needs A1, A3]
-       │         │
-       │         v
-       ├──> A6 (PauseMenu) ───────────────────[needs A1, A5]
-       │
-       └──> A7 (GameOverScreen update) ────────[needs A1]
-
-GROUP B: Maps (needs A5 for dynamic map loading, B1 first)
-  B1 (MapBase) ──> B2 (Mountain Pass)
-       │       ──> B3 (River Delta)
-       │       ──> B4 (Volcanic Caldera)
-       └──────────> B5 (Map Tile Textures)
-
-GROUP C: Draft Mode (needs A3 for mode selection, A5 for mode parameter)
-  C1 (DraftManager) ──> C2 (DraftPickPanel)
-       │            ──> C3 (BuildMenu filtering)
-
-GROUP D: Save/Load (independent, but feeds into E and A)
-  D1 (SaveSystem) ──> D2 (SettingsManager) ──> D3 (SettingsPanel)
-       │
-       └──> feeds into E1 (MetaProgression)
-
-GROUP E: Meta Progression (needs D1 for persistence)
-  D1 ──> E1 (MetaProgression) ──> E2 (Stats tracking)
-              │                ──> E3 (XP HUD display & kill rewards)
-              └──> feeds into A3 (mode locks), A4 (map locks), A7 (XP display)
-
-GROUP F: Audio (independent, but needs F1 before F2)
-  F1 (AudioManager enhancements) ──> F2 (Gameplay hooks) ──> F3 (Placeholder files)
-
-GROUP G: Touch Support (independent of menu flow)
-  G1 (Touch input) ──> G2 (Mobile UI sizing)
-
-GROUP H: Boss Polish (independent)
-  H1 (Boss HP bar)
-  H2 (Boss announcement)
-
-GROUP I: Visual Polish (independent)
-  I1 (Range indicator)
-  I2 (Enemy HP bars)
-  I3 (Particle effects) ── P2, do last
-  I4 (Wave progress indicator)
-  I5 (Tower sprites per tier) ── needs existing tower resources
-  I6 (Enemy sprites per type) ── needs existing enemy resources
-
-GROUP J: Endless Mode (needs A5 for mode parameter)
-  A5 ──> J1 (Endless wave generation)
-
-GROUP K: Export (do last, after all content)
-  K1 (HTML5 export)
-  K2 (Android export) ──[needs G1 touch support]
-  K3 (Performance profiling)
+A1 (UIManager Constants)
+ |
+ +-- B1 (TowerInfoPanel Close Button)
+ |
+ +-- B2 (HUD Pause Button)
+ |
+ +-- B3 (Build Menu Sizing)
+ |
+ +-- C1 (Mode Select Cards)
+ |
+ +-- C2 (Map Select Cards)
+ |
+ +-- D1 (HUD Mobile Sizing)
+ |
+ +-- D2 (TowerInfoPanel Mobile Sizing) -- depends on B1
+ |
+ +-- D3 (PauseMenu Mobile Sizing)
+ |
+ +-- D4 (GameOverScreen Mobile Sizing)
+ |
+ +-- D5 (Other UI Mobile Sizing)
 ```
+
+All tasks depend on A1 for constants. D2 depends on B1 (close button must exist before sizing it). All other tasks are independent of each other and can be parallelized.
 
 ---
 
 ## Recommended Implementation Order
 
-Tasks are ordered to maximize shippability at each milestone. After each week, the game should be in a playable, demonstrable state.
-
-### Week 1: Foundation (Shippable as single-map Classic with menus)
-
 | Order | Task | Group | Priority | Effort | Description |
 |-------|------|-------|----------|--------|-------------|
-| 1 | D1 | Save/Load | P0 | Medium | SaveSystem autoload |
-| 2 | D2 | Save/Load | P0 | Small | SettingsManager autoload |
-| 3 | A1 | Navigation | P0 | Medium | SceneManager autoload |
-| 4 | A2 | Navigation | P0 | Medium | MainMenu scene |
-| 5 | A3 | Navigation | P0 | Medium | ModeSelect scene |
-| 6 | A4 | Navigation | P0 | Medium | MapSelect scene |
-| 7 | A5 | Navigation | P0 | Medium | Game.gd parameterized launch |
-| 8 | A6 | Navigation | P0 | Small | PauseMenu |
-| 9 | A7 | Navigation | P0 | Small | GameOverScreen update |
-| 10 | D3 | Save/Load | P0 | Medium | SettingsPanel UI |
+| 1 | A1 | A | P0 | Small | Mobile size constants in UIManager |
+| 2 | B2 | B | P0 | Small | Add pause button to HUD |
+| 3 | B1 | B | P0 | Small | Add close button to TowerInfoPanel |
+| 4 | B3 | B | P0 | Medium | Increase build menu sizing on mobile |
+| 5 | C1 | C | P1 | Medium | Clickable mode selection cards |
+| 6 | C2 | C | P1 | Medium | Clickable map selection cards |
+| 7 | D1 | D | P1 | Medium | HUD mobile sizing expansion |
+| 8 | D2 | D | P1 | Medium | TowerInfoPanel mobile sizing |
+| 9 | D3 | D | P1 | Small | PauseMenu mobile sizing |
+| 10 | D4 | D | P1 | Small | GameOverScreen mobile sizing |
+| 11 | D5 | D | P2 | Small | DraftPickPanel and other UI sizing |
 
-**Week 1 milestone:** Full menu flow (MainMenu -> ModeSelect -> MapSelect -> Game -> GameOver -> MainMenu) with settings persistence. Single map, Classic mode only, but proper game loop.
+### Milestone 1: Mobile Playable (Tasks 1-4)
+Core interaction blockers removed. The game is functional on mobile with pause access, dismissible panels, and usable build menu.
 
-### Week 2: Content (3 new maps, Draft mode, meta progression)
+### Milestone 2: Mobile Polished (Tasks 5-10)
+All screens and panels are sized appropriately for phone screens. Menu navigation is finger-friendly.
 
-| Order | Task | Group | Priority | Effort | Description |
-|-------|------|-------|----------|--------|-------------|
-| 11 | B1 | Maps | P0 | Small | MapBase class extraction |
-| 12 | B2 | Maps | P0 | Medium | Mountain Pass map |
-| 13 | B3 | Maps | P0 | Large | River Delta map |
-| 14 | B4 | Maps | P0 | Large | Volcanic Caldera map |
-| 15 | E1 | Meta | P1 | Medium | MetaProgression autoload |
-| 16 | E2 | Meta | P1 | Small | GameManager stats tracking |
-| 16.5 | E3 | Meta | P1 | Medium | XP HUD display & kill rewards |
-| 17 | C1 | Draft | P1 | Medium | DraftManager autoload |
-| 18 | C2 | Draft | P1 | Medium | DraftPickPanel UI |
-| 19 | C3 | Draft | P1 | Small | BuildMenu element filtering |
-
-**Week 2 milestone:** All 4 maps playable. Draft mode functional. XP system tracking progress and unlocking content.
-
-### Week 3: Polish (audio, touch, boss encounters, visual)
-
-| Order | Task | Group | Priority | Effort | Description |
-|-------|------|-------|----------|--------|-------------|
-| 20 | G1 | Touch | P0 | Large | Touch input handling |
-| 21 | G2 | Touch | P0 | Medium | Mobile-friendly UI sizing |
-| 22 | F1 | Audio | P1 | Medium | AudioManager enhancements |
-| 23 | F2 | Audio | P1 | Medium | Gameplay audio hooks |
-| 24 | H1 | Boss | P1 | Small | Boss HP bar |
-| 25 | H2 | Boss | P1 | Small | Boss announcement splash |
-| 26 | I1 | Visual | P1 | Small | Tower range indicator |
-| 27 | I2 | Visual | P1 | Small | Enemy HP bars |
-| 28 | I4 | Visual | P1 | Small | Wave progress indicator |
-| 29 | J1 | Endless | P1 | Medium | Endless wave generation |
-
-**Week 3 milestone:** Game is touch-playable. Audio hooks ready (plays sounds when files exist). Boss fights have proper presentation. Visual feedback for towers and enemies.
-
-### Week 4: Export and Final Polish
-
-| Order | Task | Group | Priority | Effort | Description |
-|-------|------|-------|----------|--------|-------------|
-| 30 | K1 | Export | P0 | Small | HTML5 export configuration |
-| 31 | K2 | Export | P1 | Medium | Android export configuration |
-| 32 | K3 | Export | P1 | Medium | Performance profiling pass |
-| 33 | B5 | Maps | P1 | Small | Map-specific tile textures |
-| 34 | I5 | Visual | P1 | Large | Tower sprites per tier |
-| 35 | I6 | Visual | P1 | Medium | Enemy sprites per type |
-| 36 | F3 | Audio | P2 | Small | Placeholder audio files |
-| 37 | I3 | Visual | P2 | Medium | Particle effects |
-
-**Week 4 milestone:** Game exported to HTML5 for itch.io. Android APK builds. Performance validated. All towers and enemies have visually distinct sprites. Placeholder audio and particles in place.
+### Milestone 3: Complete Coverage (Task 11)
+Secondary panels (Draft, Wave Preview, Codex) are also mobile-friendly.
 
 ---
 
@@ -1506,22 +436,24 @@ Tasks are ordered to maximize shippability at each milestone. After each week, t
 
 | Metric | Count |
 |--------|-------|
-| Total tasks | 38 |
-| P0 (must-have) | 15 |
-| P1 (important) | 19 |
-| P2 (nice-to-have) | 4 |
-| New files | ~85 (scripts + scenes + resources + 33 tower sprites + 12 enemy sprites) |
-| Modified files | ~20 |
-| New autoloads | 5 (SceneManager, SaveSystem, SettingsManager, MetaProgression, DraftManager) |
-| New scenes | 10 |
-| Estimated effort | Small: 12, Medium: 18, Large: 5, X-Large: 0 |
+| Total tasks | 11 |
+| P0 tasks | 4 |
+| P1 tasks | 6 |
+| P2 tasks | 1 |
+| New files | 0 |
+| Modified files | ~16 (scripts + scenes) |
+| Small effort | 6 |
+| Medium effort | 5 |
+| Large effort | 0 |
 
-### P0 Critical Path (minimum viable shipped game)
+### Key Design Decisions
 
-The absolute minimum to ship on itch.io is the P0 task chain:
+1. **Minimum mobile touch target: 100 viewport pixels** — derived from 48dp physical minimum at ~56% viewport scale on a typical 6.1" phone in landscape with `keep_height` aspect
+2. **TowerInfoPanel docks to bottom on mobile** instead of floating beside tower — prevents obscuring the game board
+3. **Cards are fully clickable** via `gui_input` on PanelContainer — the separate "Select" button becomes optional/redundant on mobile
+4. **No viewport resolution change** — the 1280x960 viewport with `canvas_items` stretch and `keep_height` aspect is preserved. All mobile fixes are done by scaling up UI elements within the existing viewport coordinate space
+5. **No new art assets required** — all changes are programmatic (StyleBoxFlat, custom_minimum_size, font size overrides)
 
-```
-D1 -> D2 -> A1 -> A2 -> A3 -> A4 -> A5 -> A6 -> A7 -> D3 -> B1 -> B2 -> B3 -> B4 -> G1 -> G2 -> K1
-```
+### Critical Path
 
-This gives: menu flow, 4 maps, save/settings, touch support, HTML5 export. Draft mode, meta progression, audio, and visual polish can follow as P1 tasks or post-launch updates.
+A1 -> B2 -> B1 -> B3 (4 tasks to reach "mobile playable" milestone)

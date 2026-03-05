@@ -1,3 +1,4 @@
 - no easy way to close tower info/upgrade panel
-- build interface is small on mobile
+- build interface is small on mobile, everything is small, maybe make components bigger?
 - no way to go to pause menu
+- mode and map selection button is small, maybe make the whole card clickable and remove select?
