@@ -38,6 +38,15 @@ Before implementation, evaluate whether the task involves **gameplay design deci
 
 **If no**: Proceed directly to Phase 3.
 
+### Mobile Work: Use Both godot-developer and mobile-developer
+
+For tasks involving mobile UI/UX (touch input, responsive layouts, mobile sizing, gesture systems, mobile builds), invoke **mobile-developer** alongside **godot-developer**:
+
+- **mobile-developer**: Owns mobile UX design decisions — touch target sizing, dp-aware scaling, gesture patterns, safe areas, mobile-specific interaction flows, Android/iOS export pipelines
+- **godot-developer**: Owns Godot implementation — scene architecture, GDScript coding, engine features, tween/animation, ScrollContainer gotchas, node path management, performance
+
+Launch both agents in parallel when the task spans both domains (e.g., "implement two-tier TowerInfoPanel" needs mobile-developer for the UX design and godot-developer for the Godot scene restructuring). Use mobile-developer's UX recommendations as input to godot-developer's implementation.
+
 ---
 
 ## Phase 3: Architecture Decision Record
