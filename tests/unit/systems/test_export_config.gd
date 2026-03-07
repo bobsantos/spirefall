@@ -272,3 +272,47 @@ func test_project_orientation_landscape() -> void:
 	# 1 = Landscape in Godot project settings
 	var orient: int = ProjectSettings.get_setting("display/window/handheld/orientation", 0)
 	assert_int(orient).is_equal(1)
+
+
+# -- A2: Browser Gesture Prevention (Custom HTML Shell) ------------------------
+
+var _shell_content: String = ""
+
+
+func _load_shell_content() -> void:
+	if _shell_content.length() > 0:
+		return
+	var file := FileAccess.open("res://export/web/custom_shell.html", FileAccess.READ)
+	if file:
+		_shell_content = file.get_as_text()
+		file.close()
+
+
+func test_web_custom_shell_path_set() -> void:
+	var shell_path: String = _get_web_option("html/custom_html_shell")
+	assert_str(shell_path).is_equal("\"res://export/web/custom_shell.html\"")
+
+
+func test_custom_shell_file_exists() -> void:
+	_load_shell_content()
+	assert_bool(_shell_content.length() > 0).is_true()
+
+
+func test_custom_shell_has_touch_action_none() -> void:
+	_load_shell_content()
+	assert_bool(_shell_content.contains("touch-action: none")).is_true()
+
+
+func test_custom_shell_has_overflow_hidden() -> void:
+	_load_shell_content()
+	assert_bool(_shell_content.contains("overflow: hidden")).is_true()
+
+
+func test_custom_shell_has_overscroll_behavior_none() -> void:
+	_load_shell_content()
+	assert_bool(_shell_content.contains("overscroll-behavior: none")).is_true()
+
+
+func test_custom_shell_has_viewport_meta() -> void:
+	_load_shell_content()
+	assert_bool(_shell_content.contains("width=device-width")).is_true()

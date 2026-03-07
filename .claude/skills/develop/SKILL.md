@@ -141,7 +141,8 @@ After all tasks are complete:
 1. Run the full test suite one final time to confirm everything passes
 2. Verify no orphan nodes or test leaks
 3. Update task list — all items should be `completed`
-4. Summarize what was built:
+4. **Mark acceptance criteria as done in `docs/work/plan.md`** — change `- [ ]` to `- [x]` for each completed acceptance criterion in the relevant task(s)
+5. Summarize what was built:
    - Features implemented
    - Tests added (count and file paths)
    - Files created/modified

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+	<title>$GODOT_PROJECT_NAME</title>
+	<style>
+		html, body {
+			margin: 0;
+			padding: 0;
+			border: 0;
+			width: 100%;
+			height: 100%;
+			overflow: hidden;
+			overscroll-behavior: none;
+			background-color: black;
+		}
+		canvas {
+			display: block;
+			touch-action: none;
+		}
+		#canvas {
+			width: 100%;
+			height: 100%;
+		}
+		#status, #status-progress, #status-notice {
+			display: none;
+		}
+	</style>
+	$GODOT_HEAD_INCLUDE
+</head>
+<body>
+	<canvas id="canvas"></canvas>
+	<div id="status">
+		<div id="status-progress" style="display: none;"></div>
+		<div id="status-notice" style="display: none;"></div>
+	</div>
+	<script src="$GODOT_URL"></script>
+	<script>
+		const engine = new Engine($GODOT_CONFIG);
+		engine.startGame();
+	</script>
+</body>
+</html>

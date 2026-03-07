@@ -273,6 +273,13 @@ This generates the `.godot/` directory with imported resources. Without it, test
 - Fix: added `_game_running: bool = false` flag to GameManager, guarding `_process()`. Only `start_game()` sets it to true; GAME_OVER and MENU setter clear it
 - This prevents any autonomous wave progression when tests manipulate game_state directly without calling start_game()
 
+## GdUnit4 Fail-Fast Mode (CI Runner)
+- GdUnit4 CI runner (`GdUnitCmdTool.gd`) runs in **fail-fast mode by default** -- it stops the entire test suite after the first test failure.
+- This means if you add 6 new tests and the first one fails, the other 5 never run and show as 0 in the statistics.
+- Pass `-c` (continue) flag to disable fail-fast: `--add tests/ -c --ignoreHeadlessMode`
+- The `-c` flag calls `disable_fail_fast()` which sets `_executor.fail_fast(false)`
+- The `run_tests.sh` script includes `-c` to ensure all tests run even when some fail (essential for TDD RED phase)
+
 ## CPUParticles2D API Gotchas (Godot 4.6)
 - `CPUParticles2D.gravity` is `Vector2`, NOT `Vector3` (it's a 2D node)
 - `CPUParticles2D.direction` is also `Vector2`

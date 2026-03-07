@@ -50,16 +50,21 @@
 - Enemy weight shift algorithm: use lerp across 9 types from early-profile to late-profile over waves 31-80. See full algorithm in response.
 - Gold scales linearly vs HP quadratic -- ensure sell value is 75-80% in endless to prevent economy lock.
 
-## Mobile UX Design Notes
-- Viewport: 1280x960, stretch mode "canvas_items", aspect "keep_height". On phone screens, all UI ~40-50% of intended physical size.
-- Current mobile constants are insufficient: MOBILE_TOWER_BUTTON_MIN 128x80 produces ~5-6mm touch targets (need 7-10mm).
-- Recommended updated constants: MOBILE_BUTTON_MIN 64x64, MOBILE_TOWER_BUTTON_MIN 160x100, MOBILE_ACTION_BUTTON_MIN_HEIGHT 56, MOBILE_START_WAVE_MIN 160x64.
-- TowerInfoPanel has no close button -- P0 blocker on mobile. Add 44x44 close button.
-- No pause button in HUD -- P0 blocker on mobile. Add to TopBar HBoxContainer.
-- ModeSelect/MapSelect: cards should be fully clickable on mobile; stack vertically (VBox/1-column) instead of horizontal/2-column.
-- Global MOBILE_UI_SCALE of ~1.35 recommended for font sizes and spacing.
-- Consider higher default camera zoom on mobile (1.2x) to increase grid cell physical size.
-- UI overhead budget: top bar 64px + bottom bar 130px = 194px, leaving 766px (80%) for game board.
+## Mobile UX Design Notes (v3 Hybrid Approach)
+- Viewport: 1280x960, stretch mode "canvas_items", aspect "keep_height". Worst-case: 270dp landscape, dp/px ratio 0.281.
+- v3 approach: minimal persistent chrome + context-sensitive panels (bottom sheets, dropdowns).
+- Status bar (48px): Gold, Lives, Wave/Timer, Speed button, overflow menu icon. XP/Codex/Pause in overflow.
+- Build bottom sheet: 3x2 grid, hidden during combat, triggered by FAB during build phase. Auto-dismiss on tower select.
+- TowerInfoPanel: two-tier bottom sheet. Collapsed (120px, 2 rows: name+close / target+upgrade+sell). Expanded (~350px, full stats+fuse+ascend).
+- Bottom sheet collision rule: only one of BuildSheet or TowerInfoPanel can be open at a time.
+- Auto-zoom 1.5x during placement (grid cells 96px = 27dp + grid-snap = workable). Animate zoom transitions.
+- Long-press (400ms) on build buttons for tower preview with DPS + elemental effectiveness vs upcoming wave.
+- Wave preview: tap-on-counter dropdown, not persistent panel. Show next wave during combat.
+- Speed button stays in status bar (frequently toggled). Do NOT hide behind overflow menu.
+- Safe area insets: use DisplayServer.get_display_safe_area(), apply as MarginContainer overrides.
+- Screen budget: Combat 95% board, Build browsing 64% board, Placing 88% board.
+- P0: safe area, status bar, build sheet, tower info panel, browser gestures. P1: auto-zoom, long-press, wave dropdown, cards, secondary panels. P2: keyboard hints, floating text, haptics, battery saver, onboarding.
+- "Start Wave Early" button belongs inside build sheet header, not as separate floating button.
 
 ## Key File Paths
 - Wave config: `resources/waves/wave_config.json`
