@@ -209,14 +209,14 @@ Replace persistent TopBar + BuildMenu with contextual/collapsible approach. This
 - Desktop: no changes to existing TopBar layout
 
 **Acceptance criteria:**
-- [ ] Mobile TopBar shows only: gold, lives, wave counter, speed button, overflow icon
-- [ ] TopBar is 48px tall on mobile
-- [ ] Overflow icon opens menu with Codex and Pause buttons
-- [ ] Overflow menu dismisses on tap outside or button press
-- [ ] Overflow menu works when game is paused (process_mode)
-- [ ] Timer info shown in wave counter text on mobile
-- [ ] Desktop TopBar unchanged
-- [ ] No horizontal overflow on any mobile device
+- [x] Mobile TopBar shows only: gold, lives, wave counter, speed button, overflow icon
+- [x] TopBar is 48px tall on mobile
+- [x] Overflow icon opens menu with Codex and Pause buttons
+- [x] Overflow menu dismisses on tap outside or button press
+- [x] Overflow menu works when game is paused (process_mode)
+- [x] Timer info shown in wave counter text on mobile
+- [x] Desktop TopBar unchanged
+- [x] No horizontal overflow on any mobile device
 
 ---
 
@@ -258,17 +258,17 @@ Replace persistent TopBar + BuildMenu with contextual/collapsible approach. This
 - Desktop: no changes to existing BuildMenu behavior
 
 **Acceptance criteria:**
-- [ ] Build FAB visible during build phase, hidden during combat
-- [ ] Tapping FAB slides build menu up from bottom
-- [ ] Tapping FAB again or tapping outside slides menu back down
-- [ ] Selecting a tower auto-dismisses the sheet
-- [ ] "Start Wave" button accessible from sheet header
-- [ ] Drag handle visible at top of sheet
-- [ ] Tower buttons are at least 170x128 on mobile
-- [ ] Tower sprite thumbnails are at least 48x48 on mobile
-- [ ] Element dot indicators are at least 20px diameter circles on mobile
-- [ ] Cancel button is at least 140x128 on mobile
-- [ ] Desktop BuildMenu behavior unchanged
+- [x] Build FAB visible during build phase, hidden during combat
+- [x] Tapping FAB slides build menu up from bottom
+- [x] Tapping FAB again or tapping outside slides menu back down
+- [x] Selecting a tower auto-dismisses the sheet
+- [x] "Start Wave" button accessible from sheet header
+- [x] Drag handle visible at top of sheet
+- [x] Tower buttons are at least 170x128 on mobile
+- [x] Tower sprite thumbnails are at least 48x48 on mobile
+- [x] Element dot indicators are at least 20px diameter circles on mobile
+- [x] Cancel button is at least 140x128 on mobile
+- [x] Desktop BuildMenu behavior unchanged
 
 ---
 
@@ -311,18 +311,18 @@ Replace persistent TopBar + BuildMenu with contextual/collapsible approach. This
 - Desktop: keep existing floating panel behavior (no state machine)
 
 **Acceptance criteria:**
-- [ ] Collapsed state shows tower name, element, upgrade, sell, close
-- [ ] Collapsed state is 160px tall
-- [ ] Tapping info area expands to full stats
-- [ ] Expanded state never exceeds 35% of viewport height
-- [ ] Expanded state scrolls if content overflows
-- [ ] Swipe down from collapsed dismisses panel
-- [ ] Swipe down from expanded collapses panel
-- [ ] Drag handle and chevron visible at panel top
-- [ ] Action buttons always accessible (not scrolled away)
-- [ ] Build sheet auto-closes when TowerInfoPanel opens
-- [ ] `_gui_input` prevents swipe from being interpreted as camera pan
-- [ ] Desktop floating panel behavior unchanged
+- [x] Collapsed state shows tower name, element, upgrade, sell, close
+- [x] Collapsed state is 160px tall
+- [x] Tapping info area expands to full stats
+- [x] Expanded state never exceeds 35% of viewport height
+- [x] Expanded state scrolls if content overflows
+- [x] Swipe down from collapsed dismisses panel
+- [x] Swipe down from expanded collapses panel
+- [x] Drag handle and chevron visible at panel top
+- [x] Action buttons always accessible (not scrolled away)
+- [x] Build sheet auto-closes when TowerInfoPanel opens
+- [x] `_gui_input` prevents swipe from being interpreted as camera pan
+- [x] Desktop floating panel behavior unchanged
 
 ---
 
@@ -343,8 +343,8 @@ Replace persistent TopBar + BuildMenu with contextual/collapsible approach. This
 - If this is a no-op, mark as done after audit confirms no keyboard text on mobile
 
 **Acceptance criteria:**
-- [ ] No parenthesized key names visible on any button on mobile
-- [ ] Desktop button text unchanged
+- [x] No parenthesized key names visible on any button on mobile
+- [x] Desktop button text unchanged
 
 ---
 

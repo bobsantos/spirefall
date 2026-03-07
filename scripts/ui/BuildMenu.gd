@@ -14,6 +14,9 @@ var _tower_buttons: Array[Button] = []
 var _available_towers: Array[TowerData] = []
 var _draft_indicator: HBoxContainer
 var _cancel_button: Button
+var _is_sheet_visible: bool = false
+var _slide_tween: Tween = null
+var _sheet_mode: bool = false
 
 # Canonical element order for build menu button layout
 const ELEMENT_ORDER: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
@@ -240,10 +243,34 @@ func _build_tooltip(tower: TowerData) -> String:
 	return "\n".join(lines)
 
 
+func slide_in() -> void:
+	## Slide the build menu up from the bottom of the screen (mobile sheet mode).
+	if _slide_tween:
+		_slide_tween.kill()
+	visible = true
+	_is_sheet_visible = true
+	_slide_tween = create_tween()
+	_slide_tween.tween_property(self, "position:y", 960.0 - float(UIManager.MOBILE_BUILD_MENU_HEIGHT), 0.25) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+
+func slide_out() -> void:
+	## Slide the build menu down off the bottom of the screen (mobile sheet mode).
+	if _slide_tween:
+		_slide_tween.kill()
+	_is_sheet_visible = false
+	_slide_tween = create_tween()
+	_slide_tween.tween_property(self, "position:y", 960.0, 0.25) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_slide_tween.tween_callback(func() -> void: visible = false)
+
+
 func _on_tower_selected(tower_data: TowerData) -> void:
 	AudioManager.play_sfx("ui_click")
 	UIManager.request_build(tower_data)
 	tower_build_selected.emit(tower_data)
+	if _sheet_mode and is_inside_tree():
+		get_tree().create_timer(0.1).timeout.connect(slide_out)
 
 
 func _create_cancel_button() -> void:
@@ -284,8 +311,23 @@ func _apply_mobile_sizing() -> void:
 	custom_minimum_size.y = UIManager.MOBILE_BUILD_MENU_HEIGHT
 	offset_top = -float(UIManager.MOBILE_BUILD_MENU_HEIGHT)
 
+	# Enable bottom sheet mode
+	_sheet_mode = true
+	anchors_preset = 0  # Use absolute positioning for slide animation
+	position.y = 960.0  # Start below viewport bottom
+	_is_sheet_visible = false
+
+	# Add drag handle at the top of the panel
+	var drag_handle := ColorRect.new()
+	drag_handle.color = Color("#666666")
+	drag_handle.custom_minimum_size = Vector2(40, 4)
+	drag_handle.size = Vector2(40, 4)
+	# Position centered at top of panel
+	drag_handle.position = Vector2((size.x - 40.0) / 2.0, 8.0)
+	add_child(drag_handle)
+
 	# HBoxContainer separation for easier targeting
-	button_container.add_theme_constant_override("separation", 10)
+	button_container.add_theme_constant_override("separation", 12)
 
 	# Tower buttons
 	for btn: Button in _tower_buttons:
@@ -293,7 +335,7 @@ func _apply_mobile_sizing() -> void:
 		_apply_mobile_button_content(btn)
 
 	# Cancel button
-	_cancel_button.custom_minimum_size = Vector2(130, 100)
+	_cancel_button.custom_minimum_size = Vector2(140, 128)
 
 	# Draft indicator dots
 	_apply_mobile_draft_dots()
@@ -306,24 +348,24 @@ func _apply_mobile_button_content(btn: Button) -> void:
 			var hbox: HBoxContainer = child as HBoxContainer
 			for hbox_child: Node in hbox.get_children():
 				if hbox_child is TextureRect:
-					# Tower sprite thumbnail: 32x32 -> 40x40
-					hbox_child.custom_minimum_size = Vector2(40, 40)
+					# Tower sprite thumbnail: 32x32 -> 48x48
+					hbox_child.custom_minimum_size = Vector2(48, 48)
 				elif hbox_child is VBoxContainer:
 					var vbox: VBoxContainer = hbox_child as VBoxContainer
 					for vbox_child: Node in vbox.get_children():
 						if vbox_child is Label:
-							# Name label: 11 -> 14
-							vbox_child.add_theme_font_size_override("font_size", 14)
+							# Name label: 11 -> 20
+							vbox_child.add_theme_font_size_override("font_size", 20)
 						elif vbox_child is HBoxContainer:
 							# Cost row
 							var cost_row: HBoxContainer = vbox_child as HBoxContainer
 							for cost_child: Node in cost_row.get_children():
 								if cost_child is ColorRect:
-									# Element dot: radius 6 -> 8 (diameter 12 -> 16)
-									cost_child.custom_minimum_size = Vector2(16, 16)
+									# Element dot: radius 6 -> 10 (diameter 12 -> 20)
+									cost_child.custom_minimum_size = Vector2(20, 20)
 								elif cost_child is Label:
-									# Cost label: 10 -> 13
-									cost_child.add_theme_font_size_override("font_size", 13)
+									# Cost label: 10 -> 18
+									cost_child.add_theme_font_size_override("font_size", 18)
 
 
 func _apply_mobile_draft_dots() -> void:

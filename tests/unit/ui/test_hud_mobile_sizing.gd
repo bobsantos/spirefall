@@ -300,28 +300,30 @@ func test_mobile_xp_label_font_size() -> void:
 # SECTION 3: Action button touch targets on mobile
 # ==============================================================================
 
-# -- 8. SpeedButton has MOBILE_BUTTON_MIN on mobile ---------------------------
+# -- 8. SpeedButton sized for 48px bar on mobile (B1 overflow menu change) ----
 
 func test_mobile_speed_button_size() -> void:
 	_hud._apply_mobile_sizing()
 	assert_vector(_hud.speed_button.custom_minimum_size)\
-		.is_equal(UIManager.MOBILE_BUTTON_MIN)
+		.is_equal(Vector2(80, 44))
 
 
-# -- 9. CodexButton has MOBILE_BUTTON_MIN on mobile ---------------------------
+# -- 9. CodexButton hidden on mobile (moved to overflow menu in B1) -----------
 
 func test_mobile_codex_button_size() -> void:
 	_hud._apply_mobile_sizing()
-	assert_vector(_hud.codex_button.custom_minimum_size)\
-		.is_equal(UIManager.MOBILE_BUTTON_MIN)
+	assert_bool(_hud.codex_button.visible)\
+		.override_failure_message("CodexButton should be hidden on mobile (moved to overflow)")\
+		.is_false()
 
 
-# -- 10. PauseButton has MOBILE_BUTTON_MIN on mobile --------------------------
+# -- 10. PauseButton hidden on mobile (moved to overflow menu in B1) ----------
 
 func test_mobile_pause_button_size() -> void:
 	_hud._apply_mobile_sizing()
-	assert_vector(_hud.pause_button.custom_minimum_size)\
-		.is_equal(UIManager.MOBILE_BUTTON_MIN)
+	assert_bool(_hud.pause_button.visible)\
+		.override_failure_message("PauseButton should be hidden on mobile (moved to overflow)")\
+		.is_false()
 
 
 # -- 11. StartWaveButton has MOBILE_START_WAVE_MIN on mobile -------------------

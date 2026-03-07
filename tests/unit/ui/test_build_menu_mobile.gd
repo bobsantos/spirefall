@@ -202,9 +202,9 @@ func test_cancel_button_min_size_on_mobile() -> void:
 
 
 func test_cancel_button_exact_mobile_size() -> void:
-	## Cancel button should be exactly 130x100 on mobile.
+	## Cancel button should be exactly 140x128 on mobile.
 	_menu._apply_mobile_sizing()
-	assert_vector(_menu._cancel_button.custom_minimum_size).is_equal(Vector2(130, 100))
+	assert_vector(_menu._cancel_button.custom_minimum_size).is_equal(Vector2(140, 128))
 
 
 # -- Section 4: Build menu panel height on mobile ------------------------------
@@ -223,10 +223,10 @@ func test_panel_height_uses_uimanager_constant() -> void:
 	assert_int(int(_menu.custom_minimum_size.y)).is_equal(UIManager.MOBILE_BUILD_MENU_HEIGHT)
 
 
-func test_panel_offset_top_matches_height() -> void:
-	## offset_top should be the negative of the panel height for bottom-anchored layout.
+func test_panel_position_y_at_bottom_on_mobile() -> void:
+	## On mobile (sheet mode), position.y should be at viewport bottom (960).
 	_menu._apply_mobile_sizing()
-	assert_float(_menu.offset_top).is_equal(-float(UIManager.MOBILE_BUILD_MENU_HEIGHT))
+	assert_float(_menu.position.y).is_equal(960.0)
 
 
 # -- Section 5: Font sizes on mobile ------------------------------------------

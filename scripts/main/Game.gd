@@ -7,6 +7,7 @@ extends Node2D
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var camera: Camera2D = $Camera2D
 
+var _build_fab: Button = null
 var _placing_tower: TowerData = null
 var _ghost_tower: Sprite2D = null
 var _range_indicator: RangeIndicator = null
@@ -71,6 +72,8 @@ func _ready() -> void:
 	game_board.add_child(_range_indicator)
 	_load_map()
 	_start_game_from_config()
+	if UIManager.is_mobile():
+		_create_build_fab()
 
 
 func _load_map() -> void:
@@ -83,6 +86,78 @@ func _load_map() -> void:
 func _start_game_from_config() -> void:
 	var mode: String = SceneManager.current_game_config.get("mode", "classic")
 	GameManager.start_game(mode)
+
+
+func _create_build_fab() -> void:
+	## Create a floating action button in the bottom-right to toggle the build menu.
+	_build_fab = Button.new()
+	_build_fab.text = "Build"
+	_build_fab.custom_minimum_size = Vector2(128, 128)
+	_build_fab.size = Vector2(128, 128)
+	_build_fab.focus_mode = Control.FOCUS_NONE
+
+	# Gold circular style
+	var style_normal := StyleBoxFlat.new()
+	style_normal.bg_color = Color("#FFD700")
+	style_normal.set_corner_radius_all(64)
+	style_normal.set_content_margin_all(8)
+	_build_fab.add_theme_stylebox_override("normal", style_normal)
+
+	var style_hover := style_normal.duplicate()
+	_build_fab.add_theme_stylebox_override("hover", style_hover)
+
+	# Pressed style: darkened 20%
+	var style_pressed := StyleBoxFlat.new()
+	style_pressed.bg_color = Color("#CCB000")
+	style_pressed.set_corner_radius_all(64)
+	style_pressed.set_content_margin_all(8)
+	_build_fab.add_theme_stylebox_override("pressed", style_pressed)
+
+	# Position: bottom-right, 16px margin from edges
+	_build_fab.anchors_preset = Control.PRESET_BOTTOM_RIGHT
+	_build_fab.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	_build_fab.position = Vector2(1280.0 - 128.0 - 16.0, 960.0 - 128.0 - 16.0)
+
+	_build_fab.add_theme_color_override("font_color", Color(0.15, 0.1, 0.0))
+	_build_fab.add_theme_font_size_override("font_size", 20)
+
+	ui_layer.add_child(_build_fab)
+
+	_build_fab.pressed.connect(_on_build_fab_pressed)
+	GameManager.phase_changed.connect(_on_fab_phase_changed)
+	UIManager.build_requested.connect(_on_fab_build_requested)
+	UIManager.placement_ended.connect(_on_fab_placement_ended)
+
+
+func _on_build_fab_pressed() -> void:
+	## Toggle the build menu bottom sheet.
+	if UIManager.build_menu:
+		if UIManager.build_menu._is_sheet_visible:
+			UIManager.build_menu.slide_out()
+		else:
+			UIManager.build_menu.slide_in()
+
+
+func _on_fab_phase_changed(new_phase: GameManagerClass.GameState) -> void:
+	## Hide FAB during combat, show during build phase.
+	if not _build_fab:
+		return
+	if new_phase == GameManagerClass.GameState.COMBAT_PHASE:
+		_build_fab.visible = false
+	elif new_phase == GameManagerClass.GameState.BUILD_PHASE:
+		_build_fab.visible = true
+
+
+func _on_fab_build_requested(_tower_data: TowerData) -> void:
+	## Hide FAB while in placement mode.
+	if _build_fab:
+		_build_fab.visible = false
+
+
+func _on_fab_placement_ended() -> void:
+	## Restore FAB after placement ends (if in build phase).
+	if _build_fab and GameManager.game_state == GameManagerClass.GameState.BUILD_PHASE:
+		_build_fab.visible = true
 
 
 func _process(delta: float) -> void:

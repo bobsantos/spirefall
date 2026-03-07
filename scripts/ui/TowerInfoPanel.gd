@@ -6,6 +6,8 @@ extends PanelContainer
 
 signal fuse_requested(tower: Node)
 
+enum PanelState { DISMISSED, COLLAPSED, EXPANDED }
+
 @onready var name_label: Label = $VBoxContainer/HeaderRow/NameLabel
 @onready var close_button: Button = $VBoxContainer/HeaderRow/CloseButton
 @onready var tier_label: Label = $VBoxContainer/TierLabel
@@ -31,6 +33,11 @@ signal fuse_requested(tower: Node)
 var _tower: Node = null
 var _last_screen_pos: Vector2 = Vector2.ZERO
 var _mobile_mode: bool = false
+var _panel_state: PanelState = PanelState.DISMISSED
+var _chevron_label: Label = null
+var _swipe_start_y: float = -1.0
+
+const SWIPE_THRESHOLD: float = 40.0
 
 const PANEL_MARGIN: float = 8.0   # Minimum distance from screen edge
 const TOWER_OFFSET: float = 40.0  # Offset from tower to avoid overlap
@@ -96,6 +103,124 @@ func _apply_mobile_sizing() -> void:
 		label.add_theme_font_size_override("font_size", body_size)
 	# Widen panel for larger text
 	custom_minimum_size.x = maxf(custom_minimum_size.x, 300.0)
+	# Create chevron label for collapsed/expanded indicator
+	if not _chevron_label:
+		_chevron_label = Label.new()
+		_chevron_label.name = "ChevronLabel"
+		_chevron_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		_chevron_label.text = ""
+		_chevron_label.visible = false
+		add_child(_chevron_label)
+	# Set initial state
+	_panel_state = PanelState.DISMISSED
+
+
+func _set_panel_state(new_state: PanelState) -> void:
+	if not _mobile_mode:
+		return
+	_panel_state = new_state
+	match new_state:
+		PanelState.DISMISSED:
+			visible = false
+			if _chevron_label:
+				_chevron_label.visible = false
+		PanelState.COLLAPSED:
+			visible = true
+			_apply_collapsed_layout()
+		PanelState.EXPANDED:
+			visible = true
+			_apply_expanded_layout()
+
+
+func _apply_collapsed_layout() -> void:
+	custom_minimum_size.y = float(UIManager.MOBILE_PANEL_COLLAPSED_HEIGHT)
+	# Hide stat labels and detail controls
+	tier_label.visible = false
+	element_label.visible = false
+	separator_top.visible = false
+	damage_label.visible = false
+	speed_label.visible = false
+	range_label.visible = false
+	special_label.visible = false
+	synergy_label.visible = false
+	separator_bottom.visible = false
+	upgrade_cost_label.visible = false
+	sell_value_label.visible = false
+	fusion_cost_label.visible = false
+	target_mode_dropdown.visible = false
+	ascend_cost_label.visible = false
+	ascend_button.visible = false
+	fuse_button.visible = false
+	# Show essential controls
+	name_label.visible = true
+	upgrade_button.visible = true
+	sell_button.visible = true
+	close_button.visible = true
+	button_row.visible = true
+	# Show upward chevron
+	if _chevron_label:
+		_chevron_label.text = "\u25b2"
+		_chevron_label.visible = true
+
+
+func _apply_expanded_layout() -> void:
+	var max_height: int = int(960 * UIManager.MOBILE_PANEL_MAX_HEIGHT_RATIO)
+	custom_minimum_size.y = float(max_height)
+	# Show all labels and controls
+	name_label.visible = true
+	tier_label.visible = true
+	element_label.visible = true
+	separator_top.visible = true
+	damage_label.visible = true
+	speed_label.visible = true
+	range_label.visible = true
+	special_label.visible = true
+	synergy_label.visible = true
+	separator_bottom.visible = true
+	upgrade_cost_label.visible = true
+	sell_value_label.visible = true
+	target_mode_dropdown.visible = true
+	upgrade_button.visible = true
+	sell_button.visible = true
+	close_button.visible = true
+	button_row.visible = true
+	# Show downward chevron
+	if _chevron_label:
+		_chevron_label.text = "\u25bc"
+		_chevron_label.visible = true
+
+
+func _gui_input(event: InputEvent) -> void:
+	if not _mobile_mode:
+		return
+	if event is InputEventScreenTouch:
+		var touch: InputEventScreenTouch = event as InputEventScreenTouch
+		if touch.pressed:
+			_swipe_start_y = touch.position.y
+		else:
+			if _swipe_start_y >= 0.0:
+				var delta_y: float = touch.position.y - _swipe_start_y
+				if absf(delta_y) >= SWIPE_THRESHOLD:
+					if delta_y < 0.0:
+						# Swipe up
+						if _panel_state == PanelState.COLLAPSED:
+							_set_panel_state(PanelState.EXPANDED)
+					else:
+						# Swipe down
+						if _panel_state == PanelState.EXPANDED:
+							_set_panel_state(PanelState.COLLAPSED)
+						elif _panel_state == PanelState.COLLAPSED:
+							_set_panel_state(PanelState.DISMISSED)
+					accept_event()
+				elif absf(delta_y) < 5.0 and _panel_state == PanelState.COLLAPSED:
+					# Tap (not drag) in collapsed state -- expand
+					_set_panel_state(PanelState.EXPANDED)
+					accept_event()
+			_swipe_start_y = -1.0
+	elif event is InputEventScreenDrag:
+		# Track drag for swipe detection (consumed to prevent camera pan)
+		if _panel_state != PanelState.DISMISSED:
+			accept_event()
 
 
 func _get_all_labels() -> Array[Label]:
@@ -135,6 +260,11 @@ func display_tower(tower: Node) -> void:
 	# Sync dropdown to tower's current target mode
 	if _tower:
 		target_mode_dropdown.selected = _tower.target_mode
+	# On mobile, dismiss build menu and enter collapsed state
+	if _mobile_mode:
+		if UIManager.build_menu and UIManager.build_menu.has_method("slide_out"):
+			UIManager.build_menu.slide_out()
+		_set_panel_state(PanelState.COLLAPSED)
 	_refresh()
 	_reposition()
 
@@ -497,10 +627,11 @@ func _reposition_at(screen_pos: Vector2) -> void:
 func _process(_delta: float) -> void:
 	if not visible or not _tower or not is_instance_valid(_tower):
 		return
-	# Reposition if tower screen pos changed (camera pan/zoom)
-	var current_screen_pos: Vector2 = _get_tower_screen_pos()
-	if current_screen_pos.distance_to(_last_screen_pos) > 2.0:
-		_reposition_at(current_screen_pos)
+	if not _mobile_mode:
+		# Desktop: reposition if tower screen pos changed (camera pan/zoom)
+		var current_screen_pos: Vector2 = _get_tower_screen_pos()
+		if current_screen_pos.distance_to(_last_screen_pos) > 2.0:
+			_reposition_at(current_screen_pos)
 	# Keep upgrade button affordability up to date
 	var data: TowerData = _tower.tower_data
 	if data.upgrade_to != null:

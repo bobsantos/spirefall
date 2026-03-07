@@ -28,6 +28,10 @@ const SPEED_LABELS: Array[String] = ["1x", "1.5x", "2x", "0.5x"]
 var _speed_index: int = 0
 var _countdown_tween: Tween = null
 var _run_xp: int = 0
+var _is_mobile: bool = false
+var _overflow_button: Button = null
+var _overflow_menu: PanelContainer = null
+var _overflow_dimmer: ColorRect = null
 
 
 func _ready() -> void:
@@ -61,13 +65,18 @@ func _ready() -> void:
 
 
 func _apply_mobile_sizing() -> void:
+	_is_mobile = true
 	var top_bar: HBoxContainer = $TopBar
 	top_bar.custom_minimum_size.y = UIManager.MOBILE_TOPBAR_HEIGHT
 
-	# Action buttons: fixed touch target sizes
-	speed_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
-	codex_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
-	pause_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
+	# Hide labels that move to overflow or merge into wave counter on mobile
+	xp_label.visible = false
+	topbar_timer_label.visible = false
+	codex_button.visible = false
+	pause_button.visible = false
+
+	# Speed button stays in bar, sized to fit 48px bar height
+	speed_button.custom_minimum_size = Vector2(80, 44)
 	start_wave_button.custom_minimum_size = UIManager.MOBILE_START_WAVE_MIN
 
 	# Top bar info labels: expand to fill, clip text to prevent overflow
@@ -94,6 +103,82 @@ func _apply_mobile_sizing() -> void:
 	bonus_label.add_theme_font_size_override("font_size", maxi(32, body_size))
 	xp_notif_label.add_theme_font_size_override("font_size", body_size)
 	overtime_label.add_theme_font_size_override("font_size", maxi(28, body_size))
+
+	# Strip keyboard hints -- not useful on mobile
+	codex_button.text = "Codex"
+	start_wave_button.text = "Start Wave"
+
+	# Create overflow menu for codex/pause access
+	_create_overflow_menu()
+
+
+func _create_overflow_menu() -> void:
+	var top_bar: HBoxContainer = $TopBar
+
+	# Overflow icon button in the TopBar
+	_overflow_button = Button.new()
+	_overflow_button.text = "\u2261"
+	_overflow_button.custom_minimum_size = Vector2(48, 44)
+	_overflow_button.pressed.connect(_toggle_overflow_menu)
+	top_bar.add_child(_overflow_button)
+
+	# Invisible full-screen dimmer for click-outside-dismiss
+	_overflow_dimmer = ColorRect.new()
+	_overflow_dimmer.color = Color(0, 0, 0, 0)
+	_overflow_dimmer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_overflow_dimmer.visible = false
+	_overflow_dimmer.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	_overflow_dimmer.gui_input.connect(_on_dimmer_input)
+	add_child(_overflow_dimmer)
+
+	# Overflow menu panel (child of HUD, not TopBar)
+	_overflow_menu = PanelContainer.new()
+	_overflow_menu.visible = false
+	_overflow_menu.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
+	_overflow_menu.position = Vector2(size.x - 200, UIManager.MOBILE_TOPBAR_HEIGHT)
+
+	var vbox := VBoxContainer.new()
+	_overflow_menu.add_child(vbox)
+
+	var menu_codex := Button.new()
+	menu_codex.text = "Codex"
+	menu_codex.custom_minimum_size = Vector2(200, 48)
+	menu_codex.pressed.connect(func() -> void:
+		_dismiss_overflow_menu()
+		_on_codex_pressed()
+	)
+	vbox.add_child(menu_codex)
+
+	var menu_pause := Button.new()
+	menu_pause.text = "Pause"
+	menu_pause.custom_minimum_size = Vector2(200, 48)
+	menu_pause.pressed.connect(func() -> void:
+		_dismiss_overflow_menu()
+		_on_pause_pressed()
+	)
+	vbox.add_child(menu_pause)
+
+	add_child(_overflow_menu)
+
+
+func _toggle_overflow_menu() -> void:
+	if _overflow_menu == null:
+		return
+	var show := not _overflow_menu.visible
+	_overflow_menu.visible = show
+	_overflow_dimmer.visible = show
+
+
+func _dismiss_overflow_menu() -> void:
+	if _overflow_menu:
+		_overflow_menu.visible = false
+	if _overflow_dimmer:
+		_overflow_dimmer.visible = false
+
+
+func _on_dimmer_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed:
+		_dismiss_overflow_menu()
 
 
 func update_display() -> void:

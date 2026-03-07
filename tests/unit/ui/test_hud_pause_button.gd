@@ -408,12 +408,13 @@ func test_tscn_pause_button_has_minimum_size() -> void:
 # SECTION 6: Mobile Sizing
 # ==============================================================================
 
-# -- 15. _apply_mobile_sizing sets pause_button to MOBILE_BUTTON_MIN ----------
+# -- 15. _apply_mobile_sizing hides pause_button on mobile (moved to overflow) -
 
 func test_apply_mobile_sizing_sets_pause_button_size() -> void:
 	_hud._apply_mobile_sizing()
-	assert_vector(_hud.pause_button.custom_minimum_size)\
-		.is_equal(UIManager.MOBILE_BUTTON_MIN)
+	assert_bool(_hud.pause_button.visible)\
+		.override_failure_message("PauseButton should be hidden on mobile (moved to overflow menu)")\
+		.is_false()
 
 
 # -- 16. _apply_mobile_sizing source mentions pause_button ---------------------
@@ -423,6 +424,6 @@ func test_apply_mobile_sizing_source_mentions_pause_button() -> void:
 	assert_object(file).is_not_null()
 	var content: String = file.get_as_text()
 	file.close()
-	assert_bool(content.contains("pause_button.custom_minimum_size"))\
-		.override_failure_message("_apply_mobile_sizing should set pause_button.custom_minimum_size")\
+	assert_bool(content.contains("pause_button.visible"))\
+		.override_failure_message("_apply_mobile_sizing should hide pause_button on mobile")\
 		.is_true()
