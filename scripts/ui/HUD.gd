@@ -10,6 +10,7 @@ extends Control
 @onready var timer_label: Label = $WaveControls/TimerLabel
 @onready var speed_button: Button = $TopBar/SpeedButton
 @onready var codex_button: Button = $TopBar/CodexButton
+@onready var pause_button: Button = $TopBar/PauseButton
 @onready var start_wave_button: Button = $WaveControls/StartWaveButton
 @onready var wave_controls: HBoxContainer = $WaveControls
 @onready var bonus_label: Label = $BonusLabel
@@ -43,6 +44,7 @@ func _ready() -> void:
 	GameManager.wave_started.connect(_on_boss_wave_started)
 	GameManager.wave_completed.connect(_on_xp_wave_completed)
 	codex_button.pressed.connect(_on_codex_pressed)
+	pause_button.pressed.connect(_on_pause_pressed)
 	speed_button.pressed.connect(_on_speed_pressed)
 	start_wave_button.pressed.connect(_on_start_wave_pressed)
 	GameManager.speed_changed.connect(_on_speed_changed)
@@ -60,10 +62,38 @@ func _ready() -> void:
 
 func _apply_mobile_sizing() -> void:
 	var top_bar: HBoxContainer = $TopBar
-	top_bar.custom_minimum_size.y = 56
+	top_bar.custom_minimum_size.y = UIManager.MOBILE_TOPBAR_HEIGHT
+
+	# Action buttons: fixed touch target sizes
 	speed_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
 	codex_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
+	pause_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
 	start_wave_button.custom_minimum_size = UIManager.MOBILE_START_WAVE_MIN
+
+	# Top bar info labels: expand to fill, clip text to prevent overflow
+	var body_size: int = UIManager.MOBILE_FONT_SIZE_BODY
+	for label: Label in [wave_label, topbar_timer_label, lives_label, gold_label, xp_label]:
+		label.add_theme_font_size_override("font_size", body_size)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.clip_text = true
+
+	# Buttons should NOT expand (fixed width)
+	speed_button.size_flags_horizontal = 0
+	codex_button.size_flags_horizontal = 0
+	pause_button.size_flags_horizontal = 0
+
+	# WaveControls area: proportional height increase
+	wave_controls.custom_minimum_size.y = UIManager.MOBILE_BUTTON_MIN.y
+	timer_label.add_theme_font_size_override("font_size", body_size)
+	enemy_count_label.add_theme_font_size_override("font_size", body_size)
+
+	# Countdown label: scale up from desktop 64 to 80 for mobile readability
+	countdown_label.add_theme_font_size_override("font_size", 80)
+
+	# Notification labels
+	bonus_label.add_theme_font_size_override("font_size", maxi(32, body_size))
+	xp_notif_label.add_theme_font_size_override("font_size", body_size)
+	overtime_label.add_theme_font_size_override("font_size", maxi(28, body_size))
 
 
 func update_display() -> void:
@@ -225,6 +255,10 @@ func _show_xp_notification() -> void:
 
 func _on_early_wave_bonus(amount: int) -> void:
 	_show_bonus_notification("+%dg Early Start!" % amount)
+
+
+func _on_pause_pressed() -> void:
+	GameManager.toggle_pause()
 
 
 func _on_codex_pressed() -> void:

@@ -481,3 +481,244 @@ func test_unlock_override_makes_river_selectable() -> void:
 	_map_select.unlock_overrides["river"] = true
 	_map_select.update_lock_status()
 	assert_bool(_map_select.river_button.disabled).is_false()
+
+
+# -- 10. Clickable map cards (gui_input) ---------------------------------------
+
+func test_setup_card_input_connects_gui_input_on_forest() -> void:
+	_map_select.setup_card_input()
+	assert_bool(_map_select.forest_card.gui_input.is_connected(_map_select._on_forest_card_input)).is_true()
+
+
+func test_setup_card_input_connects_gui_input_on_mountain() -> void:
+	_map_select.setup_card_input()
+	assert_bool(_map_select.mountain_card.gui_input.is_connected(_map_select._on_mountain_card_input)).is_true()
+
+
+func test_setup_card_input_connects_gui_input_on_river() -> void:
+	_map_select.setup_card_input()
+	assert_bool(_map_select.river_card.gui_input.is_connected(_map_select._on_river_card_input)).is_true()
+
+
+func test_setup_card_input_connects_gui_input_on_volcano() -> void:
+	_map_select.setup_card_input()
+	assert_bool(_map_select.volcano_card.gui_input.is_connected(_map_select._on_volcano_card_input)).is_true()
+
+
+func test_forest_card_mouse_filter_is_stop() -> void:
+	_map_select.setup_card_input()
+	assert_int(_map_select.forest_card.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+
+func test_mountain_card_mouse_filter_is_stop() -> void:
+	_map_select.setup_card_input()
+	assert_int(_map_select.mountain_card.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+
+func test_river_card_mouse_filter_is_stop() -> void:
+	_map_select.setup_card_input()
+	assert_int(_map_select.river_card.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+
+func test_volcano_card_mouse_filter_is_stop() -> void:
+	_map_select.setup_card_input()
+	assert_int(_map_select.volcano_card.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+
+func test_card_click_selects_forest_map() -> void:
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	_map_select._on_forest_card_input(event)
+	assert_str(SceneManager.current_game_config.get("map", "")).is_equal("res://scenes/maps/ForestClearing.tscn")
+
+
+func test_card_click_selects_mountain_map_when_unlocked() -> void:
+	_map_select.unlock_overrides["mountain"] = true
+	_map_select.update_lock_status()
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	_map_select._on_mountain_card_input(event)
+	assert_str(SceneManager.current_game_config.get("map", "")).is_equal("res://scenes/maps/MountainPass.tscn")
+
+
+func test_card_click_does_not_select_locked_mountain() -> void:
+	_map_select.update_lock_status()
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	_map_select._on_mountain_card_input(event)
+	assert_bool(SceneManager.current_game_config.has("map")).is_false()
+
+
+func test_card_click_does_not_select_locked_river() -> void:
+	_map_select.update_lock_status()
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	_map_select._on_river_card_input(event)
+	assert_bool(SceneManager.current_game_config.has("map")).is_false()
+
+
+func test_card_click_does_not_select_locked_volcano() -> void:
+	_map_select.update_lock_status()
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = true
+	_map_select._on_volcano_card_input(event)
+	assert_bool(SceneManager.current_game_config.has("map")).is_false()
+
+
+func test_card_touch_selects_forest_map() -> void:
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventScreenTouch.new()
+	event.pressed = true
+	_map_select._on_forest_card_input(event)
+	assert_str(SceneManager.current_game_config.get("map", "")).is_equal("res://scenes/maps/ForestClearing.tscn")
+
+
+func test_card_touch_does_not_select_locked_map() -> void:
+	_map_select.update_lock_status()
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventScreenTouch.new()
+	event.pressed = true
+	_map_select._on_mountain_card_input(event)
+	assert_bool(SceneManager.current_game_config.has("map")).is_false()
+
+
+func test_right_click_does_not_select_card() -> void:
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_RIGHT
+	event.pressed = true
+	_map_select._on_forest_card_input(event)
+	assert_bool(SceneManager.current_game_config.has("map")).is_false()
+
+
+func test_mouse_release_does_not_select_card() -> void:
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = false
+	_map_select._on_forest_card_input(event)
+	assert_bool(SceneManager.current_game_config.has("map")).is_false()
+
+
+func test_touch_release_does_not_select_card() -> void:
+	_map_select.setup_card_input()
+	SceneManager.current_game_config = {"mode": "classic"}
+	SceneManager.is_transitioning = false
+	var event := InputEventScreenTouch.new()
+	event.pressed = false
+	_map_select._on_forest_card_input(event)
+	assert_bool(SceneManager.current_game_config.has("map")).is_false()
+
+
+# -- 11. Card visual feedback (hover/pressed styles) --------------------------
+
+func test_apply_card_styles_sets_hover_on_forest_card() -> void:
+	_map_select.apply_card_styles()
+	assert_bool(_map_select.forest_card.has_theme_stylebox_override("panel")).is_true()
+
+
+func test_apply_card_styles_sets_normal_style_on_all_cards() -> void:
+	_map_select.apply_card_styles()
+	var cards: Array[PanelContainer] = [
+		_map_select.forest_card, _map_select.mountain_card,
+		_map_select.river_card, _map_select.volcano_card
+	]
+	for card: PanelContainer in cards:
+		assert_bool(card.has_theme_stylebox_override("panel")).is_true()
+
+
+func test_card_normal_style_has_border() -> void:
+	_map_select.apply_card_styles()
+	var style: StyleBoxFlat = _map_select.forest_card.get_theme_stylebox("panel") as StyleBoxFlat
+	assert_object(style).is_not_null()
+	assert_bool(style.border_width_top > 0 or style.border_width_bottom > 0).is_true()
+
+
+func test_card_hover_style_exists() -> void:
+	_map_select.apply_card_styles()
+	assert_object(_map_select._card_hover_style).is_not_null()
+	assert_bool(_map_select._card_hover_style is StyleBoxFlat).is_true()
+
+
+func test_card_pressed_style_exists() -> void:
+	_map_select.apply_card_styles()
+	assert_object(_map_select._card_pressed_style).is_not_null()
+	assert_bool(_map_select._card_pressed_style is StyleBoxFlat).is_true()
+
+
+func test_card_hover_style_has_gold_border() -> void:
+	_map_select.apply_card_styles()
+	var style: StyleBoxFlat = _map_select._card_hover_style
+	# Gold accent color close to (0.9, 0.75, 0.3)
+	assert_bool(style.border_color.r > 0.8).is_true()
+	assert_bool(style.border_color.g > 0.6).is_true()
+
+
+func test_card_pressed_style_has_darkened_bg() -> void:
+	_map_select.apply_card_styles()
+	var style: StyleBoxFlat = _map_select._card_pressed_style
+	# Pressed bg should be darker than normal
+	assert_bool(style.bg_color.r < 0.2).is_true()
+	assert_bool(style.bg_color.g < 0.2).is_true()
+
+
+# -- 12. Mobile card sizing ----------------------------------------------------
+
+func test_mobile_card_min_height_applied() -> void:
+	_map_select.apply_mobile_card_sizing()
+	var cards: Array[PanelContainer] = [
+		_map_select.forest_card, _map_select.mountain_card,
+		_map_select.river_card, _map_select.volcano_card
+	]
+	for card: PanelContainer in cards:
+		assert_bool(card.custom_minimum_size.y >= 160).is_true()
+
+
+func test_mobile_button_min_height_applied() -> void:
+	_map_select.apply_mobile_card_sizing()
+	var buttons: Array[Button] = [
+		_map_select.forest_button, _map_select.mountain_button,
+		_map_select.river_button, _map_select.volcano_button
+	]
+	for btn: Button in buttons:
+		assert_bool(btn.custom_minimum_size.y >= 56).is_true()
+
+
+# -- 13. setup_card_input idempotency ------------------------------------------
+
+func test_setup_card_input_is_idempotent() -> void:
+	_map_select.setup_card_input()
+	_map_select.setup_card_input()
+	# Should not double-connect
+	assert_bool(_map_select.forest_card.gui_input.is_connected(_map_select._on_forest_card_input)).is_true()
+	# Verify the connection count is 1 by disconnecting once -- should leave 0 connections
+	_map_select.forest_card.gui_input.disconnect(_map_select._on_forest_card_input)
+	assert_bool(_map_select.forest_card.gui_input.is_connected(_map_select._on_forest_card_input)).is_false()

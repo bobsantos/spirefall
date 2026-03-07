@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 
-## Unit tests for TowerInfoPanel dynamic positioning near selected tower.
-## Covers: right-of-tower placement, left-flip near edge, viewport clamping,
-## reposition on display_tower, reposition on camera move, no overlap with tower.
+## Unit tests for Task D2: TowerInfoPanel mobile sizing.
+## Covers: action button heights, dropdown height, label font sizes,
+## panel min width, and full-width bottom-dock layout on mobile.
 
 const PANEL_SCRIPT_PATH: String = "res://scripts/ui/TowerInfoPanel.gd"
 
@@ -10,6 +10,8 @@ var _panel: PanelContainer
 var _original_gold: int
 var _original_game_state: int
 var _original_game_running: bool
+var _original_selected_tower: Node
+var _original_tower_info_panel: Node
 
 # Cached stub script to avoid "resources still in use" on exit
 static var _stub_script: GDScript = null
@@ -79,6 +81,7 @@ func _build_panel() -> PanelContainer:
 	var name_label := Label.new()
 	name_label.name = "NameLabel"
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.add_theme_font_size_override("font_size", 16)
 	header_row.add_child(name_label)
 
 	var close_button := Button.new()
@@ -88,10 +91,12 @@ func _build_panel() -> PanelContainer:
 
 	var tier_label := Label.new()
 	tier_label.name = "TierLabel"
+	tier_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(tier_label)
 
 	var element_label := Label.new()
 	element_label.name = "ElementLabel"
+	element_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(element_label)
 
 	var sep_top := HSeparator.new()
@@ -100,22 +105,27 @@ func _build_panel() -> PanelContainer:
 
 	var damage_label := Label.new()
 	damage_label.name = "DamageLabel"
+	damage_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(damage_label)
 
 	var speed_label := Label.new()
 	speed_label.name = "SpeedLabel"
+	speed_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(speed_label)
 
 	var range_label := Label.new()
 	range_label.name = "RangeLabel"
+	range_label.add_theme_font_size_override("font_size", 12)
 	vbox.add_child(range_label)
 
 	var special_label := Label.new()
 	special_label.name = "SpecialLabel"
+	special_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(special_label)
 
 	var synergy_label := Label.new()
 	synergy_label.name = "SynergyLabel"
+	synergy_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(synergy_label)
 
 	var sep_bottom := HSeparator.new()
@@ -124,14 +134,17 @@ func _build_panel() -> PanelContainer:
 
 	var upgrade_cost_label := Label.new()
 	upgrade_cost_label.name = "UpgradeCostLabel"
+	upgrade_cost_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(upgrade_cost_label)
 
 	var sell_value_label := Label.new()
 	sell_value_label.name = "SellValueLabel"
+	sell_value_label.add_theme_font_size_override("font_size", 11)
 	vbox.add_child(sell_value_label)
 
 	var fusion_cost_label := Label.new()
 	fusion_cost_label.name = "FusionCostLabel"
+	fusion_cost_label.add_theme_font_size_override("font_size", 11)
 	fusion_cost_label.visible = false
 	vbox.add_child(fusion_cost_label)
 
@@ -151,6 +164,17 @@ func _build_panel() -> PanelContainer:
 	sell_button.name = "SellButton"
 	button_row.add_child(sell_button)
 
+	var ascend_cost_label := Label.new()
+	ascend_cost_label.name = "AscendCostLabel"
+	ascend_cost_label.add_theme_font_size_override("font_size", 11)
+	ascend_cost_label.visible = false
+	vbox.add_child(ascend_cost_label)
+
+	var ascend_button := Button.new()
+	ascend_button.name = "AscendButton"
+	ascend_button.visible = false
+	vbox.add_child(ascend_button)
+
 	var fuse_button := Button.new()
 	fuse_button.name = "FuseButton"
 	fuse_button.visible = false
@@ -162,7 +186,6 @@ func _build_panel() -> PanelContainer:
 func _apply_script(panel: PanelContainer) -> void:
 	var script: GDScript = load(PANEL_SCRIPT_PATH)
 	panel.set_script(script)
-	# Wire @onready refs manually since node is not in the scene tree
 	var vbox: VBoxContainer = panel.get_node("VBoxContainer")
 	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
 	panel.name_label = header_row.get_node("NameLabel")
@@ -183,7 +206,11 @@ func _apply_script(panel: PanelContainer) -> void:
 	panel.button_row = vbox.get_node("ButtonRow")
 	panel.upgrade_button = vbox.get_node("ButtonRow/UpgradeButton")
 	panel.sell_button = vbox.get_node("ButtonRow/SellButton")
+	panel.ascend_cost_label = vbox.get_node("AscendCostLabel")
+	panel.ascend_button = vbox.get_node("AscendButton")
 	panel.fuse_button = vbox.get_node("FuseButton")
+	panel.close_button.pressed.connect(panel._on_close_pressed)
+	panel._style_close_button()
 
 
 # -- Setup / Teardown ----------------------------------------------------------
@@ -192,23 +219,21 @@ func before() -> void:
 	_original_gold = EconomyManager.gold
 	_original_game_state = GameManager.game_state
 	_original_game_running = GameManager._game_running
+	_original_selected_tower = UIManager.selected_tower
+	_original_tower_info_panel = UIManager.tower_info_panel
 
 
 func before_test() -> void:
-	# Reset autoload state
 	GameManager.game_state = GameManager.GameState.BUILD_PHASE
 	GameManager._game_running = false
 	EconomyManager.gold = 500
-	# Clear active towers
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
 			tower.free()
 	TowerSystem._active_towers.clear()
-	# Build panel
 	_panel = auto_free(_build_panel())
 	_apply_script(_panel)
 	_panel.visible = true
-	# Set a known panel size for positioning math
 	_panel.custom_minimum_size = Vector2(240, 300)
 	_panel.size = Vector2(240, 300)
 
@@ -222,152 +247,187 @@ func after_test() -> void:
 	EconomyManager.gold = _original_gold
 	GameManager.game_state = _original_game_state
 	GameManager._game_running = _original_game_running
+	UIManager.selected_tower = _original_selected_tower
+	UIManager.tower_info_panel = _original_tower_info_panel
 
 
 func after() -> void:
 	EconomyManager.gold = _original_gold
 	GameManager.game_state = _original_game_state
 	GameManager._game_running = _original_game_running
+	UIManager.selected_tower = _original_selected_tower
+	UIManager.tower_info_panel = _original_tower_info_panel
 	_stub_script = null
 
 
 # ==============================================================================
-# SECTION 1: Panel placed to right of tower
+# SECTION 1: Action buttons meet 56px minimum height on mobile
 # ==============================================================================
 
-func test_reposition_places_panel_right_of_tower() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
-	_panel._tower = tower
-	# Tower at screen center (640, 480)
-	_panel._reposition_at(Vector2(640, 480))
-	# Panel should be to the right: x = tower_x + TOWER_OFFSET
-	assert_float(_panel.position.x).is_equal_approx(640.0 + _panel.TOWER_OFFSET, 1.0)
-	# Panel should be vertically centered on tower
-	var expected_y: float = 480.0 - _panel.size.y * 0.5
-	assert_float(_panel.position.y).is_equal_approx(expected_y, 1.0)
+func test_upgrade_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.upgrade_button.custom_minimum_size.y >= 56.0).is_true()
 
 
-# ==============================================================================
-# SECTION 2: Panel flips to left near right edge
-# ==============================================================================
+func test_sell_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.sell_button.custom_minimum_size.y >= 56.0).is_true()
 
-func test_reposition_flips_to_left_when_near_right_edge() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
-	_panel._tower = tower
-	# Tower near right edge: x = 1200 (viewport assumed 1280 wide)
-	# Right placement: 1200 + 40 + 240 + 8 = 1488 > 1280 => should flip left
-	_panel._reposition_at(Vector2(1200, 480))
-	# Panel should be to the left: x = tower_x - TOWER_OFFSET - panel_width
-	var expected_x: float = 1200.0 - _panel.TOWER_OFFSET - _panel.size.x
-	assert_float(_panel.position.x).is_equal_approx(expected_x, 1.0)
+
+func test_ascend_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.ascend_button.custom_minimum_size.y >= 56.0).is_true()
+
+
+func test_fuse_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.fuse_button.custom_minimum_size.y >= 56.0).is_true()
 
 
 # ==============================================================================
-# SECTION 3: Panel clamped to viewport bounds
+# SECTION 2: Target mode dropdown meets 56px minimum height on mobile
 # ==============================================================================
 
-func test_reposition_clamps_y_to_top_edge() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
-	_panel._tower = tower
-	# Tower near top: y = 20 -> center_y = 20 - 150 = -130 -> clamp to PANEL_MARGIN
-	_panel._reposition_at(Vector2(400, 20))
-	assert_float(_panel.position.y).is_equal_approx(_panel.PANEL_MARGIN, 1.0)
-
-
-func test_reposition_clamps_y_to_bottom_edge() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
-	_panel._tower = tower
-	# Tower near bottom: y = 940 -> center_y = 940 - 150 = 790
-	# _reposition_at uses fallback viewport 1280x960 when panel has no viewport
-	# max_y = 960 - 300 - 8 = 652
-	_panel._reposition_at(Vector2(400, 940))
-	var max_y: float = 960.0 - _panel.size.y - _panel.PANEL_MARGIN
-	assert_float(_panel.position.y).is_equal_approx(max_y, 1.0)
-
-
-func test_reposition_clamps_x_to_left_edge() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
-	_panel._tower = tower
-	# Tower at x=10: left flip would be 10 - 40 - 240 = -270 -> clamp to PANEL_MARGIN
-	# Right placement: 10 + 40 = 50, 50 + 240 + 8 = 298 (might fit depending on viewport)
-	# Force a scenario where both sides overflow: use a very small x
-	_panel._reposition_at(Vector2(10, 400))
-	assert_bool(_panel.position.x >= _panel.PANEL_MARGIN - 1.0).is_true()
+func test_target_dropdown_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.target_mode_dropdown.custom_minimum_size.y >= 56.0).is_true()
 
 
 # ==============================================================================
-# SECTION 4: Reposition called on display_tower
+# SECTION 3: All label font sizes >= 16 on mobile
 # ==============================================================================
 
-func test_reposition_called_on_display_tower() -> void:
+func test_tier_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.tier_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_element_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.element_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_damage_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.damage_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_speed_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.speed_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_range_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.range_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_special_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.special_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_synergy_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.synergy_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_upgrade_cost_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.upgrade_cost_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_sell_value_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.sell_value_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_fusion_cost_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.fusion_cost_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_ascend_cost_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.ascend_cost_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+func test_name_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	# NameLabel is already 16 in the .tscn but verify it is not reduced
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.name_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+# ==============================================================================
+# SECTION 4: Panel minimum width increased on mobile
+# ==============================================================================
+
+func test_panel_min_width_at_least_300_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.custom_minimum_size.x >= 300.0).is_true()
+
+
+func test_panel_min_width_unchanged_without_mobile_sizing() -> void:
+	# Without calling _apply_mobile_sizing, panel should retain original 240
+	assert_float(_panel.custom_minimum_size.x).is_equal_approx(240.0, 1.0)
+
+
+# ==============================================================================
+# SECTION 5: Bottom-dock spans full width minus margins on mobile
+# ==============================================================================
+
+func test_mobile_reposition_spans_full_width_minus_margins() -> void:
 	var data: TowerData = _make_tower_data()
 	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
-	_panel.position = Vector2.ZERO
-	_panel.display_tower(tower)
-	# After display_tower, position should have been updated from (0,0)
-	# Since _reposition uses _get_tower_screen_pos (which depends on transforms),
-	# in headless the transform is identity so screen_pos = tower.position
-	# The panel should have moved from its initial (0,0)
-	# At minimum, _reposition_at was called, so _last_screen_pos should be set
-	assert_bool(_panel._last_screen_pos != Vector2.ZERO).is_true()
-
-
-# ==============================================================================
-# SECTION 5: Reposition on camera move (screen pos change)
-# ==============================================================================
-
-func test_process_repositions_when_screen_pos_changes() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
 	_panel._tower = tower
+	_panel._mobile_mode = true
+	_panel._apply_mobile_sizing()
 	_panel.visible = true
-	# Initial positioning
-	_panel._reposition_at(Vector2(400, 300))
-	var pos_before: Vector2 = _panel.position
-	# Simulate camera move by repositioning at different screen pos
-	_panel._reposition_at(Vector2(500, 350))
-	var pos_after: Vector2 = _panel.position
-	# Panel should have moved
-	assert_bool(pos_before.distance_to(pos_after) > 2.0).is_true()
+	_panel._reposition_mobile()
+	# Panel width should be viewport width - 2 * PANEL_MARGIN
+	var expected_width: float = 1280.0 - 2.0 * _panel.PANEL_MARGIN
+	assert_float(_panel.custom_minimum_size.x).is_equal_approx(expected_width, 2.0)
 
 
-# ==============================================================================
-# SECTION 6: Touch-friendly offset (no tower overlap)
-# ==============================================================================
-
-func test_panel_does_not_overlap_tower() -> void:
+func test_mobile_reposition_x_at_margin() -> void:
 	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
+	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
 	_panel._tower = tower
-	_panel._reposition_at(Vector2(640, 480))
-	# The gap between tower screen pos and nearest panel edge should be >= TOWER_OFFSET
-	var panel_left: float = _panel.position.x
-	var panel_right: float = _panel.position.x + _panel.size.x
-	var tower_x: float = 640.0
-	# Panel is to the right, so panel_left - tower_x >= TOWER_OFFSET
-	var gap: float = minf(absf(panel_left - tower_x), absf(panel_right - tower_x))
-	assert_bool(gap >= _panel.TOWER_OFFSET - 1.0).is_true()
+	_panel._mobile_mode = true
+	_panel._apply_mobile_sizing()
+	_panel.visible = true
+	_panel._reposition_mobile()
+	# x should be at PANEL_MARGIN (left edge with margin)
+	assert_float(_panel.position.x).is_equal_approx(_panel.PANEL_MARGIN, 2.0)
 
 
 # ==============================================================================
-# SECTION 7: Panel hides cleanly (no position artifacts)
+# SECTION 6: Desktop mode is unaffected
 # ==============================================================================
 
-func test_last_screen_pos_resets_on_new_tower() -> void:
-	var data1: TowerData = _make_tower_data("Tower1")
-	var tower1: Node2D = auto_free(_make_tower_stub(data1, Vector2(200, 200)))
-	var data2: TowerData = _make_tower_data("Tower2")
-	var tower2: Node2D = auto_free(_make_tower_stub(data2, Vector2(800, 600)))
-	# Display first tower
-	_panel.display_tower(tower1)
-	var pos1: Vector2 = _panel.position
-	# Display second tower (different position)
-	_panel.display_tower(tower2)
-	var pos2: Vector2 = _panel.position
-	# Positions should differ since towers are at different locations
-	assert_bool(pos1.distance_to(pos2) > 10.0).is_true()
+func test_desktop_buttons_retain_original_min_height() -> void:
+	# Without _apply_mobile_sizing, buttons should have their default min height
+	assert_float(_panel.upgrade_button.custom_minimum_size.y).is_less(56.0)
+	assert_float(_panel.sell_button.custom_minimum_size.y).is_less(56.0)
+
+
+func test_desktop_labels_retain_original_font_sizes() -> void:
+	# Without _apply_mobile_sizing, labels should keep their .tscn font sizes (11 or 12)
+	var font_size: int = _panel.tier_label.get_theme_font_size("font_size")
+	assert_int(font_size).is_equal(11)
+
+
+func test_desktop_panel_min_width_is_240() -> void:
+	assert_float(_panel.custom_minimum_size.x).is_equal_approx(240.0, 1.0)

@@ -9,11 +9,24 @@ signal build_requested(tower_data: TowerData)
 signal placement_cancelled
 signal placement_ended
 
+## Systematic scale factor for mobile UI (1.5x desktop sizes).
+const MOBILE_SCALE: float = 1.5
+
 ## Minimum touch-target sizes for mobile (px). Desktop uses default sizes.
-const MOBILE_BUTTON_MIN: Vector2 = Vector2(56, 56)
-const MOBILE_TOWER_BUTTON_MIN: Vector2 = Vector2(128, 80)
-const MOBILE_ACTION_BUTTON_MIN_HEIGHT: float = 48.0
-const MOBILE_START_WAVE_MIN: Vector2 = Vector2(140, 56)
+const MOBILE_BUTTON_MIN: Vector2 = Vector2(64, 64)
+const MOBILE_TOWER_BUTTON_MIN: Vector2 = Vector2(150, 100)
+const MOBILE_ACTION_BUTTON_MIN_HEIGHT: float = 56.0
+const MOBILE_START_WAVE_MIN: Vector2 = Vector2(160, 64)
+
+## Mobile font sizes (minimum readable on phone screens).
+const MOBILE_FONT_SIZE_BODY: int = 16
+const MOBILE_FONT_SIZE_LABEL: int = 14
+const MOBILE_FONT_SIZE_TITLE: int = 24
+
+## Mobile layout dimensions (px).
+const MOBILE_TOPBAR_HEIGHT: int = 72
+const MOBILE_BUILD_MENU_HEIGHT: int = 140
+const MOBILE_CARD_MIN_HEIGHT: int = 160
 
 var selected_tower: Node = null
 var hud: Control = null

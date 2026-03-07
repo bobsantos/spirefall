@@ -41,13 +41,12 @@ const ELEMENT_BG_COLORS: Dictionary = {
 
 func _ready() -> void:
 	UIManager.register_build_menu(self)
-	if UIManager.is_mobile():
-		custom_minimum_size.y = 110
-		offset_top = -110
 	_load_available_towers()
 	_create_draft_indicator()
 	_create_buttons()
 	_create_cancel_button()
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
 	_connect_draft_signals()
 	UIManager.build_requested.connect(_on_placement_started)
 	UIManager.placement_ended.connect(_on_placement_ended)
@@ -125,10 +124,7 @@ func _create_buttons() -> void:
 
 func _create_tower_button(tower: TowerData) -> Button:
 	var btn := Button.new()
-	if UIManager.is_mobile():
-		btn.custom_minimum_size = UIManager.MOBILE_TOWER_BUTTON_MIN
-	else:
-		btn.custom_minimum_size = Vector2(120, 64)
+	btn.custom_minimum_size = Vector2(120, 64)
 	btn.clip_text = false
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.pressed.connect(_on_tower_selected.bind(tower))
@@ -254,10 +250,7 @@ func _create_cancel_button() -> void:
 	_cancel_button = Button.new()
 	_cancel_button.text = "X Cancel"
 	_cancel_button.focus_mode = Control.FOCUS_NONE
-	if UIManager.is_mobile():
-		_cancel_button.custom_minimum_size = Vector2(100, 80)
-	else:
-		_cancel_button.custom_minimum_size = Vector2(80, 64)
+	_cancel_button.custom_minimum_size = Vector2(80, 64)
 
 	# Red-tinted style
 	var style := StyleBoxFlat.new()
@@ -283,6 +276,63 @@ func _create_cancel_button() -> void:
 	button_container.add_child(_cancel_button)
 	# Move to front so it's the first visible button
 	button_container.move_child(_cancel_button, 0)
+
+
+func _apply_mobile_sizing() -> void:
+	## Increase all build menu element sizes for mobile touch targets.
+	# Panel height
+	custom_minimum_size.y = UIManager.MOBILE_BUILD_MENU_HEIGHT
+	offset_top = -float(UIManager.MOBILE_BUILD_MENU_HEIGHT)
+
+	# HBoxContainer separation for easier targeting
+	button_container.add_theme_constant_override("separation", 10)
+
+	# Tower buttons
+	for btn: Button in _tower_buttons:
+		btn.custom_minimum_size = UIManager.MOBILE_TOWER_BUTTON_MIN
+		_apply_mobile_button_content(btn)
+
+	# Cancel button
+	_cancel_button.custom_minimum_size = Vector2(130, 100)
+
+	# Draft indicator dots
+	_apply_mobile_draft_dots()
+
+
+func _apply_mobile_button_content(btn: Button) -> void:
+	## Increase font sizes, element dot, and thumbnail within a tower button.
+	for child: Node in btn.get_children():
+		if child is HBoxContainer:
+			var hbox: HBoxContainer = child as HBoxContainer
+			for hbox_child: Node in hbox.get_children():
+				if hbox_child is TextureRect:
+					# Tower sprite thumbnail: 32x32 -> 40x40
+					hbox_child.custom_minimum_size = Vector2(40, 40)
+				elif hbox_child is VBoxContainer:
+					var vbox: VBoxContainer = hbox_child as VBoxContainer
+					for vbox_child: Node in vbox.get_children():
+						if vbox_child is Label:
+							# Name label: 11 -> 14
+							vbox_child.add_theme_font_size_override("font_size", 14)
+						elif vbox_child is HBoxContainer:
+							# Cost row
+							var cost_row: HBoxContainer = vbox_child as HBoxContainer
+							for cost_child: Node in cost_row.get_children():
+								if cost_child is ColorRect:
+									# Element dot: radius 6 -> 8 (diameter 12 -> 16)
+									cost_child.custom_minimum_size = Vector2(16, 16)
+								elif cost_child is Label:
+									# Cost label: 10 -> 13
+									cost_child.add_theme_font_size_override("font_size", 13)
+
+
+func _apply_mobile_draft_dots() -> void:
+	## Increase draft indicator dot sizes for mobile.
+	for child: Node in _draft_indicator.get_children():
+		if child is HBoxContainer:
+			for dot_child: Node in child.get_children():
+				if dot_child is ColorRect:
+					dot_child.custom_minimum_size = Vector2(16, 16)
 
 
 func _on_cancel_pressed() -> void:

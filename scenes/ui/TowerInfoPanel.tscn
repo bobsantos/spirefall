@@ -19,10 +19,20 @@ script = ExtResource("1")
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="NameLabel" type="Label" parent="VBoxContainer"]
+[node name="HeaderRow" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="VBoxContainer/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 16
 text = "Tower Name"
+
+[node name="CloseButton" type="Button" parent="VBoxContainer/HeaderRow"]
+layout_mode = 2
+custom_minimum_size = Vector2(28, 28)
+focus_mode = 0
+text = "X"
 
 [node name="TierLabel" type="Label" parent="VBoxContainer"]
 layout_mode = 2

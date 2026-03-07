@@ -6,7 +6,8 @@ extends PanelContainer
 
 signal fuse_requested(tower: Node)
 
-@onready var name_label: Label = $VBoxContainer/NameLabel
+@onready var name_label: Label = $VBoxContainer/HeaderRow/NameLabel
+@onready var close_button: Button = $VBoxContainer/HeaderRow/CloseButton
 @onready var tier_label: Label = $VBoxContainer/TierLabel
 @onready var element_label: Label = $VBoxContainer/ElementLabel
 @onready var separator_top: HSeparator = $VBoxContainer/SeparatorTop
@@ -29,6 +30,7 @@ signal fuse_requested(tower: Node)
 
 var _tower: Node = null
 var _last_screen_pos: Vector2 = Vector2.ZERO
+var _mobile_mode: bool = false
 
 const PANEL_MARGIN: float = 8.0   # Minimum distance from screen edge
 const TOWER_OFFSET: float = 40.0  # Offset from tower to avoid overlap
@@ -62,6 +64,7 @@ func _ready() -> void:
 	sell_button.pressed.connect(_on_sell_pressed)
 	ascend_button.pressed.connect(_on_ascend_pressed)
 	fuse_button.pressed.connect(_on_fuse_pressed)
+	close_button.pressed.connect(_on_close_pressed)
 	target_mode_dropdown.item_selected.connect(_on_target_mode_selected)
 	TowerSystem.tower_upgraded.connect(_on_tower_upgraded)
 	TowerSystem.tower_ascended.connect(_on_tower_ascended)
@@ -73,7 +76,9 @@ func _ready() -> void:
 	target_mode_dropdown.clear()
 	for label_text: String in TARGET_MODE_LABELS:
 		target_mode_dropdown.add_item(label_text)
-	if UIManager.is_mobile():
+	_style_close_button()
+	_mobile_mode = UIManager.is_mobile()
+	if _mobile_mode:
 		_apply_mobile_sizing()
 
 
@@ -84,6 +89,45 @@ func _apply_mobile_sizing() -> void:
 	ascend_button.custom_minimum_size.y = min_h
 	fuse_button.custom_minimum_size.y = min_h
 	target_mode_dropdown.custom_minimum_size.y = min_h
+	close_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
+	# Bump all label font sizes to mobile minimum
+	var body_size: int = UIManager.MOBILE_FONT_SIZE_BODY
+	for label: Label in _get_all_labels():
+		label.add_theme_font_size_override("font_size", body_size)
+	# Widen panel for larger text
+	custom_minimum_size.x = maxf(custom_minimum_size.x, 300.0)
+
+
+func _get_all_labels() -> Array[Label]:
+	return [
+		name_label, tier_label, element_label,
+		damage_label, speed_label, range_label,
+		special_label, synergy_label,
+		upgrade_cost_label, sell_value_label,
+		fusion_cost_label, ascend_cost_label,
+	]
+
+
+func _style_close_button() -> void:
+	close_button.focus_mode = Control.FOCUS_NONE
+	close_button.custom_minimum_size = Vector2(28, 28)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.25, 0.25, 0.28, 0.9)
+	style.border_color = Color(0.5, 0.5, 0.5, 0.8)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(2)
+	close_button.add_theme_stylebox_override("normal", style)
+	var hover_style := style.duplicate()
+	hover_style.bg_color = Color(0.35, 0.35, 0.38, 0.95)
+	close_button.add_theme_stylebox_override("hover", hover_style)
+	var pressed_style := style.duplicate()
+	pressed_style.bg_color = Color(0.15, 0.15, 0.18, 0.95)
+	close_button.add_theme_stylebox_override("pressed", pressed_style)
+
+
+func _on_close_pressed() -> void:
+	UIManager.deselect_tower()
 
 
 func display_tower(tower: Node) -> void:
@@ -400,8 +444,30 @@ func _get_tower_screen_pos() -> Vector2:
 func _reposition() -> void:
 	if not _tower or not is_instance_valid(_tower):
 		return
+	if _mobile_mode:
+		_reposition_mobile()
+		return
 	var screen_pos: Vector2 = _get_tower_screen_pos()
 	_reposition_at(screen_pos)
+
+
+func _reposition_mobile() -> void:
+	var viewport_size: Vector2 = Vector2(1280, 960)
+	if get_viewport():
+		var vp_rect: Rect2 = get_viewport().get_visible_rect()
+		if vp_rect.size.x > 0 and vp_rect.size.y > 0:
+			viewport_size = vp_rect.size
+	# Span full viewport width minus margins
+	var full_width: float = viewport_size.x - 2.0 * PANEL_MARGIN
+	custom_minimum_size.x = full_width
+	size.x = full_width
+	var panel_size: Vector2 = size
+	# Bottom-dock at left margin
+	var x: float = PANEL_MARGIN
+	var y: float = viewport_size.y - panel_size.y - PANEL_MARGIN
+	position = Vector2(x, y)
+	if _tower and is_instance_valid(_tower):
+		_last_screen_pos = _get_tower_screen_pos()
 
 
 func _reposition_at(screen_pos: Vector2) -> void:

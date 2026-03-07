@@ -61,6 +61,21 @@ func _ready() -> void:
 		tab_buttons[i].pressed.connect(_on_tab_pressed.bind(i))
 	_update_tab_visuals()
 
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+## Bump button sizes and font sizes for mobile touch targets.
+func _apply_mobile_sizing() -> void:
+	# Close button: finger-accessible size
+	close_button.custom_minimum_size = Vector2(48, 48)
+	close_button.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+
+	# Tab buttons: taller for touch and readable font
+	for btn: Button in tab_buttons:
+		btn.custom_minimum_size.y = 44.0
+		btn.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_LABEL)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):

@@ -404,3 +404,143 @@ func test_unlock_override_restores_card_modulate() -> void:
 	_mode_select.unlock_overrides["draft"] = true
 	_mode_select.update_lock_status()
 	assert_float(_mode_select.draft_card.modulate.a).is_equal(1.0)
+
+
+# -- 9. Clickable card gui_input -----------------------------------------------
+
+func test_classic_card_mouse_filter_is_stop() -> void:
+	_mode_select.setup_card_input()
+	assert_int(_mode_select.classic_card.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+
+func test_draft_card_mouse_filter_is_stop() -> void:
+	_mode_select.setup_card_input()
+	assert_int(_mode_select.draft_card.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+
+func test_endless_card_mouse_filter_is_stop() -> void:
+	_mode_select.setup_card_input()
+	assert_int(_mode_select.endless_card.mouse_filter).is_equal(Control.MOUSE_FILTER_STOP)
+
+
+func test_card_click_selects_classic_mode() -> void:
+	_mode_select.setup_card_input()
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.pressed = true
+	event.button_index = MOUSE_BUTTON_LEFT
+	_mode_select._on_card_input(event, "classic")
+	assert_str(SceneManager.current_game_config["mode"]).is_equal("classic")
+	assert_str(SceneManager._last_scene_path).is_equal(MAP_SELECT_PATH)
+
+
+func test_card_click_selects_draft_mode_when_unlocked() -> void:
+	_mode_select.unlock_overrides["draft"] = true
+	_mode_select.setup_card_input()
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.pressed = true
+	event.button_index = MOUSE_BUTTON_LEFT
+	_mode_select._on_card_input(event, "draft")
+	assert_str(SceneManager.current_game_config["mode"]).is_equal("draft")
+
+
+func test_card_click_does_not_select_locked_mode() -> void:
+	_mode_select.setup_card_input()
+	_mode_select.update_lock_status()
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.pressed = true
+	event.button_index = MOUSE_BUTTON_LEFT
+	_mode_select._on_card_input(event, "draft")
+	assert_bool(SceneManager.current_game_config.has("mode")).is_false()
+	assert_str(SceneManager._last_scene_path).is_equal("")
+
+
+func test_card_touch_selects_classic_mode() -> void:
+	_mode_select.setup_card_input()
+	SceneManager.is_transitioning = false
+	var event := InputEventScreenTouch.new()
+	event.pressed = true
+	_mode_select._on_card_input(event, "classic")
+	assert_str(SceneManager.current_game_config["mode"]).is_equal("classic")
+
+
+func test_card_touch_does_not_select_locked_mode() -> void:
+	_mode_select.setup_card_input()
+	_mode_select.update_lock_status()
+	SceneManager.is_transitioning = false
+	var event := InputEventScreenTouch.new()
+	event.pressed = true
+	_mode_select._on_card_input(event, "draft")
+	assert_bool(SceneManager.current_game_config.has("mode")).is_false()
+
+
+func test_card_right_click_does_not_select() -> void:
+	_mode_select.setup_card_input()
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.pressed = true
+	event.button_index = MOUSE_BUTTON_RIGHT
+	_mode_select._on_card_input(event, "classic")
+	assert_bool(SceneManager.current_game_config.has("mode")).is_false()
+
+
+func test_card_release_does_not_select() -> void:
+	_mode_select.setup_card_input()
+	SceneManager.is_transitioning = false
+	var event := InputEventMouseButton.new()
+	event.pressed = false
+	event.button_index = MOUSE_BUTTON_LEFT
+	_mode_select._on_card_input(event, "classic")
+	assert_bool(SceneManager.current_game_config.has("mode")).is_false()
+
+
+# -- 10. Card visual feedback (hover/pressed styleboxes) -----------------------
+
+func test_classic_card_has_hover_stylebox() -> void:
+	_mode_select.apply_card_styles()
+	assert_bool(_mode_select.classic_card.has_theme_stylebox_override("panel")).is_true()
+
+
+func test_draft_card_has_hover_stylebox() -> void:
+	_mode_select.apply_card_styles()
+	assert_bool(_mode_select.draft_card.has_theme_stylebox_override("panel")).is_true()
+
+
+func test_endless_card_has_hover_stylebox() -> void:
+	_mode_select.apply_card_styles()
+	assert_bool(_mode_select.endless_card.has_theme_stylebox_override("panel")).is_true()
+
+
+func test_card_style_is_stylebox_flat() -> void:
+	_mode_select.apply_card_styles()
+	var style: StyleBox = _mode_select.classic_card.get_theme_stylebox("panel")
+	assert_bool(style is StyleBoxFlat).is_true()
+
+
+func test_card_style_has_nonzero_corner_radius() -> void:
+	_mode_select.apply_card_styles()
+	var style: StyleBoxFlat = _mode_select.classic_card.get_theme_stylebox("panel") as StyleBoxFlat
+	assert_int(style.corner_radius_top_left).is_greater(0)
+
+
+# -- 11. Mobile sizing ---------------------------------------------------------
+
+func test_mobile_card_min_height_applied() -> void:
+	_mode_select._apply_mobile_card_sizing()
+	assert_bool(_mode_select.classic_card.custom_minimum_size.y >= UIManagerClass.MOBILE_CARD_MIN_HEIGHT).is_true()
+	assert_bool(_mode_select.draft_card.custom_minimum_size.y >= UIManagerClass.MOBILE_CARD_MIN_HEIGHT).is_true()
+	assert_bool(_mode_select.endless_card.custom_minimum_size.y >= UIManagerClass.MOBILE_CARD_MIN_HEIGHT).is_true()
+
+
+func test_mobile_button_min_height_applied() -> void:
+	_mode_select._apply_mobile_card_sizing()
+	assert_bool(_mode_select.classic_button.custom_minimum_size.y >= 56.0).is_true()
+	assert_bool(_mode_select.draft_button.custom_minimum_size.y >= 56.0).is_true()
+	assert_bool(_mode_select.endless_button.custom_minimum_size.y >= 56.0).is_true()
+
+
+func test_mobile_back_button_min_height_applied() -> void:
+	_mode_select._apply_mobile_card_sizing()
+	assert_bool(_mode_select.back_button.custom_minimum_size.y >= 56.0).is_true()

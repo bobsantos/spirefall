@@ -1,8 +1,8 @@
 extends GdUnitTestSuite
 
-## Unit tests for TowerInfoPanel dynamic positioning near selected tower.
-## Covers: right-of-tower placement, left-flip near edge, viewport clamping,
-## reposition on display_tower, reposition on camera move, no overlap with tower.
+## Unit tests for Task B1: TowerInfoPanel close button and mobile bottom-docking.
+## Covers: close button existence, press calls deselect_tower, mobile min size,
+## mobile bottom-dock positioning, close button styling distinct from action buttons.
 
 const PANEL_SCRIPT_PATH: String = "res://scripts/ui/TowerInfoPanel.gd"
 
@@ -10,6 +10,8 @@ var _panel: PanelContainer
 var _original_gold: int
 var _original_game_state: int
 var _original_game_running: bool
+var _original_selected_tower: Node
+var _original_tower_info_panel: Node
 
 # Cached stub script to avoid "resources still in use" on exit
 static var _stub_script: GDScript = null
@@ -66,12 +68,14 @@ func _make_tower_stub(data: TowerData, pos: Vector2 = Vector2.ZERO) -> Node2D:
 
 
 ## Build the TowerInfoPanel node tree manually (matching the .tscn structure).
+## Includes the new HeaderRow with NameLabel and CloseButton.
 func _build_panel() -> PanelContainer:
 	var root := PanelContainer.new()
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBoxContainer"
 	root.add_child(vbox)
 
+	# Header row: name label + close button
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
 	vbox.add_child(header_row)
@@ -151,6 +155,16 @@ func _build_panel() -> PanelContainer:
 	sell_button.name = "SellButton"
 	button_row.add_child(sell_button)
 
+	var ascend_cost_label := Label.new()
+	ascend_cost_label.name = "AscendCostLabel"
+	ascend_cost_label.visible = false
+	vbox.add_child(ascend_cost_label)
+
+	var ascend_button := Button.new()
+	ascend_button.name = "AscendButton"
+	ascend_button.visible = false
+	vbox.add_child(ascend_button)
+
 	var fuse_button := Button.new()
 	fuse_button.name = "FuseButton"
 	fuse_button.visible = false
@@ -183,7 +197,13 @@ func _apply_script(panel: PanelContainer) -> void:
 	panel.button_row = vbox.get_node("ButtonRow")
 	panel.upgrade_button = vbox.get_node("ButtonRow/UpgradeButton")
 	panel.sell_button = vbox.get_node("ButtonRow/SellButton")
+	panel.ascend_cost_label = vbox.get_node("AscendCostLabel")
+	panel.ascend_button = vbox.get_node("AscendButton")
 	panel.fuse_button = vbox.get_node("FuseButton")
+	# Manually connect close button since _ready() won't fire outside the tree
+	panel.close_button.pressed.connect(panel._on_close_pressed)
+	# Apply close button styling (normally done in _ready)
+	panel._style_close_button()
 
 
 # -- Setup / Teardown ----------------------------------------------------------
@@ -192,10 +212,11 @@ func before() -> void:
 	_original_gold = EconomyManager.gold
 	_original_game_state = GameManager.game_state
 	_original_game_running = GameManager._game_running
+	_original_selected_tower = UIManager.selected_tower
+	_original_tower_info_panel = UIManager.tower_info_panel
 
 
 func before_test() -> void:
-	# Reset autoload state
 	GameManager.game_state = GameManager.GameState.BUILD_PHASE
 	GameManager._game_running = false
 	EconomyManager.gold = 500
@@ -208,7 +229,6 @@ func before_test() -> void:
 	_panel = auto_free(_build_panel())
 	_apply_script(_panel)
 	_panel.visible = true
-	# Set a known panel size for positioning math
 	_panel.custom_minimum_size = Vector2(240, 300)
 	_panel.size = Vector2(240, 300)
 
@@ -222,152 +242,203 @@ func after_test() -> void:
 	EconomyManager.gold = _original_gold
 	GameManager.game_state = _original_game_state
 	GameManager._game_running = _original_game_running
+	UIManager.selected_tower = _original_selected_tower
+	UIManager.tower_info_panel = _original_tower_info_panel
 
 
 func after() -> void:
 	EconomyManager.gold = _original_gold
 	GameManager.game_state = _original_game_state
 	GameManager._game_running = _original_game_running
+	UIManager.selected_tower = _original_selected_tower
+	UIManager.tower_info_panel = _original_tower_info_panel
 	_stub_script = null
 
 
 # ==============================================================================
-# SECTION 1: Panel placed to right of tower
+# SECTION 1: Close button exists in panel
 # ==============================================================================
 
-func test_reposition_places_panel_right_of_tower() -> void:
+func test_close_button_exists_as_child_of_header_row() -> void:
+	var vbox: VBoxContainer = _panel.get_node("VBoxContainer")
+	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
+	assert_that(header_row).is_not_null()
+	var close_btn: Button = header_row.get_node("CloseButton")
+	assert_that(close_btn).is_not_null()
+	assert_str(close_btn.text).is_equal("X")
+
+
+func test_name_label_is_in_header_row() -> void:
+	var vbox: VBoxContainer = _panel.get_node("VBoxContainer")
+	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
+	var name_label: Label = header_row.get_node("NameLabel")
+	assert_that(name_label).is_not_null()
+	# Name label should expand to fill available space
+	assert_bool(name_label.size_flags_horizontal & Control.SIZE_EXPAND_FILL != 0).is_true()
+
+
+func test_close_button_has_text_x() -> void:
+	assert_str(_panel.close_button.text).is_equal("X")
+
+
+# ==============================================================================
+# SECTION 2: Close button calls UIManager.deselect_tower()
+# ==============================================================================
+
+func test_close_button_press_calls_deselect_tower() -> void:
 	var data: TowerData = _make_tower_data()
 	var tower: Node2D = auto_free(_make_tower_stub(data))
+	# Set up UIManager state so deselect_tower has something to clear
+	UIManager.selected_tower = tower
+	UIManager.tower_info_panel = _panel
 	_panel._tower = tower
-	# Tower at screen center (640, 480)
-	_panel._reposition_at(Vector2(640, 480))
-	# Panel should be to the right: x = tower_x + TOWER_OFFSET
-	assert_float(_panel.position.x).is_equal_approx(640.0 + _panel.TOWER_OFFSET, 1.0)
-	# Panel should be vertically centered on tower
-	var expected_y: float = 480.0 - _panel.size.y * 0.5
-	assert_float(_panel.position.y).is_equal_approx(expected_y, 1.0)
+	_panel.visible = true
+	# Press the close button
+	_panel.close_button.pressed.emit()
+	# UIManager.deselect_tower() should have cleared the selection and hidden the panel
+	assert_that(UIManager.selected_tower).is_null()
 
 
-# ==============================================================================
-# SECTION 2: Panel flips to left near right edge
-# ==============================================================================
-
-func test_reposition_flips_to_left_when_near_right_edge() -> void:
+func test_close_button_press_hides_panel() -> void:
 	var data: TowerData = _make_tower_data()
 	var tower: Node2D = auto_free(_make_tower_stub(data))
+	UIManager.selected_tower = tower
+	UIManager.tower_info_panel = _panel
 	_panel._tower = tower
-	# Tower near right edge: x = 1200 (viewport assumed 1280 wide)
-	# Right placement: 1200 + 40 + 240 + 8 = 1488 > 1280 => should flip left
-	_panel._reposition_at(Vector2(1200, 480))
-	# Panel should be to the left: x = tower_x - TOWER_OFFSET - panel_width
-	var expected_x: float = 1200.0 - _panel.TOWER_OFFSET - _panel.size.x
-	assert_float(_panel.position.x).is_equal_approx(expected_x, 1.0)
+	_panel.visible = true
+	_panel.close_button.pressed.emit()
+	assert_bool(_panel.visible).is_false()
 
 
-# ==============================================================================
-# SECTION 3: Panel clamped to viewport bounds
-# ==============================================================================
-
-func test_reposition_clamps_y_to_top_edge() -> void:
+func test_close_button_emits_tower_deselected_signal() -> void:
 	var data: TowerData = _make_tower_data()
 	var tower: Node2D = auto_free(_make_tower_stub(data))
+	UIManager.selected_tower = tower
+	UIManager.tower_info_panel = _panel
 	_panel._tower = tower
-	# Tower near top: y = 20 -> center_y = 20 - 150 = -130 -> clamp to PANEL_MARGIN
-	_panel._reposition_at(Vector2(400, 20))
-	assert_float(_panel.position.y).is_equal_approx(_panel.PANEL_MARGIN, 1.0)
-
-
-func test_reposition_clamps_y_to_bottom_edge() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
-	_panel._tower = tower
-	# Tower near bottom: y = 940 -> center_y = 940 - 150 = 790
-	# _reposition_at uses fallback viewport 1280x960 when panel has no viewport
-	# max_y = 960 - 300 - 8 = 652
-	_panel._reposition_at(Vector2(400, 940))
-	var max_y: float = 960.0 - _panel.size.y - _panel.PANEL_MARGIN
-	assert_float(_panel.position.y).is_equal_approx(max_y, 1.0)
-
-
-func test_reposition_clamps_x_to_left_edge() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
-	_panel._tower = tower
-	# Tower at x=10: left flip would be 10 - 40 - 240 = -270 -> clamp to PANEL_MARGIN
-	# Right placement: 10 + 40 = 50, 50 + 240 + 8 = 298 (might fit depending on viewport)
-	# Force a scenario where both sides overflow: use a very small x
-	_panel._reposition_at(Vector2(10, 400))
-	assert_bool(_panel.position.x >= _panel.PANEL_MARGIN - 1.0).is_true()
+	_panel.visible = true
+	var signal_count: Array[int] = [0]
+	var conn: Callable = func() -> void: signal_count[0] += 1
+	UIManager.tower_deselected.connect(conn)
+	_panel.close_button.pressed.emit()
+	UIManager.tower_deselected.disconnect(conn)
+	assert_int(signal_count[0]).is_equal(1)
 
 
 # ==============================================================================
-# SECTION 4: Reposition called on display_tower
+# SECTION 3: Close button mobile sizing
 # ==============================================================================
 
-func test_reposition_called_on_display_tower() -> void:
-	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
-	_panel.position = Vector2.ZERO
-	_panel.display_tower(tower)
-	# After display_tower, position should have been updated from (0,0)
-	# Since _reposition uses _get_tower_screen_pos (which depends on transforms),
-	# in headless the transform is identity so screen_pos = tower.position
-	# The panel should have moved from its initial (0,0)
-	# At minimum, _reposition_at was called, so _last_screen_pos should be set
-	assert_bool(_panel._last_screen_pos != Vector2.ZERO).is_true()
+func test_close_button_desktop_size() -> void:
+	# On desktop (non-mobile), close button should have small minimum size
+	var close_btn: Button = _panel.close_button
+	# Desktop: custom_minimum_size should be 28x28
+	assert_float(close_btn.custom_minimum_size.x).is_equal_approx(28.0, 1.0)
+	assert_float(close_btn.custom_minimum_size.y).is_equal_approx(28.0, 1.0)
+
+
+func test_apply_mobile_sizing_sets_close_button_min_size() -> void:
+	# Simulate calling mobile sizing
+	_panel._apply_mobile_sizing()
+	var close_btn: Button = _panel.close_button
+	# Mobile: close button should be at least MOBILE_BUTTON_MIN (64x64)
+	assert_bool(close_btn.custom_minimum_size.x >= 64.0).is_true()
+	assert_bool(close_btn.custom_minimum_size.y >= 64.0).is_true()
 
 
 # ==============================================================================
-# SECTION 5: Reposition on camera move (screen pos change)
+# SECTION 4: Mobile bottom-dock positioning
 # ==============================================================================
 
-func test_process_repositions_when_screen_pos_changes() -> void:
+func test_mobile_reposition_docks_at_bottom() -> void:
 	var data: TowerData = _make_tower_data()
 	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
 	_panel._tower = tower
 	_panel.visible = true
-	# Initial positioning
-	_panel._reposition_at(Vector2(400, 300))
-	var pos_before: Vector2 = _panel.position
-	# Simulate camera move by repositioning at different screen pos
-	_panel._reposition_at(Vector2(500, 350))
-	var pos_after: Vector2 = _panel.position
-	# Panel should have moved
-	assert_bool(pos_before.distance_to(pos_after) > 2.0).is_true()
+	# Call mobile reposition
+	_panel._reposition_mobile()
+	# Panel should be near the bottom of the viewport (960 height)
+	# y should be viewport_height - panel_height - margin
+	var expected_y: float = 960.0 - _panel.size.y - _panel.PANEL_MARGIN
+	assert_float(_panel.position.y).is_equal_approx(expected_y, 2.0)
 
 
-# ==============================================================================
-# SECTION 6: Touch-friendly offset (no tower overlap)
-# ==============================================================================
-
-func test_panel_does_not_overlap_tower() -> void:
+func test_mobile_reposition_centers_horizontally() -> void:
 	var data: TowerData = _make_tower_data()
-	var tower: Node2D = auto_free(_make_tower_stub(data))
+	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
 	_panel._tower = tower
-	_panel._reposition_at(Vector2(640, 480))
-	# The gap between tower screen pos and nearest panel edge should be >= TOWER_OFFSET
-	var panel_left: float = _panel.position.x
-	var panel_right: float = _panel.position.x + _panel.size.x
-	var tower_x: float = 640.0
-	# Panel is to the right, so panel_left - tower_x >= TOWER_OFFSET
-	var gap: float = minf(absf(panel_left - tower_x), absf(panel_right - tower_x))
-	assert_bool(gap >= _panel.TOWER_OFFSET - 1.0).is_true()
+	_panel.visible = true
+	_panel._reposition_mobile()
+	# Panel should be centered horizontally: x = (viewport_width - panel_width) / 2
+	var expected_x: float = (1280.0 - _panel.size.x) / 2.0
+	assert_float(_panel.position.x).is_equal_approx(expected_x, 2.0)
+
+
+func test_reposition_uses_mobile_path_when_mobile() -> void:
+	# Verify that _reposition() delegates to _reposition_mobile() on mobile.
+	# We test this indirectly: call _reposition_at and verify bottom-dock behavior
+	# by checking _reposition_mobile directly (already tested above).
+	# This test verifies the _is_mobile flag integration path.
+	var data: TowerData = _make_tower_data()
+	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
+	_panel._tower = tower
+	_panel.visible = true
+	# Force mobile mode on the panel
+	_panel._mobile_mode = true
+	_panel._reposition()
+	# Should be bottom-docked, not beside-tower
+	var expected_y: float = 960.0 - _panel.size.y - _panel.PANEL_MARGIN
+	assert_float(_panel.position.y).is_equal_approx(expected_y, 2.0)
 
 
 # ==============================================================================
-# SECTION 7: Panel hides cleanly (no position artifacts)
+# SECTION 5: Close button style does not compete with action buttons
 # ==============================================================================
 
-func test_last_screen_pos_resets_on_new_tower() -> void:
-	var data1: TowerData = _make_tower_data("Tower1")
-	var tower1: Node2D = auto_free(_make_tower_stub(data1, Vector2(200, 200)))
-	var data2: TowerData = _make_tower_data("Tower2")
-	var tower2: Node2D = auto_free(_make_tower_stub(data2, Vector2(800, 600)))
-	# Display first tower
-	_panel.display_tower(tower1)
-	var pos1: Vector2 = _panel.position
-	# Display second tower (different position)
-	_panel.display_tower(tower2)
-	var pos2: Vector2 = _panel.position
-	# Positions should differ since towers are at different locations
-	assert_bool(pos1.distance_to(pos2) > 10.0).is_true()
+func test_close_button_has_neutral_style() -> void:
+	# Close button should have a StyleBoxFlat override (neutral, not element-colored)
+	var close_btn: Button = _panel.close_button
+	assert_bool(close_btn.has_theme_stylebox_override("normal")).is_true()
+	var style: StyleBox = close_btn.get_theme_stylebox("normal")
+	assert_that(style).is_not_null()
+	# The style should be a StyleBoxFlat with a dark gray bg
+	assert_bool(style is StyleBoxFlat).is_true()
+
+
+func test_close_button_style_differs_from_upgrade_button() -> void:
+	# Close button styling should be visually distinct from action buttons
+	var close_btn: Button = _panel.close_button
+	var upgrade_btn: Button = _panel.upgrade_button
+	# Close button has a neutral stylebox override; action buttons use default theme
+	assert_bool(close_btn.has_theme_stylebox_override("normal")).is_true()
+	# Upgrade button should NOT have the same override
+	# (it uses element-colored styling or theme default)
+	var close_style: StyleBoxFlat = close_btn.get_theme_stylebox("normal") as StyleBoxFlat
+	assert_that(close_style).is_not_null()
+	# Neutral bg should be dark gray (low saturation)
+	assert_bool(close_style.bg_color.r < 0.5 and close_style.bg_color.g < 0.5 and close_style.bg_color.b < 0.5).is_true()
+
+
+func test_close_button_focus_mode_is_none() -> void:
+	# Close button should not steal keyboard focus
+	assert_int(_panel.close_button.focus_mode).is_equal(Control.FOCUS_NONE)
+
+
+# ==============================================================================
+# SECTION 6: Display tower still works with new header layout
+# ==============================================================================
+
+func test_display_tower_sets_name_in_header() -> void:
+	var data: TowerData = _make_tower_data("Flame Tower", "fire")
+	var tower: Node2D = auto_free(_make_tower_stub(data))
+	_panel.display_tower(tower)
+	assert_str(_panel.name_label.text).is_equal("Flame Tower")
+
+
+func test_display_tower_positions_panel() -> void:
+	var data: TowerData = _make_tower_data()
+	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(500, 400)))
+	_panel.position = Vector2.ZERO
+	_panel.display_tower(tower)
+	# Panel should have been repositioned (not at origin)
+	assert_bool(_panel._last_screen_pos != Vector2.ZERO).is_true()

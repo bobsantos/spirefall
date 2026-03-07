@@ -24,6 +24,9 @@ var _settings_open: bool = false
 var _settings_panel: Control = null
 
 
+@onready var panel_container: PanelContainer = $CenterContainer/PanelContainer
+
+
 func _ready() -> void:
 	# Must process while the scene tree is paused
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
@@ -37,6 +40,26 @@ func _ready() -> void:
 
 	# React to external pause state changes (e.g., Escape key in Game.gd)
 	GameManager.paused_changed.connect(_on_paused_changed)
+
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+## Bump button sizes, font sizes, and panel padding for mobile touch targets.
+func _apply_mobile_sizing() -> void:
+	var buttons: Array[Button] = [resume_button, restart_button, settings_button, codex_button, quit_button]
+	for btn: Button in buttons:
+		btn.custom_minimum_size = Vector2(280, UIManager.MOBILE_ACTION_BUTTON_MIN_HEIGHT)
+		btn.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+
+	# Increase panel padding
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.12, 0.16, 0.95)
+	style.border_color = Color(0.35, 0.35, 0.45)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(20)
+	panel_container.add_theme_stylebox_override("panel", style)
 
 
 func _on_paused_changed(is_paused: bool) -> void:

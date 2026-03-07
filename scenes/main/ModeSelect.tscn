@@ -53,6 +53,7 @@ alignment = 1
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(280, 200)
+mouse_filter = 0
 
 [node name="CardVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/CardContainer/ClassicCard"]
 layout_mode = 2
@@ -89,6 +90,7 @@ text = "Select"
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(280, 200)
+mouse_filter = 0
 
 [node name="CardVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/CardContainer/DraftCard"]
 layout_mode = 2
@@ -125,6 +127,7 @@ text = "Select"
 unique_name_in_owner = true
 layout_mode = 2
 custom_minimum_size = Vector2(280, 200)
+mouse_filter = 0
 
 [node name="CardVBox" type="VBoxContainer" parent="CenterContainer/VBoxContainer/CardContainer/EndlessCard"]
 layout_mode = 2

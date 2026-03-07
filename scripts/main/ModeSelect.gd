@@ -32,8 +32,12 @@ var unlock_overrides: Dictionary = {}
 
 func _ready() -> void:
 	connect_buttons()
+	setup_card_input()
 	apply_button_styles()
+	apply_card_styles()
 	update_lock_status()
+	if UIManager.is_mobile():
+		_apply_mobile_card_sizing()
 
 
 func connect_buttons() -> void:
@@ -106,6 +110,55 @@ func _on_endless_selected() -> void:
 
 func _on_back_pressed() -> void:
 	SceneManager.go_to_main_menu()
+
+
+func setup_card_input() -> void:
+	var cards: Array[Array] = [
+		[classic_card, "classic"],
+		[draft_card, "draft"],
+		[endless_card, "endless"],
+	]
+	for entry: Array in cards:
+		var card: PanelContainer = entry[0]
+		var mode_key: String = entry[1]
+		card.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not card.gui_input.is_connected(_on_card_input):
+			card.gui_input.connect(_on_card_input.bind(mode_key))
+
+
+func _on_card_input(event: InputEvent, mode_key: String) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_select_mode(mode_key)
+	elif event is InputEventScreenTouch and event.pressed:
+		_select_mode(mode_key)
+
+
+func apply_card_styles() -> void:
+	var cards: Array[PanelContainer] = [classic_card, draft_card, endless_card]
+	for card: PanelContainer in cards:
+		_apply_style_to_card(card)
+
+
+func _apply_style_to_card(card: PanelContainer) -> void:
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.15, 0.22, 1.0)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(12)
+	card.add_theme_stylebox_override("panel", style)
+
+
+func _apply_mobile_card_sizing() -> void:
+	var cards: Array[PanelContainer] = [classic_card, draft_card, endless_card]
+	for card: PanelContainer in cards:
+		var min_size: Vector2 = card.custom_minimum_size
+		min_size.y = maxf(min_size.y, UIManagerClass.MOBILE_CARD_MIN_HEIGHT)
+		card.custom_minimum_size = min_size
+
+	var buttons: Array[Button] = [classic_button, draft_button, endless_button, back_button]
+	for btn: Button in buttons:
+		var min_size: Vector2 = btn.custom_minimum_size
+		min_size.y = maxf(min_size.y, 56.0)
+		btn.custom_minimum_size = min_size
 
 
 func _apply_style_to_button(btn: Button) -> void:

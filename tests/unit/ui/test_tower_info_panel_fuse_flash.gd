@@ -69,9 +69,19 @@ func _build_panel() -> PanelContainer:
 	vbox.name = "VBoxContainer"
 	root.add_child(vbox)
 
+	var header_row := HBoxContainer.new()
+	header_row.name = "HeaderRow"
+	vbox.add_child(header_row)
+
 	var name_label := Label.new()
 	name_label.name = "NameLabel"
-	vbox.add_child(name_label)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(name_label)
+
+	var close_button := Button.new()
+	close_button.name = "CloseButton"
+	close_button.text = "X"
+	header_row.add_child(close_button)
 
 	var tier_label := Label.new()
 	tier_label.name = "TierLabel"
@@ -151,7 +161,9 @@ func _apply_script(panel: PanelContainer) -> void:
 	panel.set_script(script)
 	# Wire @onready refs manually since node is not in the scene tree
 	var vbox: VBoxContainer = panel.get_node("VBoxContainer")
-	panel.name_label = vbox.get_node("NameLabel")
+	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
+	panel.name_label = header_row.get_node("NameLabel")
+	panel.close_button = header_row.get_node("CloseButton")
 	panel.tier_label = vbox.get_node("TierLabel")
 	panel.element_label = vbox.get_node("ElementLabel")
 	panel.separator_top = vbox.get_node("SeparatorTop")
