@@ -61,6 +61,21 @@ func _ready() -> void:
 		tab_buttons[i].pressed.connect(_on_tab_pressed.bind(i))
 	_update_tab_visuals()
 
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+## Bump button sizes and font sizes for mobile touch targets.
+func _apply_mobile_sizing() -> void:
+	# Close button: finger-accessible size
+	close_button.custom_minimum_size = Vector2(48, 48)
+	close_button.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+
+	# Tab buttons: taller for touch and readable font
+	for btn: Button in tab_buttons:
+		btn.custom_minimum_size.y = 44.0
+		btn.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_LABEL)
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if visible and event.is_action_pressed("ui_cancel"):
@@ -142,6 +157,10 @@ func _clear_content() -> void:
 # --- Towers Tab ---
 
 func _build_towers_tab() -> void:
+	# Tower Actions legend
+	_build_tower_actions_legend()
+	_add_spacer(8)
+
 	# Base towers (6)
 	_add_section_header("Base Towers")
 	var base_files: PackedStringArray = [
@@ -194,6 +213,16 @@ func _build_towers_tab() -> void:
 		var data: TowerData = load(legendary_fusions[key])
 		if data:
 			content_container.add_child(_create_tower_entry(data))
+
+	_add_spacer(8)
+
+	# Fusion Recipes section
+	_build_fusion_recipes_section(dual_fusions, legendary_fusions)
+
+	_add_spacer(8)
+
+	# Ascension section
+	_build_ascension_section()
 
 
 func _create_tower_entry(data: TowerData) -> VBoxContainer:
@@ -249,6 +278,9 @@ func _create_tower_entry(data: TowerData) -> VBoxContainer:
 		desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		wrapper.add_child(desc)
 
+	# Upgrade / progression info
+	_add_tower_progression_info(wrapper, data)
+
 	# Small separator
 	var sep := HSeparator.new()
 	sep.add_theme_constant_override("separation", 4)
@@ -256,6 +288,261 @@ func _create_tower_entry(data: TowerData) -> VBoxContainer:
 	wrapper.add_child(sep)
 
 	return wrapper
+
+
+func _add_tower_progression_info(wrapper: VBoxContainer, data: TowerData) -> void:
+	# 1) Towers with an upgrade path (Base -> Enhanced, Enhanced -> Superior)
+	if data.upgrade_to != null:
+		var upgrade_cost: int = data.upgrade_to.cost - data.cost
+		var upgrade_label := Label.new()
+		upgrade_label.text = "    Upgrades to: %s (cost: %dg)" % [data.upgrade_to.tower_name, upgrade_cost]
+		upgrade_label.add_theme_font_size_override("font_size", 11)
+		upgrade_label.add_theme_color_override("font_color", Color(0.5, 0.75, 0.5))
+		wrapper.add_child(upgrade_label)
+
+		# Stat changes
+		var changes: PackedStringArray = PackedStringArray()
+		if data.upgrade_to.damage != data.damage:
+			changes.append("Dmg: %d -> %d" % [data.damage, data.upgrade_to.damage])
+		var cur_speed: String = "%.1f/s" % data.attack_speed if data.attack_speed > 0.0 else "Aura"
+		var next_speed: String = "%.1f/s" % data.upgrade_to.attack_speed if data.upgrade_to.attack_speed > 0.0 else "Aura"
+		if cur_speed != next_speed:
+			changes.append("Speed: %s -> %s" % [cur_speed, next_speed])
+		if data.upgrade_to.range_cells != data.range_cells:
+			changes.append("Range: %d -> %d" % [data.range_cells, data.upgrade_to.range_cells])
+		if changes.size() > 0:
+			var stat_change := Label.new()
+			stat_change.text = "    %s" % ", ".join(changes)
+			stat_change.add_theme_font_size_override("font_size", 11)
+			stat_change.add_theme_color_override("font_color", Color(0.5, 0.75, 0.5))
+			wrapper.add_child(stat_change)
+
+	# 2) Superior towers (tier 1, no upgrade_to) -- max upgrade, can fuse or ascend
+	elif data.tier == 1 and data.upgrade_to == null:
+		var max_label := Label.new()
+		max_label.text = "    Max upgrade -- can Fuse or Ascend"
+		max_label.add_theme_font_size_override("font_size", 11)
+		max_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.3))
+		wrapper.add_child(max_label)
+
+		if data.element in TowerSystem.ASCENDED_PATHS:
+			var ascend_label := Label.new()
+			ascend_label.text = "    Ascend cost: %dg (requires %d same-element towers)" % [
+				TowerSystem.ASCEND_COST, TowerSystem.ASCEND_MIN_SAME_ELEMENT
+			]
+			ascend_label.add_theme_font_size_override("font_size", 11)
+			ascend_label.add_theme_color_override("font_color", Color(0.8, 0.7, 0.4))
+			wrapper.add_child(ascend_label)
+
+	# 3) Fusion towers (tier 2)
+	elif data.tier == 2 and data.fusion_elements.size() == 2:
+		var fuse_from := Label.new()
+		fuse_from.text = "    Created by fusing: %s + %s Superior towers" % [
+			data.fusion_elements[0].capitalize(), data.fusion_elements[1].capitalize()
+		]
+		fuse_from.add_theme_font_size_override("font_size", 11)
+		fuse_from.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+		wrapper.add_child(fuse_from)
+
+		var legendary_hint := Label.new()
+		legendary_hint.text = "    Can create Legendary with a third Superior tower"
+		legendary_hint.add_theme_font_size_override("font_size", 11)
+		legendary_hint.add_theme_color_override("font_color", Color(0.6, 0.7, 0.8))
+		wrapper.add_child(legendary_hint)
+
+	# 4) Legendary towers (tier 3)
+	elif data.tier == 3 and data.fusion_elements.size() >= 2:
+		# Determine which pairs form the fusion tower and which is the third element
+		# We list all three elements since any dual pair + third could form this legendary
+		var elements_str: String = " + ".join(
+			data.fusion_elements.map(func(e: String) -> String: return e.capitalize())
+		)
+		var legend_from := Label.new()
+		legend_from.text = "    Created by fusing: a Fusion tower + a Superior tower (%s)" % elements_str
+		legend_from.add_theme_font_size_override("font_size", 11)
+		legend_from.add_theme_color_override("font_color", Color(0.8, 0.7, 0.5))
+		legend_from.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		wrapper.add_child(legend_from)
+
+
+func _build_fusion_recipes_section(dual_fusions: Dictionary, legendary_fusions: Dictionary) -> void:
+	_add_section_header("Fusion Recipes")
+
+	# Dual fusions
+	_add_section_subtitle("Dual Fusions (Superior + Superior)")
+	var dual_keys: Array = dual_fusions.keys()
+	dual_keys.sort()
+	for key: String in dual_keys:
+		var elements: PackedStringArray = key.split("+")
+		if elements.size() != 2:
+			continue
+		var data: TowerData = load(dual_fusions[key])
+		if data == null:
+			continue
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+
+		row.add_child(_create_element_dot(elements[0]))
+		var text_label := Label.new()
+		text_label.text = "%s + " % elements[0].capitalize()
+		text_label.add_theme_font_size_override("font_size", 11)
+		text_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+		row.add_child(text_label)
+
+		row.add_child(_create_element_dot(elements[1]))
+		var text_label2 := Label.new()
+		text_label2.text = "%s = %s (cost: %dg)" % [
+			elements[1].capitalize(), data.tower_name, data.cost
+		]
+		text_label2.add_theme_font_size_override("font_size", 11)
+		text_label2.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+		row.add_child(text_label2)
+
+		content_container.add_child(row)
+
+	_add_spacer(6)
+
+	# Legendary fusions
+	_add_section_subtitle("Legendary Fusions (Fusion Tower + Superior)")
+	var leg_keys: Array = legendary_fusions.keys()
+	leg_keys.sort()
+	for key: String in leg_keys:
+		var elements: PackedStringArray = key.split("+")
+		if elements.size() != 3:
+			continue
+		var data: TowerData = load(legendary_fusions[key])
+		if data == null:
+			continue
+
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 4)
+
+		for i: int in elements.size():
+			row.add_child(_create_element_dot(elements[i]))
+			var el_label := Label.new()
+			if i < elements.size() - 1:
+				el_label.text = "%s + " % elements[i].capitalize()
+			else:
+				el_label.text = "%s = %s (cost: %dg)" % [
+					elements[i].capitalize(), data.tower_name, data.cost
+				]
+			el_label.add_theme_font_size_override("font_size", 11)
+			el_label.add_theme_color_override("font_color", Color(0.75, 0.75, 0.8))
+			row.add_child(el_label)
+
+		content_container.add_child(row)
+
+
+func _build_ascension_section() -> void:
+	_add_section_header("Ascension")
+
+	var intro := Label.new()
+	intro.text = "Superior towers of certain elements can Ascend into a powerful variant."
+	intro.add_theme_font_size_override("font_size", 12)
+	intro.add_theme_color_override("font_color", Color(0.8, 0.8, 0.85))
+	intro.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content_container.add_child(intro)
+
+	_add_spacer(4)
+
+	var req := Label.new()
+	req.text = "Requirements: %dg and %d+ towers of the same element on the field" % [
+		TowerSystem.ASCEND_COST, TowerSystem.ASCEND_MIN_SAME_ELEMENT
+	]
+	req.add_theme_font_size_override("font_size", 11)
+	req.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
+	req.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content_container.add_child(req)
+
+	_add_spacer(4)
+
+	_add_section_subtitle("Elements with Ascension paths:")
+	var elements: Array = TowerSystem.ASCENDED_PATHS.keys()
+	elements.sort()
+	for element: String in elements:
+		var ascended_data: TowerData = load(TowerSystem.ASCENDED_PATHS[element])
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		row.add_child(_create_element_dot(element))
+		var lbl := Label.new()
+		if ascended_data:
+			lbl.text = "%s -> %s" % [element.capitalize(), ascended_data.tower_name]
+		else:
+			lbl.text = element.capitalize()
+		lbl.add_theme_font_size_override("font_size", 11)
+		lbl.add_theme_color_override("font_color", _get_element_color(element))
+		row.add_child(lbl)
+		content_container.add_child(row)
+
+
+func _build_tower_actions_legend() -> void:
+	_add_section_header("Tower Actions")
+	_add_section_subtitle("Tap a tower to see action buttons around it:")
+
+	var actions: Array[Dictionary] = [
+		{
+			"icon": "Triangle (up arrow)",
+			"color": Color(0.3, 0.69, 0.31),
+			"label": "Upgrade",
+			"desc": "Spend gold to improve the tower. Shows the upgrade cost.",
+		},
+		{
+			"icon": "$ (dollar sign)",
+			"color": Color(0.96, 0.26, 0.21),
+			"label": "Sell",
+			"desc": "Sell the tower for gold. Refund: 75% during build, 50% during combat.",
+		},
+		{
+			"icon": "Star",
+			"color": Color(1.0, 0.84, 0.0),
+			"label": "Ascend",
+			"desc": "Transform a maxed tower into a powerful Ascended form. Requires 3+ same-element towers.",
+		},
+		{
+			"icon": "Fuse",
+			"color": Color(0.61, 0.15, 0.69),
+			"label": "Fuse",
+			"desc": "Combine two maxed towers of different elements into a Fusion tower.",
+		},
+	]
+
+	for action: Dictionary in actions:
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 8)
+
+		# Colored circle indicator
+		var dot := ColorRect.new()
+		dot.custom_minimum_size = Vector2(14, 14)
+		dot.color = action["color"]
+		dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(dot)
+
+		# Icon description + label
+		var name_lbl := Label.new()
+		name_lbl.text = "%s  [%s]" % [action["label"], action["icon"]]
+		name_lbl.add_theme_font_size_override("font_size", 13)
+		name_lbl.add_theme_color_override("font_color", action["color"])
+		name_lbl.custom_minimum_size.x = 180.0
+		row.add_child(name_lbl)
+
+		# Description
+		var desc_lbl := Label.new()
+		desc_lbl.text = action["desc"]
+		desc_lbl.add_theme_font_size_override("font_size", 11)
+		desc_lbl.add_theme_color_override("font_color", Color(0.7, 0.7, 0.75))
+		desc_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		row.add_child(desc_lbl)
+
+		content_container.add_child(row)
+
+	_add_spacer(4)
+	var note := Label.new()
+	note.text = "Tap outside the buttons to deselect the tower."
+	note.add_theme_font_size_override("font_size", 11)
+	note.add_theme_color_override("font_color", Color(0.5, 0.5, 0.55))
+	content_container.add_child(note)
 
 
 # --- Elements Tab ---

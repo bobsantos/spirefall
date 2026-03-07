@@ -50,6 +50,32 @@
 - Enemy weight shift algorithm: use lerp across 9 types from early-profile to late-profile over waves 31-80. See full algorithm in response.
 - Gold scales linearly vs HP quadratic -- ensure sell value is 75-80% in endless to prevent economy lock.
 
+## Mobile UX Design Notes (v3 Hybrid Approach)
+- Viewport: 1280x960, stretch mode "canvas_items", aspect "keep_height". Worst-case: 270dp landscape, dp/px ratio 0.281.
+- v3 approach: minimal persistent chrome + context-sensitive panels (bottom sheets, dropdowns).
+- Status bar (48px): Gold, Lives, Wave/Timer, Speed button, overflow menu icon. XP/Codex/Pause in overflow.
+- Build bottom sheet: 3x2 grid, hidden during combat, triggered by FAB during build phase. Auto-dismiss on tower select.
+- Auto-zoom 1.5x during placement (grid cells 96px = 27dp + grid-snap = workable). Animate zoom transitions.
+- Long-press (400ms) on build buttons for tower preview with DPS + elemental effectiveness vs upcoming wave.
+- Wave preview: tap-on-counter dropdown, not persistent panel. Show next wave during combat.
+- Speed button stays in status bar (frequently toggled). Do NOT hide behind overflow menu.
+- Safe area insets: use DisplayServer.get_display_safe_area(), apply as MarginContainer overrides.
+- Screen budget: Combat 95% board, Build browsing 64% board, Placing 88% board.
+- "Start Wave Early" button belongs inside build sheet header, not as separate floating button.
+
+## Tower Action Ring (KR-style, replaces TowerInfoPanel)
+- 4-position radial ring: Top=Upgrade, Bottom=Sell, Right=Target, Left=Fuse/Ascend (conditional).
+- Extends Node2D (world-space, not UI-space). Scales inversely with camera zoom for consistent screen size.
+- Button size: 52px desktop / 64px mobile. Ring radius: 56px desktop / 68px mobile.
+- Fuse and Ascend are mutually exclusive -- one slot serves both. Hidden when neither available (3-button ring).
+- Target mode: single-tap cycle (First>Last>Strongest>Weakest>Closest). No dropdown.
+- Sell: double-tap confirm pattern (first tap shows "SURE?", 1.5s timeout).
+- No close button -- tap outside ring to deselect.
+- No tower name label on ring -- element-colored border provides identity. Codex for details.
+- Open animation: staggered scale pop 150ms. Close: 100ms scale to 0.
+- Game.gd hit testing: check ring buttons before grid click, same pattern as old panel.
+- Coexists with RangeIndicator (unchanged). Ring sits between highlight pulse and range circle.
+
 ## Key File Paths
 - Wave config: `resources/waves/wave_config.json`
 - Enemy scaling: `scripts/autoload/EnemySystem.gd` (_create_scaled_enemy, line 261)

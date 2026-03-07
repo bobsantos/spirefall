@@ -59,8 +59,11 @@
 - Phase 3 Task I3 complete: `tests/unit/effects/test_particle_effects.gd` (37 tests)
 - Phase 4 Task J1 complete: Endless wave generation - `test_enemy_system.gd` (39 tests, +9), `test_game_manager.gd` (25 tests, +3)
 - Phase 4 Task K1 complete: `tests/unit/systems/test_export_config.gd` (34 tests) - Web export validation
+- Phase 5 Task A2 complete: Browser gesture prevention - custom HTML shell + 6 new tests in test_export_config.gd (41 total)
 - Phase 4 Task K2 complete: Android preset in `export_presets.cfg` (validated by test_export_config.gd)
 - Phase 4 Task K3 complete: `tests/unit/systems/test_performance.gd` (23 tests), `docs/performance_report.md`
+- Phase 5 Task B2 complete: `tests/unit/ui/test_build_menu_slide.gd` (18 tests), `tests/unit/main/test_build_fab.gd` (4 tests) - Build FAB + bottom sheet slide
+- Phase 5 Task C1 complete: `tests/unit/main/test_game_placement_zoom.gd` (36 tests) - Auto-zoom + grid-snap hysteresis + CellHighlight.gd
 - Comprehensive test plan: `docs/work/plan.md` (348 test cases across 18 tasks) -- ALL 18 TASKS COMPLETE
 - CI: `.github/workflows/test.yml` runs GdUnit4 on push/PR to main (barichello/godot-ci:4.6 container)
 - `.gitignore` exists at project root (covers .godot/, reports/, exports, OS files)
@@ -73,7 +76,8 @@
 - HTML reports: also auto-generated
 - Report output: defaults to `res://reports/` (configurable with `-rd`)
 - Exit codes: 0=success, 100=test failures, 101=warnings only (orphan nodes), 1=error, 103=headless not supported
-- Run command: `godot --headless --path . -s -d res://addons/gdUnit4/bin/GdUnitCmdTool.gd --add tests/ --ignoreHeadlessMode`
+- Run command: `godot --headless --path . -s -d res://addons/gdUnit4/bin/GdUnitCmdTool.gd --add tests/ -c --ignoreHeadlessMode`
+- The `-c` flag disables fail-fast mode so all tests run even when some fail (critical for TDD RED phase)
 - The `-d` flag on the Godot binary means debug mode (enables breakpoints, not needed for CI but used in runtest.sh)
 
 ## Key Gotchas

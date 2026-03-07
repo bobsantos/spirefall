@@ -24,6 +24,9 @@ var _settings_open: bool = false
 var _settings_panel: Control = null
 
 
+@onready var panel_container: PanelContainer = $CenterContainer/PanelContainer
+
+
 func _ready() -> void:
 	# Must process while the scene tree is paused
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
@@ -37,6 +40,26 @@ func _ready() -> void:
 
 	# React to external pause state changes (e.g., Escape key in Game.gd)
 	GameManager.paused_changed.connect(_on_paused_changed)
+
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+## Bump button sizes, font sizes, and panel padding for mobile touch targets.
+func _apply_mobile_sizing() -> void:
+	var buttons: Array[Button] = [resume_button, restart_button, settings_button, codex_button, quit_button]
+	for btn: Button in buttons:
+		btn.custom_minimum_size = Vector2(280, UIManager.MOBILE_ACTION_BUTTON_MIN_HEIGHT)
+		btn.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+
+	# Increase panel padding
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.12, 0.16, 0.95)
+	style.border_color = Color(0.35, 0.35, 0.45)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(6)
+	style.set_content_margin_all(20)
+	panel_container.add_theme_stylebox_override("panel", style)
 
 
 func _on_paused_changed(is_paused: bool) -> void:
@@ -133,14 +156,55 @@ func _on_codex_closed() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
 	# Handle Escape/ui_cancel while this overlay is visible and the tree is paused.
 	# Game.gd cannot receive input while paused (it has no PROCESS_MODE_WHEN_PAUSED),
 	# so PauseMenu owns the responsibility of closing itself via keyboard.
-	if visible and event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel"):
 		_on_resume_pressed()
-		# get_viewport() is only safe when we are inside the scene tree.
 		if is_inside_tree():
 			get_viewport().set_input_as_handled()
+		return
+
+	# On mobile web, touch events bypass Godot's GUI hit-testing entirely
+	# (emulate_mouse_from_touch is unreliable in HTML5 exports).  Game.gd
+	# normally forwards touches to GUI buttons, but it uses the default
+	# process mode and stops receiving input while the tree is paused.
+	# PauseMenu must handle its own touch-to-button forwarding.
+	if event is InputEventScreenTouch and event.pressed:
+		var hit_btn: Button = _find_hit_button_in(panel_container, event.position)
+		if hit_btn:
+			hit_btn.pressed.emit()
+			if is_inside_tree():
+				get_viewport().set_input_as_handled()
+			return
+		# Tap on dimmer area (outside the panel) dismisses the pause menu
+		if _control_hit_test(self, event.position) and not _control_hit_test(panel_container, event.position):
+			_on_resume_pressed()
+			if is_inside_tree():
+				get_viewport().set_input_as_handled()
+
+
+## Recursively search for the first visible, enabled Button hit by screen_pos.
+func _find_hit_button_in(root: Control, screen_pos: Vector2) -> Button:
+	for child: Node in root.get_children():
+		if child is Button and child.visible and not (child as Button).disabled:
+			if _control_hit_test(child as Control, screen_pos):
+				return child as Button
+		elif child is Control and child.visible:
+			var found: Button = _find_hit_button_in(child as Control, screen_pos)
+			if found:
+				return found
+	return null
+
+
+## Return true if screen_pos falls within the control's visible rect.
+func _control_hit_test(ctrl: Control, screen_pos: Vector2) -> bool:
+	if not ctrl.is_inside_tree() or not ctrl.visible:
+		return false
+	var local_pos: Vector2 = ctrl.get_global_transform_with_canvas().affine_inverse() * screen_pos
+	return Rect2(Vector2.ZERO, ctrl.size).has_point(local_pos)
 
 
 func _on_quit_pressed() -> void:

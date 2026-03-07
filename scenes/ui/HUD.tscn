@@ -63,6 +63,12 @@ layout_mode = 2
 focus_mode = 0
 text = "Codex (C)"
 
+[node name="PauseButton" type="Button" parent="TopBar"]
+layout_mode = 2
+custom_minimum_size = Vector2(40, 40)
+focus_mode = 0
+text = "||"
+
 [node name="WaveProgressBar" type="ProgressBar" parent="."]
 layout_mode = 1
 anchors_preset = 10

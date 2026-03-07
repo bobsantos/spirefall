@@ -49,10 +49,17 @@ const VOLCANO_XP_THRESHOLD: int = 6000
 ## bypass the XP check for that map. Will be replaced by MetaProgression later.
 var unlock_overrides: Dictionary = {}
 
+## Card visual feedback styles (set by apply_card_styles).
+var _card_normal_style: StyleBoxFlat
+var _card_hover_style: StyleBoxFlat
+var _card_pressed_style: StyleBoxFlat
+
 
 func _ready() -> void:
 	connect_buttons()
+	setup_card_input()
 	apply_button_styles()
+	apply_card_styles()
 	update_lock_status()
 
 
@@ -135,6 +142,93 @@ func _on_volcano_selected() -> void:
 
 func _on_back_pressed() -> void:
 	SceneManager.change_scene(MODE_SELECT_PATH)
+
+
+func setup_card_input() -> void:
+	var cards_and_handlers: Array = [
+		[forest_card, _on_forest_card_input],
+		[mountain_card, _on_mountain_card_input],
+		[river_card, _on_river_card_input],
+		[volcano_card, _on_volcano_card_input],
+	]
+	for pair: Array in cards_and_handlers:
+		var card: PanelContainer = pair[0]
+		var handler: Callable = pair[1]
+		card.mouse_filter = Control.MOUSE_FILTER_STOP
+		if not card.gui_input.is_connected(handler):
+			card.gui_input.connect(handler)
+
+
+func apply_card_styles() -> void:
+	_card_normal_style = StyleBoxFlat.new()
+	_card_normal_style.bg_color = Color(0.12, 0.12, 0.18, 1.0)
+	_card_normal_style.set_border_width_all(2)
+	_card_normal_style.border_color = Color(0.3, 0.3, 0.4, 1.0)
+	_card_normal_style.set_corner_radius_all(8)
+	_card_normal_style.set_content_margin_all(12)
+
+	_card_hover_style = StyleBoxFlat.new()
+	_card_hover_style.bg_color = Color(0.15, 0.15, 0.22, 1.0)
+	_card_hover_style.set_border_width_all(2)
+	_card_hover_style.border_color = Color(0.9, 0.75, 0.3, 1.0)
+	_card_hover_style.set_corner_radius_all(8)
+	_card_hover_style.set_content_margin_all(12)
+
+	_card_pressed_style = StyleBoxFlat.new()
+	_card_pressed_style.bg_color = Color(0.08, 0.08, 0.12, 1.0)
+	_card_pressed_style.set_border_width_all(2)
+	_card_pressed_style.border_color = Color(0.7, 0.55, 0.2, 1.0)
+	_card_pressed_style.set_corner_radius_all(8)
+	_card_pressed_style.set_content_margin_all(12)
+
+	var all_cards: Array[PanelContainer] = [forest_card, mountain_card, river_card, volcano_card]
+	for card: PanelContainer in all_cards:
+		card.add_theme_stylebox_override("panel", _card_normal_style)
+		card.mouse_entered.connect(_on_card_mouse_entered.bind(card))
+		card.mouse_exited.connect(_on_card_mouse_exited.bind(card))
+
+
+func apply_mobile_card_sizing() -> void:
+	var all_cards: Array[PanelContainer] = [forest_card, mountain_card, river_card, volcano_card]
+	for card: PanelContainer in all_cards:
+		card.custom_minimum_size.y = maxf(card.custom_minimum_size.y, UIManager.MOBILE_CARD_MIN_HEIGHT)
+
+	var all_buttons: Array[Button] = [forest_button, mountain_button, river_button, volcano_button]
+	for btn: Button in all_buttons:
+		btn.custom_minimum_size.y = maxf(btn.custom_minimum_size.y, UIManager.MOBILE_ACTION_BUTTON_MIN_HEIGHT)
+
+
+func _on_card_gui_input(event: InputEvent, map_key: String, scene_path: String) -> void:
+	if not _is_map_unlocked(map_key):
+		return
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		_select_map(map_key, scene_path)
+	elif event is InputEventScreenTouch and event.pressed:
+		_select_map(map_key, scene_path)
+
+
+func _on_forest_card_input(event: InputEvent) -> void:
+	_on_card_gui_input(event, "forest", FOREST_PATH)
+
+
+func _on_mountain_card_input(event: InputEvent) -> void:
+	_on_card_gui_input(event, "mountain", MOUNTAIN_PATH)
+
+
+func _on_river_card_input(event: InputEvent) -> void:
+	_on_card_gui_input(event, "river", RIVER_PATH)
+
+
+func _on_volcano_card_input(event: InputEvent) -> void:
+	_on_card_gui_input(event, "volcano", VOLCANO_PATH)
+
+
+func _on_card_mouse_entered(card: PanelContainer) -> void:
+	card.add_theme_stylebox_override("panel", _card_hover_style)
+
+
+func _on_card_mouse_exited(card: PanelContainer) -> void:
+	card.add_theme_stylebox_override("panel", _card_normal_style)
 
 
 func _apply_style_to_button(btn: Button) -> void:

@@ -38,9 +38,50 @@ Before implementation, evaluate whether the task involves **gameplay design deci
 
 **If no**: Proceed directly to Phase 3.
 
+### Mobile Work: Use Both godot-developer and mobile-developer
+
+For tasks involving mobile UI/UX (touch input, responsive layouts, mobile sizing, gesture systems, mobile builds), invoke **mobile-developer** alongside **godot-developer**:
+
+- **mobile-developer**: Owns mobile UX design decisions — touch target sizing, dp-aware scaling, gesture patterns, safe areas, mobile-specific interaction flows, Android/iOS export pipelines
+- **godot-developer**: Owns Godot implementation — scene architecture, GDScript coding, engine features, tween/animation, ScrollContainer gotchas, node path management, performance
+
+Launch both agents in parallel when the task spans both domains (e.g., "implement two-tier TowerInfoPanel" needs mobile-developer for the UX design and godot-developer for the Godot scene restructuring). Use mobile-developer's UX recommendations as input to godot-developer's implementation.
+
 ---
 
-## Phase 3: TDD Implementation
+## Phase 3: Architecture Decision Record
+
+Before writing any implementation code, the **godot-developer** agent MUST create an ADR (Architecture Decision Record) documenting the technical approach.
+
+### ADR Requirements
+
+1. **Template**: Use the MADR template at `docs/adr/TEMPLATE.md`
+2. **Filename**: `docs/adr/{yyyyMMddHHmmss}-{kebab-case-title}.md` — timestamp is the current date/time when the ADR is created
+3. **Status**: Set to `accepted` (since we're proceeding to implementation)
+4. **Content requirements**:
+   - **Context**: Why this change is needed (reference the plan task, testing notes, or user request)
+   - **Decision Drivers**: What constraints or goals drive the approach
+   - **Considered Options**: At least 2 options (even if one is "do nothing" or clearly inferior)
+   - **Decision Outcome**: Which option was chosen and why
+   - **Consequences**: Known trade-offs of the chosen approach
+   - **Confirmation**: How we'll verify the decision was implemented correctly (tests, manual checks)
+
+### When to create an ADR
+
+- **Always** for new systems, architectural changes, or non-trivial modifications
+- **Skip** for trivial bug fixes, typo corrections, or value-only changes (e.g., tweaking a constant)
+- When in doubt, create one — it's lightweight documentation that helps future decisions
+
+### Workflow
+
+1. Launch **godot-developer** with the task context and ask it to draft the ADR
+2. Review the ADR for completeness
+3. Write it to `docs/adr/` with the timestamp filename
+4. Proceed to Phase 4 (TDD Implementation)
+
+---
+
+## Phase 4: TDD Implementation
 
 For each task, launch a **godot-developer** agent with these explicit instructions:
 
@@ -75,6 +116,7 @@ For each task in the task list:
    - The TDD contract above
    - The specific acceptance criterion / feature to implement
    - Any design guidance from game-designer (if applicable)
+   - The ADR reference from Phase 3 (so the developer follows the documented approach)
    - Context about related files and existing code
 3. When the agent completes:
    - Verify the acceptance criterion is met
@@ -92,14 +134,15 @@ If the godot-developer encounters any of these during work, **pause and consult 
 
 ---
 
-## Phase 4: Wrap-up
+## Phase 5: Wrap-up
 
 After all tasks are complete:
 
 1. Run the full test suite one final time to confirm everything passes
 2. Verify no orphan nodes or test leaks
 3. Update task list — all items should be `completed`
-4. Summarize what was built:
+4. **Mark acceptance criteria as done in `docs/work/plan.md`** — change `- [ ]` to `- [x]` for each completed acceptance criterion in the relevant task(s)
+5. Summarize what was built:
    - Features implemented
    - Tests added (count and file paths)
    - Files created/modified

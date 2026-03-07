@@ -19,68 +19,20 @@ script = ExtResource("1")
 layout_mode = 2
 theme_override_constants/separation = 3
 
-[node name="NameLabel" type="Label" parent="VBoxContainer"]
+[node name="HeaderRow" type="HBoxContainer" parent="VBoxContainer"]
 layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="VBoxContainer/HeaderRow"]
+layout_mode = 2
+size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 16
 text = "Tower Name"
 
-[node name="TierLabel" type="Label" parent="VBoxContainer"]
+[node name="CloseButton" type="Button" parent="VBoxContainer/HeaderRow"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "Tier 1"
-
-[node name="ElementLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Element: Fire"
-
-[node name="SeparatorTop" type="HSeparator" parent="VBoxContainer"]
-layout_mode = 2
-
-[node name="DamageLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Damage: 15"
-
-[node name="SpeedLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Speed: 1.0/s"
-
-[node name="RangeLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 12
-text = "Range: 4 cells"
-
-[node name="SpecialLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-autowrap_mode = 2
-text = ""
-
-[node name="SynergyLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = ""
-
-[node name="SeparatorBottom" type="HSeparator" parent="VBoxContainer"]
-layout_mode = 2
-
-[node name="UpgradeCostLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "Upgrade: 30g"
-
-[node name="SellValueLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-text = "Sell value: 22g (75%)"
-
-[node name="FusionCostLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-visible = false
-text = ""
+custom_minimum_size = Vector2(28, 28)
+focus_mode = 0
+text = "X"
 
 [node name="TargetModeDropdown" type="OptionButton" parent="VBoxContainer"]
 layout_mode = 2
@@ -103,12 +55,6 @@ size_flags_horizontal = 3
 custom_minimum_size = Vector2(0, 32)
 focus_mode = 0
 text = "Sell"
-
-[node name="AscendCostLabel" type="Label" parent="VBoxContainer"]
-layout_mode = 2
-theme_override_font_sizes/font_size = 11
-visible = false
-text = ""
 
 [node name="AscendButton" type="Button" parent="VBoxContainer"]
 visible = false

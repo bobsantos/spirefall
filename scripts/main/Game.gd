@@ -7,6 +7,8 @@ extends Node2D
 @onready var ui_layer: CanvasLayer = $UILayer
 @onready var camera: Camera2D = $Camera2D
 
+var _build_fab: Button = null
+var _cancel_fab: Button = null
 var _placing_tower: TowerData = null
 var _ghost_tower: Sprite2D = null
 var _range_indicator: RangeIndicator = null
@@ -14,11 +16,25 @@ var _range_indicator: RangeIndicator = null
 # Fusion target selection state
 var _fusing_tower: Node = null  # The tower that initiated fusion (stays in place)
 
+# --- Mobile placement auto-zoom state ---
+var _pre_placement_zoom: Vector2 = Vector2.ZERO
+var _placement_zoom_tween: Tween = null
+var _snap_grid_pos: Vector2i = Vector2i(-1, -1)
+var _cell_highlight: Node2D = null
+var _auto_zoom_active: bool = false
+
 # Ghost tint colors: green = valid placement, red = invalid
 const GHOST_COLOR_VALID := Color(0.2, 1.0, 0.2, 0.5)
 const GHOST_COLOR_INVALID := Color(1.0, 0.2, 0.2, 0.5)
 # Fusion partner highlight color (pulsing yellow)
 const FUSION_HIGHLIGHT_COLOR := Color(1.0, 0.9, 0.2, 1.0)
+
+# --- Mobile placement auto-zoom constants ---
+const SNAP_HYSTERESIS_THRESHOLD: float = 32.0  # half cell width
+const PLACEMENT_ZOOM_DURATION: float = 0.3
+const PLACEMENT_ZOOM_RESTORE_DELAY: float = 0.15
+const CELL_HIGHLIGHT_VALID_COLOR := Color("#00CC66")
+const CELL_HIGHLIGHT_INVALID_COLOR := Color("#CC3333")
 
 # --- Camera pan/zoom constants ---
 const PAN_SPEED: float = 400.0  # px/s at 1x zoom
@@ -46,7 +62,9 @@ const TAP_MOVE_THRESHOLD: float = 10.0  # px movement cancels tap
 const LONG_PRESS_DURATION: float = 0.5  # 500ms triggers context action
 const PINCH_ZOOM_SENSITIVITY: float = 0.005
 var _last_touch_screen_pos: Vector2 = Vector2(-1.0, -1.0)  # Last single-finger position for ghost preview
-var _placement_cooldown: int = 0  # Frame counter to prevent auto-select after placement
+var _placement_cooldown: int = 0  # Frame counter to prevent auto-select after placement (desktop)
+var _placement_cooldown_time: float = 0.0  # Time-based cooldown for mobile (seconds)
+var _synthetic_click_pending: bool = false  # Legacy flag (kept for compatibility, no longer used)
 
 # --- Particle effect scenes ---
 var _impact_effect_scene: PackedScene = preload("res://scenes/effects/particles/ImpactEffect.tscn")
@@ -58,6 +76,7 @@ var _shoot_effect_scene: PackedScene = preload("res://scenes/effects/particles/T
 
 func _ready() -> void:
 	UIManager.build_requested.connect(_on_build_requested)
+	UIManager.placement_cancelled.connect(_cancel_placement)
 	EnemySystem.enemy_spawned.connect(_on_enemy_spawned)
 	EnemySystem.enemy_killed.connect(_on_enemy_killed)
 	TowerSystem.tower_created.connect(_on_tower_created)
@@ -70,6 +89,9 @@ func _ready() -> void:
 	game_board.add_child(_range_indicator)
 	_load_map()
 	_start_game_from_config()
+	if UIManager.is_mobile():
+		_create_build_fab()
+		_create_cancel_fab()
 
 
 func _load_map() -> void:
@@ -84,11 +106,135 @@ func _start_game_from_config() -> void:
 	GameManager.start_game(mode)
 
 
+func _create_build_fab() -> void:
+	## Create a floating action button in the bottom-right to toggle the build menu.
+	_build_fab = Button.new()
+	_build_fab.text = "Build"
+	_build_fab.custom_minimum_size = Vector2(128, 128)
+	_build_fab.size = Vector2(128, 128)
+	_build_fab.focus_mode = Control.FOCUS_NONE
+
+	# Gold circular style
+	var style_normal := StyleBoxFlat.new()
+	style_normal.bg_color = Color("#FFD700")
+	style_normal.set_corner_radius_all(64)
+	style_normal.set_content_margin_all(8)
+	_build_fab.add_theme_stylebox_override("normal", style_normal)
+
+	var style_hover := style_normal.duplicate()
+	_build_fab.add_theme_stylebox_override("hover", style_hover)
+
+	# Pressed style: darkened 20%
+	var style_pressed := StyleBoxFlat.new()
+	style_pressed.bg_color = Color("#CCB000")
+	style_pressed.set_corner_radius_all(64)
+	style_pressed.set_content_margin_all(8)
+	_build_fab.add_theme_stylebox_override("pressed", style_pressed)
+
+	_build_fab.add_theme_color_override("font_color", Color(0.15, 0.1, 0.0))
+	_build_fab.add_theme_font_size_override("font_size", 20)
+
+	# Add to tree FIRST, then set anchors (anchors need parent size to resolve)
+	ui_layer.add_child(_build_fab)
+
+	# Position: bottom-right, 16px margin from edges
+	_build_fab.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_build_fab.offset_left = -128 - 16
+	_build_fab.offset_top = -128 - 16
+	_build_fab.offset_right = -16
+	_build_fab.offset_bottom = -16
+
+	_build_fab.pressed.connect(_on_build_fab_pressed)
+	GameManager.phase_changed.connect(_on_fab_phase_changed)
+	UIManager.build_requested.connect(_on_fab_build_requested)
+	UIManager.placement_ended.connect(_on_fab_placement_ended)
+
+
+func _create_cancel_fab() -> void:
+	## Create a floating cancel button shown during placement mode on mobile.
+	_cancel_fab = Button.new()
+	_cancel_fab.text = "Cancel"
+	_cancel_fab.custom_minimum_size = Vector2(128, 128)
+	_cancel_fab.size = Vector2(128, 128)
+	_cancel_fab.focus_mode = Control.FOCUS_NONE
+
+	# Red circular style
+	var style_normal := StyleBoxFlat.new()
+	style_normal.bg_color = Color("#CC3333")
+	style_normal.set_corner_radius_all(64)
+	style_normal.set_content_margin_all(8)
+	_cancel_fab.add_theme_stylebox_override("normal", style_normal)
+
+	var style_hover := style_normal.duplicate()
+	_cancel_fab.add_theme_stylebox_override("hover", style_hover)
+
+	var style_pressed := StyleBoxFlat.new()
+	style_pressed.bg_color = Color("#992222")
+	style_pressed.set_corner_radius_all(64)
+	style_pressed.set_content_margin_all(8)
+	_cancel_fab.add_theme_stylebox_override("pressed", style_pressed)
+
+	_cancel_fab.add_theme_color_override("font_color", Color.WHITE)
+	_cancel_fab.add_theme_font_size_override("font_size", 20)
+
+	ui_layer.add_child(_cancel_fab)
+
+	# Position: bottom-right (same position as Build FAB)
+	_cancel_fab.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	_cancel_fab.offset_left = -128 - 16
+	_cancel_fab.offset_top = -128 - 16
+	_cancel_fab.offset_right = -16
+	_cancel_fab.offset_bottom = -16
+
+	_cancel_fab.pressed.connect(_on_cancel_fab_pressed)
+	_cancel_fab.visible = false
+
+
+func _on_cancel_fab_pressed() -> void:
+	_cancel_placement()
+
+
+func _on_build_fab_pressed() -> void:
+	## Toggle the build menu bottom sheet.
+	_toggle_build_sheet()
+
+
+func _toggle_build_sheet() -> void:
+	if UIManager.build_menu:
+		if UIManager.build_menu._is_sheet_visible:
+			UIManager.build_menu.slide_out()
+		else:
+			UIManager.build_menu.slide_in()
+
+
+func _on_fab_phase_changed(_new_phase: GameManagerClass.GameState) -> void:
+	## Keep FAB visible in all phases so players can build during combat.
+	pass
+
+
+func _on_fab_build_requested(_tower_data: TowerData) -> void:
+	## Hide FAB and show cancel FAB while in placement mode.
+	if _build_fab:
+		_build_fab.visible = false
+	if _cancel_fab:
+		_cancel_fab.visible = true
+
+
+func _on_fab_placement_ended() -> void:
+	## Restore FAB after placement ends, hide cancel FAB.
+	if _build_fab:
+		_build_fab.visible = true
+	if _cancel_fab:
+		_cancel_fab.visible = false
+
+
 func _process(delta: float) -> void:
 	_handle_camera_pan(delta)
 	_handle_touch_timers(delta)
 	if _placement_cooldown > 0:
 		_placement_cooldown -= 1
+	if _placement_cooldown_time > 0.0:
+		_placement_cooldown_time -= delta
 	if _placing_tower:
 		_update_ghost()
 
@@ -129,6 +275,12 @@ func _unhandled_input(event: InputEvent) -> void:
 	# --- Non-camera input below ---
 	if event is InputEventMouseButton and event.pressed:
 		if event.button_index == MOUSE_BUTTON_LEFT:
+			# Legacy guard: _synthetic_click_pending is no longer set (direct
+			# action invocation replaced synthetic mouse injection) but kept
+			# for safety in case any code path still sets it.
+			if _synthetic_click_pending:
+				_synthetic_click_pending = false
+				return
 			_handle_click(event.position)
 		elif event.button_index == MOUSE_BUTTON_RIGHT:
 			if _fusing_tower:
@@ -260,7 +412,15 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			# Single finger released quickly without moving: process as tap
 			var elapsed: float = Time.get_ticks_msec() / 1000.0 - _touch_start_time
 			if elapsed < LONG_PRESS_DURATION:
-				_handle_click(tap_screen_pos)
+				# Check if tap is over a GUI control; if so, forward as a
+				# synthetic mouse click so Godot's GUI system activates the
+				# button.  This is necessary on mobile-web where
+				# emulate_mouse_from_touch may not generate usable mouse
+				# events (touch-action:none suppresses browser-synthesized
+				# mouse events, and Godot's own emulation is unreliable on
+				# HTML5).
+				if not _try_forward_touch_to_gui(tap_screen_pos):
+					_handle_click(tap_screen_pos)
 			_is_potential_tap = false
 		if _touches.is_empty():
 			_is_potential_tap = false
@@ -269,6 +429,103 @@ func _handle_screen_touch(event: InputEventScreenTouch) -> void:
 			_last_touch_screen_pos = Vector2(-1.0, -1.0)
 	if is_inside_tree():
 		get_viewport().set_input_as_handled()
+
+
+func _try_forward_touch_to_gui(screen_pos: Vector2) -> bool:
+	## Check whether screen_pos hits a visible GUI control that should receive
+	## the tap.  If it does, directly invoke the control's action and return
+	## true.  Otherwise return false so the caller can process the tap as a
+	## game-grid click.
+	##
+	## Why direct invocation instead of synthetic mouse events?
+	## On Godot 4.x web exports, InputEventScreenTouch is never routed through
+	## GUI hit-testing.  Synthetic InputEventMouseButton injection via
+	## Input.parse_input_event() also fails on mobile-web because the browser's
+	## touch-action:none suppresses mouse event synthesis and Godot's own
+	## emulation is unreliable.  By directly calling the button's action (or
+	## emitting its pressed signal) we bypass Godot's GUI input pipeline
+	## entirely and guarantee the button fires on every platform.
+	var vp: Viewport = get_viewport()
+	if vp == null:
+		return false
+
+	# --- Build FAB ---
+	if _build_fab and _build_fab.visible:
+		if _control_hit_test(_build_fab, screen_pos):
+			_toggle_build_sheet()
+			return true
+
+	# --- Cancel FAB (shown during placement mode on mobile) ---
+	if _cancel_fab and _cancel_fab.visible:
+		if _control_hit_test(_cancel_fab, screen_pos):
+			_cancel_placement()
+			return true
+
+	# --- HUD buttons ---
+	if UIManager.hud:
+		var hud_node: Control = UIManager.hud
+
+		# All HUD buttons: speed, pause (mobile), start-wave.
+		for child_name: String in ["TopBar/SpeedButton", "TopBar/MobilePauseButton", "WaveControls/StartWaveButton"]:
+			var ctrl: Control = hud_node.get_node_or_null(child_name)
+			if ctrl and ctrl.visible and ctrl is Button and _control_hit_test(ctrl, screen_pos):
+				(ctrl as Button).pressed.emit()
+				return true
+
+	# --- Build-menu buttons (sheet mode, visible when slid in) ---
+	if UIManager.build_menu and UIManager.build_menu.visible:
+		var hit_btn: Button = _find_hit_button(UIManager.build_menu, screen_pos)
+		if hit_btn:
+			hit_btn.pressed.emit()
+			return true
+		# Tap landed on the build menu panel itself (not a button) -- still
+		# consume the tap so it doesn't register as a grid click.
+		if _control_hit_test(UIManager.build_menu, screen_pos):
+			return true
+
+	# --- Tower action ring buttons (sell, upgrade, fuse, ascend) ---
+	if UIManager.tower_info_panel and UIManager.tower_info_panel.visible:
+		if UIManager.tower_info_panel.has_method("try_invoke_ring_button"):
+			if UIManager.tower_info_panel.try_invoke_ring_button(screen_pos):
+				return true
+			# Check if tap landed in the ring area (near the tower) to prevent
+			# it from registering as a grid click
+			if UIManager.tower_info_panel.has_method("hit_test_ring"):
+				if UIManager.tower_info_panel.hit_test_ring(screen_pos):
+					return true
+		else:
+			# Fallback for legacy panel
+			var hit_btn: Button = _find_hit_button(UIManager.tower_info_panel, screen_pos)
+			if hit_btn:
+				hit_btn.pressed.emit()
+				return true
+			if _control_hit_test(UIManager.tower_info_panel, screen_pos):
+				return true
+
+	return false
+
+
+func _control_hit_test(ctrl: Control, screen_pos: Vector2) -> bool:
+	## Return true if screen_pos falls within the control's visible rect.
+	## Accounts for CanvasLayer transforms, anchors, and viewport stretch.
+	if not ctrl.is_inside_tree() or not ctrl.visible:
+		return false
+	var local_pos: Vector2 = ctrl.get_global_transform_with_canvas().affine_inverse() * screen_pos
+	return Rect2(Vector2.ZERO, ctrl.size).has_point(local_pos)
+
+
+func _find_hit_button(root: Control, screen_pos: Vector2) -> Button:
+	## Recursively search root's children for the first visible Button whose
+	## rect contains screen_pos.  Returns null if no button is hit.
+	for child: Node in root.get_children():
+		if child is Button and child.visible and not (child as Button).disabled:
+			if _control_hit_test(child as Control, screen_pos):
+				return child as Button
+		elif child is Control and child.visible:
+			var found: Button = _find_hit_button(child as Control, screen_pos)
+			if found:
+				return found
+	return null
 
 
 func _handle_screen_drag(event: InputEventScreenDrag) -> void:
@@ -287,6 +544,14 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 
 	# Two-finger gestures: camera pan and pinch zoom
 	if _touches.size() == 2:
+		# If player pinch-zooms during placement, cancel auto-zoom and restore manual control
+		if _placing_tower and _auto_zoom_active:
+			if _placement_zoom_tween and _placement_zoom_tween.is_valid():
+				_placement_zoom_tween.kill()
+			_auto_zoom_active = false
+			if _ghost_tower:
+				_ghost_tower.scale = Vector2(1.5, 1.5)
+
 		var keys: Array = _touches.keys()
 		var pos_a: Vector2 = _touches[keys[0]]
 		var pos_b: Vector2 = _touches[keys[1]]
@@ -358,8 +623,16 @@ func _handle_click(screen_pos: Vector2) -> void:
 			game_board.add_child(tower)
 			_placing_tower = null
 			_clear_ghost()
-			_placement_cooldown = 2  # Prevent auto-selecting the just-placed tower
-	elif _placement_cooldown <= 0:
+			_restore_placement_zoom()
+			# Prevent auto-selecting the just-placed tower from emulated mouse events.
+			# Mobile needs a longer time-based cooldown (~0.3s) because
+			# emulate_mouse_from_touch generates delayed clicks after the touch.
+			if UIManager.is_mobile():
+				_placement_cooldown_time = 0.3
+			else:
+				_placement_cooldown = 2
+			UIManager.placement_ended.emit()
+	elif _placement_cooldown <= 0 and _placement_cooldown_time <= 0.0:
 		# Try to select existing tower
 		var tower: Node = GridManager.get_tower_at(grid_pos)
 		if tower:
@@ -381,6 +654,12 @@ func _on_build_requested(tower_data: TowerData) -> void:
 	_cancel_fusion_selection()
 	_placing_tower = tower_data
 	_create_ghost(tower_data)
+	if UIManager.is_mobile():
+		# Mobile: no auto-zoom -- keep the full board visible so the player
+		# can decide where to place.  Ghost stays at the default 1.5x scale.
+		_auto_zoom_active = false
+		_snap_grid_pos = Vector2i(-1, -1)
+		_create_cell_highlight()
 
 
 func _on_enemy_spawned(enemy: Node) -> void:
@@ -393,6 +672,8 @@ func _on_enemy_spawned(enemy: Node) -> void:
 func _cancel_placement() -> void:
 	_placing_tower = null
 	_clear_ghost()
+	_restore_placement_zoom()
+	UIManager.placement_ended.emit()
 
 
 func _create_ghost(tower_data: TowerData) -> void:
@@ -430,11 +711,23 @@ func _update_ghost() -> void:
 		world_pos = get_global_mouse_position()
 	var grid_pos: Vector2i = GridManager.world_to_grid(world_pos)
 
+	# Mobile hysteresis: only change snapped cell if finger moves far enough from current cell center
+	if UIManager.is_mobile() and _snap_grid_pos != Vector2i(-1, -1):
+		var snap_center: Vector2 = GridManager.grid_to_world(_snap_grid_pos)
+		var dist: float = world_pos.distance_to(snap_center)
+		if dist <= SNAP_HYSTERESIS_THRESHOLD:
+			grid_pos = _snap_grid_pos
+		else:
+			_snap_grid_pos = grid_pos
+	else:
+		_snap_grid_pos = grid_pos
+
 	# Hide ghost if cursor is outside the grid
 	if not GridManager.is_in_bounds(grid_pos):
 		_ghost_tower.visible = false
 		if _range_indicator:
 			_range_indicator.hide_range()
+		_clear_cell_highlight()
 		return
 
 	_ghost_tower.visible = true
@@ -452,6 +745,10 @@ func _update_ghost() -> void:
 		_ghost_tower.modulate = GHOST_COLOR_INVALID
 		if _range_indicator:
 			_range_indicator.hide_range()
+
+	# Update cell highlight overlay on mobile
+	if UIManager.is_mobile():
+		_update_cell_highlight(grid_pos, is_valid)
 
 
 func _clear_ghost() -> void:
@@ -544,6 +841,47 @@ func _spawn_gold_text(pos: Vector2, amount: int) -> void:
 	tween.chain().tween_callback(label.queue_free)
 
 
+# --- Mobile placement auto-zoom helpers ---
+
+func _restore_placement_zoom() -> void:
+	if not UIManager.is_mobile():
+		return
+	# No zoom tween to restore since mobile no longer auto-zooms.
+	# Just clean up placement-mode state.
+	_auto_zoom_active = false
+	_snap_grid_pos = Vector2i(-1, -1)
+	_clear_cell_highlight()
+	if _placement_zoom_tween and _placement_zoom_tween.is_valid():
+		_placement_zoom_tween.kill()
+	if _ghost_tower:
+		_ghost_tower.scale = Vector2(1.5, 1.5)
+
+
+func _create_cell_highlight() -> void:
+	if _cell_highlight:
+		return
+	_cell_highlight = Node2D.new()
+	_cell_highlight.z_index = 99
+	_cell_highlight.visible = false
+	_cell_highlight.set_script(load("res://scripts/ui/CellHighlight.gd"))
+	game_board.add_child(_cell_highlight)
+
+
+func _update_cell_highlight(grid_pos: Vector2i, is_valid: bool) -> void:
+	if not _cell_highlight:
+		return
+	var cell_center: Vector2 = GridManager.grid_to_world(grid_pos)
+	_cell_highlight.position = cell_center
+	_cell_highlight.set_meta("is_valid", is_valid)
+	_cell_highlight.visible = true
+	_cell_highlight.queue_redraw()
+
+
+func _clear_cell_highlight() -> void:
+	if _cell_highlight:
+		_cell_highlight.visible = false
+
+
 # --- Range indicator for tower selection ---
 
 func _on_tower_selected_for_range(tower: Node) -> void:
@@ -562,7 +900,7 @@ var _fuse_signal_connected: bool = false
 
 
 func _connect_tower_info_fuse_signal() -> void:
-	## Connect the TowerInfoPanel's fuse_requested signal exactly once.
+	## Connect the TowerActionRing's fuse_requested signal exactly once.
 	if _fuse_signal_connected:
 		return
 	if UIManager.tower_info_panel and UIManager.tower_info_panel.has_signal("fuse_requested"):

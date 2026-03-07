@@ -9,4 +9,5 @@ TEST_PATH="${1:-tests/}"
 "$GODOT_BIN" --headless --path "$PROJECT_DIR" \
   -s -d res://addons/gdUnit4/bin/GdUnitCmdTool.gd \
   --add "$TEST_PATH" \
+  -c \
   --ignoreHeadlessMode

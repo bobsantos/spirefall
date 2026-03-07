@@ -43,6 +43,16 @@ func _ready() -> void:
 	# Apply default dark panel style
 	_apply_panel_style()
 
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+## Bump font sizes for mobile readability.
+func _apply_mobile_sizing() -> void:
+	title_label.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+	boss_banner.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+	combat_label.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_LABEL)
+
 
 func display_wave(wave_number: int) -> void:
 	## Populate the panel with the upcoming wave's enemy composition.

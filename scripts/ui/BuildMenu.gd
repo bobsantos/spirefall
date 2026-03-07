@@ -13,6 +13,10 @@ signal tower_build_selected(tower_data: TowerData)
 var _tower_buttons: Array[Button] = []
 var _available_towers: Array[TowerData] = []
 var _draft_indicator: HBoxContainer
+var _cancel_button: Button
+var _is_sheet_visible: bool = false
+var _slide_tween: Tween = null
+var _sheet_mode: bool = false
 
 # Canonical element order for build menu button layout
 const ELEMENT_ORDER: Array[String] = ["fire", "water", "earth", "wind", "lightning", "ice"]
@@ -40,13 +44,15 @@ const ELEMENT_BG_COLORS: Dictionary = {
 
 func _ready() -> void:
 	UIManager.register_build_menu(self)
-	if UIManager.is_mobile():
-		custom_minimum_size.y = 110
-		offset_top = -110
 	_load_available_towers()
 	_create_draft_indicator()
 	_create_buttons()
+	_create_cancel_button()
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
 	_connect_draft_signals()
+	UIManager.build_requested.connect(_on_placement_started)
+	UIManager.placement_ended.connect(_on_placement_ended)
 
 
 func _load_available_towers() -> void:
@@ -121,10 +127,7 @@ func _create_buttons() -> void:
 
 func _create_tower_button(tower: TowerData) -> Button:
 	var btn := Button.new()
-	if UIManager.is_mobile():
-		btn.custom_minimum_size = UIManager.MOBILE_TOWER_BUTTON_MIN
-	else:
-		btn.custom_minimum_size = Vector2(120, 64)
+	btn.custom_minimum_size = Vector2(120, 64)
 	btn.clip_text = false
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.pressed.connect(_on_tower_selected.bind(tower))
@@ -240,10 +243,164 @@ func _build_tooltip(tower: TowerData) -> String:
 	return "\n".join(lines)
 
 
+func slide_in() -> void:
+	## Slide the build menu up from the bottom of the screen (mobile sheet mode).
+	if _slide_tween:
+		_slide_tween.kill()
+	visible = true
+	_is_sheet_visible = true
+	_slide_tween = create_tween()
+	_slide_tween.tween_property(self, "position:y", 960.0 - float(UIManager.MOBILE_BUILD_MENU_HEIGHT), 0.25) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+
+
+func slide_out() -> void:
+	## Slide the build menu down off the bottom of the screen (mobile sheet mode).
+	if _slide_tween:
+		_slide_tween.kill()
+	_is_sheet_visible = false
+	_slide_tween = create_tween()
+	_slide_tween.tween_property(self, "position:y", 960.0, 0.25) \
+		.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	_slide_tween.tween_callback(func() -> void: visible = false)
+
+
 func _on_tower_selected(tower_data: TowerData) -> void:
 	AudioManager.play_sfx("ui_click")
 	UIManager.request_build(tower_data)
 	tower_build_selected.emit(tower_data)
+	if _sheet_mode and is_inside_tree():
+		get_tree().create_timer(0.1).timeout.connect(slide_out)
+
+
+func _create_cancel_button() -> void:
+	_cancel_button = Button.new()
+	_cancel_button.text = "X Cancel"
+	_cancel_button.focus_mode = Control.FOCUS_NONE
+	_cancel_button.custom_minimum_size = Vector2(80, 64)
+
+	# Red-tinted style
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.5, 0.12, 0.1, 0.9)
+	style.border_color = Color(1.0, 0.3, 0.2)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(4)
+	style.set_content_margin_all(4)
+	_cancel_button.add_theme_stylebox_override("normal", style)
+
+	var style_hover := style.duplicate()
+	style_hover.bg_color = Color(0.6, 0.15, 0.12, 0.95)
+	_cancel_button.add_theme_stylebox_override("hover", style_hover)
+
+	var style_pressed := style.duplicate()
+	style_pressed.bg_color = Color(0.35, 0.08, 0.06, 0.9)
+	_cancel_button.add_theme_stylebox_override("pressed", style_pressed)
+
+	_cancel_button.add_theme_font_size_override("font_size", 13)
+	_cancel_button.add_theme_color_override("font_color", Color(1.0, 0.85, 0.8))
+	_cancel_button.pressed.connect(_on_cancel_pressed)
+	_cancel_button.visible = false
+	button_container.add_child(_cancel_button)
+	# Move to front so it's the first visible button
+	button_container.move_child(_cancel_button, 0)
+
+
+func _apply_mobile_sizing() -> void:
+	## Increase all build menu element sizes for mobile touch targets.
+	# Hide immediately to prevent desktop layout flash on first frame
+	visible = false
+
+	# Panel height
+	custom_minimum_size.y = UIManager.MOBILE_BUILD_MENU_HEIGHT
+
+	# Enable bottom sheet mode
+	_sheet_mode = true
+	# Reset anchors to top-left (full width) so position.y works as absolute
+	# coordinates for the slide tween. Setting anchors_preset = 0 only changes
+	# the preset enum without resetting the individual anchor values, so the
+	# scene-default PRESET_BOTTOM_WIDE anchors (top=1, bottom=1) would persist
+	# and cause anchor-based layout to override position.y assignments/tweens.
+	anchor_left = 0.0
+	anchor_top = 0.0
+	anchor_right = 1.0  # Keep full width
+	anchor_bottom = 0.0
+	# Set size first, then position (position setter preserves size)
+	size.y = float(UIManager.MOBILE_BUILD_MENU_HEIGHT)
+	position.y = 960.0  # Start below viewport bottom
+	_is_sheet_visible = false
+	visible = false  # Hidden until slide_in() is called
+
+	# Add drag handle at the top of the panel
+	var drag_handle := ColorRect.new()
+	drag_handle.color = Color("#666666")
+	drag_handle.custom_minimum_size = Vector2(40, 4)
+	drag_handle.size = Vector2(40, 4)
+	# Position centered at top of panel
+	drag_handle.position = Vector2((size.x - 40.0) / 2.0, 8.0)
+	add_child(drag_handle)
+
+	# HBoxContainer separation for easier targeting
+	button_container.add_theme_constant_override("separation", 12)
+
+	# Tower buttons
+	for btn: Button in _tower_buttons:
+		btn.custom_minimum_size = UIManager.MOBILE_TOWER_BUTTON_MIN
+		_apply_mobile_button_content(btn)
+
+	# Cancel button
+	_cancel_button.custom_minimum_size = Vector2(140, 128)
+
+	# Draft indicator dots
+	_apply_mobile_draft_dots()
+
+
+func _apply_mobile_button_content(btn: Button) -> void:
+	## Increase font sizes, element dot, and thumbnail within a tower button.
+	for child: Node in btn.get_children():
+		if child is HBoxContainer:
+			var hbox: HBoxContainer = child as HBoxContainer
+			for hbox_child: Node in hbox.get_children():
+				if hbox_child is TextureRect:
+					# Tower sprite thumbnail: 32x32 -> 48x48
+					hbox_child.custom_minimum_size = Vector2(48, 48)
+				elif hbox_child is VBoxContainer:
+					var vbox: VBoxContainer = hbox_child as VBoxContainer
+					for vbox_child: Node in vbox.get_children():
+						if vbox_child is Label:
+							# Name label: 11 -> 20
+							vbox_child.add_theme_font_size_override("font_size", 20)
+						elif vbox_child is HBoxContainer:
+							# Cost row
+							var cost_row: HBoxContainer = vbox_child as HBoxContainer
+							for cost_child: Node in cost_row.get_children():
+								if cost_child is ColorRect:
+									# Element dot: radius 6 -> 10 (diameter 12 -> 20)
+									cost_child.custom_minimum_size = Vector2(20, 20)
+								elif cost_child is Label:
+									# Cost label: 10 -> 18
+									cost_child.add_theme_font_size_override("font_size", 18)
+
+
+func _apply_mobile_draft_dots() -> void:
+	## Increase draft indicator dot sizes for mobile.
+	for child: Node in _draft_indicator.get_children():
+		if child is HBoxContainer:
+			for dot_child: Node in child.get_children():
+				if dot_child is ColorRect:
+					dot_child.custom_minimum_size = Vector2(16, 16)
+
+
+func _on_cancel_pressed() -> void:
+	AudioManager.play_sfx("ui_click")
+	UIManager.cancel_placement()
+
+
+func _on_placement_started(_tower_data: TowerData) -> void:
+	_cancel_button.visible = true
+
+
+func _on_placement_ended() -> void:
+	_cancel_button.visible = false
 
 
 ## Connect to DraftManager signals for live updates when draft starts or new elements are drafted.

@@ -35,11 +35,24 @@ var _picks_needed: int = 1
 var _picks_made: int = 0
 
 
+## When true, cards are created at mobile-friendly sizes.
+var _mobile_sizing: bool = false
+
+
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_WHEN_PAUSED
 	visible = false
 	DraftManager.draft_pick_available.connect(_on_draft_pick_available)
 	DraftManager.draft_started.connect(_on_draft_started)
+
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+## Bump card sizes and font sizes for mobile touch targets.
+func _apply_mobile_sizing() -> void:
+	_mobile_sizing = true
+	title_label.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_TITLE)
 
 
 func _on_draft_started(_starting_element: String) -> void:
@@ -92,6 +105,9 @@ func _create_element_card(element: String) -> Button:
 	card.custom_minimum_size = Vector2(200, 280)
 	card.text = ""
 
+	if _mobile_sizing:
+		card.custom_minimum_size = Vector2(maxf(card.custom_minimum_size.x, 100.0), maxf(card.custom_minimum_size.y, 100.0))
+
 	var color: Color = ElementMatrix.get_color(element)
 
 	# Darkened background with element color border for readability
@@ -134,7 +150,8 @@ func _create_element_card(element: String) -> Button:
 	name_label.text = element.capitalize()
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_color_override("font_color", Color.WHITE)
-	name_label.add_theme_font_size_override("font_size", 16)
+	var name_font_size: int = 16 if not _mobile_sizing else maxi(16, UIManager.MOBILE_FONT_SIZE_BODY)
+	name_label.add_theme_font_size_override("font_size", name_font_size)
 	vbox.add_child(name_label)
 
 	# Tower sprite and name for the first tower of this element

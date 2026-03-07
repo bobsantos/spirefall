@@ -23,6 +23,26 @@ func _ready() -> void:
 	play_again_button.pressed.connect(_on_play_again_pressed)
 	main_menu_button.pressed.connect(_on_main_menu_pressed)
 
+	if UIManager.is_mobile():
+		_apply_mobile_sizing()
+
+
+## Bump button sizes and font sizes for mobile touch targets.
+func _apply_mobile_sizing() -> void:
+	# Action buttons
+	var buttons: Array[Button] = [play_again_button, main_menu_button]
+	for btn: Button in buttons:
+		btn.custom_minimum_size.y = UIManager.MOBILE_ACTION_BUTTON_MIN_HEIGHT
+		btn.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+
+	# Title label
+	result_label.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_TITLE)
+
+	# Stat labels
+	var stat_labels: Array[Label] = [waves_label, enemies_killed_label, gold_earned_label, time_played_label, xp_earned_label, unlocks_label]
+	for lbl: Label in stat_labels:
+		lbl.add_theme_font_size_override("font_size", UIManager.MOBILE_FONT_SIZE_BODY)
+
 
 func _on_game_over(victory: bool) -> void:
 	if victory:

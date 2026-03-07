@@ -1,21 +1,4 @@
-- fuse cost is not indicated in the upgrade panel
-- upgrade panel should be closer to the tower being upgraded
-- selected tower should have a more visible selected indicator
-- fusing the same tower type should be possible at least on the first tier
-- it's good that we have the timer in the middle of the screen when there's 10 seconds left, but i think we should add it to the top part of the hud permanently as well. maybe beside the wave indicator?
-- boss escaping costs only 1 life. should it be at least 2?
-- there are times when i cannot see the enemy and all i see is their health bar
-- there are enemis in wave 13 which is difficult to kill
-- there are enemis in wave 17 which is difficult to kill
-- seems like healers are impossible to defeat and they are not visible
-- draft mode is exciting, but then you would always want to draft Stone Bastion because that's the base tower with many legendary fusion capabilities
-- most often than not the last clicked control will be clickable with space bar. should we limit space bar for wave start? maybe we can add shortcuts for most, if not all, of the controls
-- elemental enemies and healers seem invisible
-- on wave 30 when i have not killed the boss yet, the game ended in my victory
-- draft mode does not have tower fusion, is it intentional?
-- gold feels like it comes easily. does it make sense to remove gold reward and create a tower which earns you gold when it hits enemies and get extra gold when it kills an enemy?
-- no way to pause or go to menu in mobile
-- tower preview does not follow mouse position
-- add information about game modes in codex
-- the boss hp bar does not seem to update
-- tower panel always shows after building the tower. it should be hidden unless player explicitly clicks a tower
+- no easy way to close tower info/upgrade panel
+- build interface is small on mobile, everything is small, maybe make components bigger?
+- no way to go to pause menu
+- mode and map selection button is small, maybe make the whole card clickable and remove select?

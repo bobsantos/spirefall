@@ -10,6 +10,7 @@ extends Control
 @onready var timer_label: Label = $WaveControls/TimerLabel
 @onready var speed_button: Button = $TopBar/SpeedButton
 @onready var codex_button: Button = $TopBar/CodexButton
+@onready var pause_button: Button = $TopBar/PauseButton
 @onready var start_wave_button: Button = $WaveControls/StartWaveButton
 @onready var wave_controls: HBoxContainer = $WaveControls
 @onready var bonus_label: Label = $BonusLabel
@@ -27,6 +28,10 @@ const SPEED_LABELS: Array[String] = ["1x", "1.5x", "2x", "0.5x"]
 var _speed_index: int = 0
 var _countdown_tween: Tween = null
 var _run_xp: int = 0
+var _is_mobile: bool = false
+var _overflow_button: Button = null
+var _overflow_menu: PanelContainer = null
+var _overflow_dimmer: ColorRect = null
 
 
 func _ready() -> void:
@@ -42,7 +47,8 @@ func _ready() -> void:
 	EnemySystem.wave_cleared.connect(_on_boss_wave_cleared)
 	GameManager.wave_started.connect(_on_boss_wave_started)
 	GameManager.wave_completed.connect(_on_xp_wave_completed)
-	codex_button.pressed.connect(_on_codex_pressed)
+	codex_button.visible = false
+	pause_button.pressed.connect(_on_pause_pressed)
 	speed_button.pressed.connect(_on_speed_pressed)
 	start_wave_button.pressed.connect(_on_start_wave_pressed)
 	GameManager.speed_changed.connect(_on_speed_changed)
@@ -59,11 +65,69 @@ func _ready() -> void:
 
 
 func _apply_mobile_sizing() -> void:
+	_is_mobile = true
 	var top_bar: HBoxContainer = $TopBar
-	top_bar.custom_minimum_size.y = 56
-	speed_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
-	codex_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
+	top_bar.custom_minimum_size.y = UIManager.MOBILE_TOPBAR_HEIGHT
+
+	# Hide labels that move to overflow or merge into wave counter on mobile
+	xp_label.visible = false
+	topbar_timer_label.visible = false
+	pause_button.visible = false
+
+	# Speed button stays in bar, sized to fit 48px bar height
+	speed_button.custom_minimum_size = Vector2(80, 44)
 	start_wave_button.custom_minimum_size = UIManager.MOBILE_START_WAVE_MIN
+
+	# Top bar info labels: expand to fill, clip text to prevent overflow
+	var body_size: int = UIManager.MOBILE_FONT_SIZE_BODY
+	for label: Label in [wave_label, topbar_timer_label, lives_label, gold_label, xp_label]:
+		label.add_theme_font_size_override("font_size", body_size)
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.clip_text = true
+
+	# Buttons should NOT expand (fixed width)
+	speed_button.size_flags_horizontal = 0
+	pause_button.size_flags_horizontal = 0
+
+	# WaveControls area: proportional height increase
+	wave_controls.custom_minimum_size.y = UIManager.MOBILE_BUTTON_MIN.y
+	timer_label.add_theme_font_size_override("font_size", body_size)
+	enemy_count_label.add_theme_font_size_override("font_size", body_size)
+
+	# Countdown label: scale up from desktop 64 to 80 for mobile readability
+	countdown_label.add_theme_font_size_override("font_size", 80)
+
+	# Notification labels
+	bonus_label.add_theme_font_size_override("font_size", maxi(32, body_size))
+	xp_notif_label.add_theme_font_size_override("font_size", body_size)
+	overtime_label.add_theme_font_size_override("font_size", maxi(28, body_size))
+
+	# Strip keyboard hints -- not useful on mobile
+	start_wave_button.text = "Start Wave"
+
+	# Create a direct pause button (replaces old overflow menu)
+	_create_pause_button()
+
+
+func _create_pause_button() -> void:
+	## Create a direct pause button in the TopBar (replaces overflow dropdown menu).
+	## Codex is accessible via Pause -> Codex, so no separate codex button needed.
+	var top_bar: HBoxContainer = $TopBar
+
+	_overflow_button = Button.new()
+	_overflow_button.name = "MobilePauseButton"
+	_overflow_button.text = "| |"
+	_overflow_button.custom_minimum_size = Vector2(48, 44)
+	_overflow_button.focus_mode = Control.FOCUS_NONE
+	_overflow_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overflow_button.pressed.connect(_on_pause_pressed)
+	top_bar.add_child(_overflow_button)
+
+	# No dimmer or dropdown menu needed -- button triggers pause directly
+
+
+func get_overflow_button() -> Button:
+	return _overflow_button
 
 
 func update_display() -> void:
@@ -93,9 +157,10 @@ func _process(_delta: float) -> void:
 			var t: float = GameManager._build_timer
 			timer_label.text = "Next wave in: %ds" % ceili(t)
 			timer_label.visible = true
-			# Persistent topbar timer
-			topbar_timer_label.text = "Next: %ds" % ceili(t)
-			topbar_timer_label.visible = true
+			# Persistent topbar timer (hidden on mobile to save TopBar space)
+			if not _is_mobile:
+				topbar_timer_label.text = "Next: %ds" % ceili(t)
+				topbar_timer_label.visible = true
 			# Prominent centered countdown for last 5 seconds
 			if t <= 5.0 and t > 0.0:
 				countdown_label.text = "%d" % ceili(t)
@@ -121,10 +186,11 @@ func _process(_delta: float) -> void:
 		if GameManager._overtime_active:
 			# Overtime: show elapsed overtime time and pulsing warning
 			var ot: float = GameManager._overtime_elapsed
-			topbar_timer_label.text = "OVERTIME: %ds" % ceili(ot)
-			topbar_timer_label.visible = true
-			topbar_timer_label.add_theme_color_override("font_color",
-				Color(1.0, 0.2, 0.15, 1.0))
+			if not _is_mobile:
+				topbar_timer_label.text = "OVERTIME: %ds" % ceili(ot)
+				topbar_timer_label.visible = true
+				topbar_timer_label.add_theme_color_override("font_color",
+					Color(1.0, 0.2, 0.15, 1.0))
 			# Pulse the overtime label
 			if overtime_label:
 				overtime_label.visible = true
@@ -133,11 +199,12 @@ func _process(_delta: float) -> void:
 			countdown_label.visible = false
 			countdown_label.scale = Vector2.ONE
 		else:
-			# Normal combat: persistent topbar timer
+			# Normal combat: persistent topbar timer (hidden on mobile)
 			var t: float = GameManager._combat_timer
-			topbar_timer_label.text = "Time: %ds" % ceili(t)
-			topbar_timer_label.visible = true
-			topbar_timer_label.remove_theme_color_override("font_color")
+			if not _is_mobile:
+				topbar_timer_label.text = "Time: %ds" % ceili(t)
+				topbar_timer_label.visible = true
+				topbar_timer_label.remove_theme_color_override("font_color")
 			if overtime_label:
 				overtime_label.visible = false
 			# Prominent countdown for last 10 seconds of combat
@@ -227,8 +294,8 @@ func _on_early_wave_bonus(amount: int) -> void:
 	_show_bonus_notification("+%dg Early Start!" % amount)
 
 
-func _on_codex_pressed() -> void:
-	UIManager.toggle_codex()
+func _on_pause_pressed() -> void:
+	GameManager.toggle_pause()
 
 
 func _on_start_wave_pressed() -> void:

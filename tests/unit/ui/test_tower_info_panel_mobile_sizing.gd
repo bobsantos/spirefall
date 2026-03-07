@@ -1,0 +1,282 @@
+extends GdUnitTestSuite
+
+## Unit tests for TowerInfoPanel mobile sizing (action-only panel).
+## Covers: action button heights, dropdown height, name label font size,
+## panel min width, and full-width bottom-dock layout on mobile.
+
+const PANEL_SCRIPT_PATH: String = "res://scripts/ui/TowerInfoPanel.gd"
+
+var _panel: PanelContainer
+var _original_gold: int
+var _original_game_state: int
+var _original_game_running: bool
+var _original_selected_tower: Node
+var _original_tower_info_panel: Node
+
+# Cached stub script to avoid "resources still in use" on exit
+static var _stub_script: GDScript = null
+
+
+# -- Helpers -------------------------------------------------------------------
+
+func _tower_stub_script() -> GDScript:
+	if _stub_script != null:
+		return _stub_script
+	_stub_script = GDScript.new()
+	_stub_script.source_code = """
+extends Node2D
+
+var tower_data: TowerData
+var grid_position: Vector2i = Vector2i.ZERO
+var target_mode: int = 0
+
+func apply_tower_data() -> void:
+	pass
+"""
+	_stub_script.reload()
+	return _stub_script
+
+
+func _make_tower_data(
+	p_name: String = "TestTower",
+	p_element: String = "fire",
+	p_cost: int = 30,
+	p_tier: int = 1,
+	p_upgrade_to: TowerData = null,
+	p_fusion_elements: Array[String] = []
+) -> TowerData:
+	var data := TowerData.new()
+	data.tower_name = p_name
+	data.element = p_element
+	data.cost = p_cost
+	data.tier = p_tier
+	data.damage = 15
+	data.attack_speed = 1.0
+	data.range_cells = 4
+	data.damage_type = p_element
+	data.upgrade_to = p_upgrade_to
+	data.fusion_elements = p_fusion_elements
+	return data
+
+
+func _make_tower_stub(data: TowerData, pos: Vector2 = Vector2.ZERO) -> Node2D:
+	var stub := Node2D.new()
+	stub.set_script(_tower_stub_script())
+	stub.tower_data = data
+	stub.position = pos
+	return stub
+
+
+## Build the TowerInfoPanel node tree manually (matching the .tscn structure).
+func _build_panel() -> PanelContainer:
+	var root := PanelContainer.new()
+	var vbox := VBoxContainer.new()
+	vbox.name = "VBoxContainer"
+	root.add_child(vbox)
+
+	var header_row := HBoxContainer.new()
+	header_row.name = "HeaderRow"
+	vbox.add_child(header_row)
+
+	var name_label := Label.new()
+	name_label.name = "NameLabel"
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.add_theme_font_size_override("font_size", 16)
+	header_row.add_child(name_label)
+
+	var close_button := Button.new()
+	close_button.name = "CloseButton"
+	close_button.text = "X"
+	header_row.add_child(close_button)
+
+	var target_mode_dropdown := OptionButton.new()
+	target_mode_dropdown.name = "TargetModeDropdown"
+	vbox.add_child(target_mode_dropdown)
+
+	var button_row := HBoxContainer.new()
+	button_row.name = "ButtonRow"
+	vbox.add_child(button_row)
+
+	var upgrade_button := Button.new()
+	upgrade_button.name = "UpgradeButton"
+	button_row.add_child(upgrade_button)
+
+	var sell_button := Button.new()
+	sell_button.name = "SellButton"
+	button_row.add_child(sell_button)
+
+	var ascend_button := Button.new()
+	ascend_button.name = "AscendButton"
+	ascend_button.visible = false
+	vbox.add_child(ascend_button)
+
+	var fuse_button := Button.new()
+	fuse_button.name = "FuseButton"
+	fuse_button.visible = false
+	vbox.add_child(fuse_button)
+
+	return root
+
+
+func _apply_script(panel: PanelContainer) -> void:
+	var script: GDScript = load(PANEL_SCRIPT_PATH)
+	panel.set_script(script)
+	var vbox: VBoxContainer = panel.get_node("VBoxContainer")
+	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
+	panel.name_label = header_row.get_node("NameLabel")
+	panel.close_button = header_row.get_node("CloseButton")
+	panel.target_mode_dropdown = vbox.get_node("TargetModeDropdown")
+	panel.button_row = vbox.get_node("ButtonRow")
+	panel.upgrade_button = vbox.get_node("ButtonRow/UpgradeButton")
+	panel.sell_button = vbox.get_node("ButtonRow/SellButton")
+	panel.ascend_button = vbox.get_node("AscendButton")
+	panel.fuse_button = vbox.get_node("FuseButton")
+	panel.close_button.pressed.connect(panel._on_close_pressed)
+	panel._style_close_button()
+
+
+# -- Setup / Teardown ----------------------------------------------------------
+
+func before() -> void:
+	_original_gold = EconomyManager.gold
+	_original_game_state = GameManager.game_state
+	_original_game_running = GameManager._game_running
+	_original_selected_tower = UIManager.selected_tower
+	_original_tower_info_panel = UIManager.tower_info_panel
+
+
+func before_test() -> void:
+	GameManager.game_state = GameManager.GameState.BUILD_PHASE
+	GameManager._game_running = false
+	EconomyManager.gold = 500
+	for tower: Node in TowerSystem._active_towers:
+		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
+			tower.free()
+	TowerSystem._active_towers.clear()
+	_panel = auto_free(_build_panel())
+	_apply_script(_panel)
+	_panel.visible = true
+	_panel.custom_minimum_size = Vector2(240, 300)
+	_panel.size = Vector2(240, 300)
+
+
+func after_test() -> void:
+	for tower: Node in TowerSystem._active_towers:
+		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
+			tower.free()
+	TowerSystem._active_towers.clear()
+	_panel = null
+	EconomyManager.gold = _original_gold
+	GameManager.game_state = _original_game_state
+	GameManager._game_running = _original_game_running
+	UIManager.selected_tower = _original_selected_tower
+	UIManager.tower_info_panel = _original_tower_info_panel
+
+
+func after() -> void:
+	EconomyManager.gold = _original_gold
+	GameManager.game_state = _original_game_state
+	GameManager._game_running = _original_game_running
+	UIManager.selected_tower = _original_selected_tower
+	UIManager.tower_info_panel = _original_tower_info_panel
+	_stub_script = null
+
+
+# ==============================================================================
+# SECTION 1: Action buttons meet 56px minimum height on mobile
+# ==============================================================================
+
+func test_upgrade_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.upgrade_button.custom_minimum_size.y >= 56.0).is_true()
+
+
+func test_sell_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.sell_button.custom_minimum_size.y >= 56.0).is_true()
+
+
+func test_ascend_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.ascend_button.custom_minimum_size.y >= 56.0).is_true()
+
+
+func test_fuse_button_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.fuse_button.custom_minimum_size.y >= 56.0).is_true()
+
+
+# ==============================================================================
+# SECTION 2: Target mode dropdown meets 56px minimum height on mobile
+# ==============================================================================
+
+func test_target_dropdown_height_at_least_56_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.target_mode_dropdown.custom_minimum_size.y >= 56.0).is_true()
+
+
+# ==============================================================================
+# SECTION 3: Name label font size >= 16 on mobile
+# ==============================================================================
+
+func test_name_label_font_size_at_least_16_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	var font_size: int = _panel.name_label.get_theme_font_size("font_size")
+	assert_bool(font_size >= 16).is_true()
+
+
+# ==============================================================================
+# SECTION 4: Panel minimum width increased on mobile
+# ==============================================================================
+
+func test_panel_min_width_at_least_300_after_mobile_sizing() -> void:
+	_panel._apply_mobile_sizing()
+	assert_bool(_panel.custom_minimum_size.x >= 300.0).is_true()
+
+
+func test_panel_min_width_unchanged_without_mobile_sizing() -> void:
+	# Without calling _apply_mobile_sizing, panel should retain original 240
+	assert_float(_panel.custom_minimum_size.x).is_equal_approx(240.0, 1.0)
+
+
+# ==============================================================================
+# SECTION 5: Bottom-dock spans full width minus margins on mobile
+# ==============================================================================
+
+func test_mobile_reposition_spans_full_width_minus_margins() -> void:
+	var data: TowerData = _make_tower_data()
+	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
+	_panel._tower = tower
+	_panel._mobile_mode = true
+	_panel._apply_mobile_sizing()
+	_panel.visible = true
+	_panel._reposition_mobile()
+	# Panel width should be viewport width - 2 * PANEL_MARGIN
+	var expected_width: float = 1280.0 - 2.0 * _panel.PANEL_MARGIN
+	assert_float(_panel.custom_minimum_size.x).is_equal_approx(expected_width, 2.0)
+
+
+func test_mobile_reposition_x_at_margin() -> void:
+	var data: TowerData = _make_tower_data()
+	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
+	_panel._tower = tower
+	_panel._mobile_mode = true
+	_panel._apply_mobile_sizing()
+	_panel.visible = true
+	_panel._reposition_mobile()
+	# x should be at PANEL_MARGIN (left edge with margin)
+	assert_float(_panel.position.x).is_equal_approx(_panel.PANEL_MARGIN, 2.0)
+
+
+# ==============================================================================
+# SECTION 6: Desktop mode is unaffected
+# ==============================================================================
+
+func test_desktop_buttons_retain_original_min_height() -> void:
+	# Without _apply_mobile_sizing, buttons should have their default min height
+	assert_float(_panel.upgrade_button.custom_minimum_size.y).is_less(56.0)
+	assert_float(_panel.sell_button.custom_minimum_size.y).is_less(56.0)
+
+
+func test_desktop_panel_min_width_is_240() -> void:
+	assert_float(_panel.custom_minimum_size.x).is_equal_approx(240.0, 1.0)
