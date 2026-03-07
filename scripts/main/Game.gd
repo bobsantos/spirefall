@@ -15,11 +15,25 @@ var _range_indicator: RangeIndicator = null
 # Fusion target selection state
 var _fusing_tower: Node = null  # The tower that initiated fusion (stays in place)
 
+# --- Mobile placement auto-zoom state ---
+var _pre_placement_zoom: Vector2 = Vector2.ZERO
+var _placement_zoom_tween: Tween = null
+var _snap_grid_pos: Vector2i = Vector2i(-1, -1)
+var _cell_highlight: Node2D = null
+var _auto_zoom_active: bool = false
+
 # Ghost tint colors: green = valid placement, red = invalid
 const GHOST_COLOR_VALID := Color(0.2, 1.0, 0.2, 0.5)
 const GHOST_COLOR_INVALID := Color(1.0, 0.2, 0.2, 0.5)
 # Fusion partner highlight color (pulsing yellow)
 const FUSION_HIGHLIGHT_COLOR := Color(1.0, 0.9, 0.2, 1.0)
+
+# --- Mobile placement auto-zoom constants ---
+const SNAP_HYSTERESIS_THRESHOLD: float = 32.0  # half cell width
+const PLACEMENT_ZOOM_DURATION: float = 0.3
+const PLACEMENT_ZOOM_RESTORE_DELAY: float = 0.15
+const CELL_HIGHLIGHT_VALID_COLOR := Color("#00CC66")
+const CELL_HIGHLIGHT_INVALID_COLOR := Color("#CC3333")
 
 # --- Camera pan/zoom constants ---
 const PAN_SPEED: float = 400.0  # px/s at 1x zoom
@@ -363,6 +377,14 @@ func _handle_screen_drag(event: InputEventScreenDrag) -> void:
 
 	# Two-finger gestures: camera pan and pinch zoom
 	if _touches.size() == 2:
+		# If player pinch-zooms during placement, cancel auto-zoom and restore manual control
+		if _placing_tower and _auto_zoom_active:
+			if _placement_zoom_tween and _placement_zoom_tween.is_valid():
+				_placement_zoom_tween.kill()
+			_auto_zoom_active = false
+			if _ghost_tower:
+				_ghost_tower.scale = Vector2(1.5, 1.5)
+
 		var keys: Array = _touches.keys()
 		var pos_a: Vector2 = _touches[keys[0]]
 		var pos_b: Vector2 = _touches[keys[1]]
@@ -434,6 +456,7 @@ func _handle_click(screen_pos: Vector2) -> void:
 			game_board.add_child(tower)
 			_placing_tower = null
 			_clear_ghost()
+			_restore_placement_zoom()
 			_placement_cooldown = 2  # Prevent auto-selecting the just-placed tower
 			UIManager.placement_ended.emit()
 	elif _placement_cooldown <= 0:
@@ -458,6 +481,22 @@ func _on_build_requested(tower_data: TowerData) -> void:
 	_cancel_fusion_selection()
 	_placing_tower = tower_data
 	_create_ghost(tower_data)
+	if UIManager.is_mobile():
+		# Store current zoom and auto-zoom in for better cell visibility
+		_pre_placement_zoom = camera.zoom
+		var target_zoom_val: float = minf(camera.zoom.x * UIManager.MOBILE_PLACEMENT_ZOOM, ZOOM_MAX.x)
+		var target_zoom := Vector2(target_zoom_val, target_zoom_val)
+		if _placement_zoom_tween and _placement_zoom_tween.is_valid():
+			_placement_zoom_tween.kill()
+		_placement_zoom_tween = create_tween()
+		_placement_zoom_tween.tween_property(camera, "zoom", target_zoom, PLACEMENT_ZOOM_DURATION) \
+			.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+		_auto_zoom_active = true
+		# Ghost at natural size since camera is zoomed in
+		if _ghost_tower:
+			_ghost_tower.scale = Vector2(1.0, 1.0)
+		_snap_grid_pos = Vector2i(-1, -1)
+		_create_cell_highlight()
 
 
 func _on_enemy_spawned(enemy: Node) -> void:
@@ -470,6 +509,7 @@ func _on_enemy_spawned(enemy: Node) -> void:
 func _cancel_placement() -> void:
 	_placing_tower = null
 	_clear_ghost()
+	_restore_placement_zoom()
 	UIManager.placement_ended.emit()
 
 
@@ -508,11 +548,23 @@ func _update_ghost() -> void:
 		world_pos = get_global_mouse_position()
 	var grid_pos: Vector2i = GridManager.world_to_grid(world_pos)
 
+	# Mobile hysteresis: only change snapped cell if finger moves far enough from current cell center
+	if UIManager.is_mobile() and _snap_grid_pos != Vector2i(-1, -1):
+		var snap_center: Vector2 = GridManager.grid_to_world(_snap_grid_pos)
+		var dist: float = world_pos.distance_to(snap_center)
+		if dist <= SNAP_HYSTERESIS_THRESHOLD:
+			grid_pos = _snap_grid_pos
+		else:
+			_snap_grid_pos = grid_pos
+	else:
+		_snap_grid_pos = grid_pos
+
 	# Hide ghost if cursor is outside the grid
 	if not GridManager.is_in_bounds(grid_pos):
 		_ghost_tower.visible = false
 		if _range_indicator:
 			_range_indicator.hide_range()
+		_clear_cell_highlight()
 		return
 
 	_ghost_tower.visible = true
@@ -530,6 +582,10 @@ func _update_ghost() -> void:
 		_ghost_tower.modulate = GHOST_COLOR_INVALID
 		if _range_indicator:
 			_range_indicator.hide_range()
+
+	# Update cell highlight overlay on mobile
+	if UIManager.is_mobile():
+		_update_cell_highlight(grid_pos, is_valid)
 
 
 func _clear_ghost() -> void:
@@ -620,6 +676,52 @@ func _spawn_gold_text(pos: Vector2, amount: int) -> void:
 	tween.tween_property(label, "position:y", label.position.y - 30.0, 1.0)
 	tween.tween_property(label, "modulate:a", 0.0, 1.0).set_delay(0.3)
 	tween.chain().tween_callback(label.queue_free)
+
+
+# --- Mobile placement auto-zoom helpers ---
+
+func _restore_placement_zoom() -> void:
+	if not UIManager.is_mobile() or _pre_placement_zoom == Vector2.ZERO:
+		return
+	_auto_zoom_active = false
+	_snap_grid_pos = Vector2i(-1, -1)
+	_clear_cell_highlight()
+	if _placement_zoom_tween and _placement_zoom_tween.is_valid():
+		_placement_zoom_tween.kill()
+	# Restore ghost scale
+	if _ghost_tower:
+		_ghost_tower.scale = Vector2(1.5, 1.5)
+	# 0.15s delay then 0.3s tween back
+	_placement_zoom_tween = create_tween()
+	_placement_zoom_tween.tween_interval(PLACEMENT_ZOOM_RESTORE_DELAY)
+	_placement_zoom_tween.tween_property(camera, "zoom", _pre_placement_zoom, PLACEMENT_ZOOM_DURATION) \
+		.set_ease(Tween.EASE_IN_OUT).set_trans(Tween.TRANS_CUBIC)
+	_placement_zoom_tween.tween_callback(func(): _pre_placement_zoom = Vector2.ZERO)
+
+
+func _create_cell_highlight() -> void:
+	if _cell_highlight:
+		return
+	_cell_highlight = Node2D.new()
+	_cell_highlight.z_index = 99
+	_cell_highlight.visible = false
+	_cell_highlight.set_script(load("res://scripts/ui/CellHighlight.gd"))
+	game_board.add_child(_cell_highlight)
+
+
+func _update_cell_highlight(grid_pos: Vector2i, is_valid: bool) -> void:
+	if not _cell_highlight:
+		return
+	var cell_center: Vector2 = GridManager.grid_to_world(grid_pos)
+	_cell_highlight.position = cell_center
+	_cell_highlight.set_meta("is_valid", is_valid)
+	_cell_highlight.visible = true
+	_cell_highlight.queue_redraw()
+
+
+func _clear_cell_highlight() -> void:
+	if _cell_highlight:
+		_cell_highlight.visible = false
 
 
 # --- Range indicator for tower selection ---

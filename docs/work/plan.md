@@ -379,14 +379,14 @@ Fix mobile interaction patterns: grid cell precision, placement flow.
 - Ghost tower sprite: when auto-zoom is active, render ghost at 1.0x sprite scale (instead of 1.5x) so it appears at natural zoom size
 
 **Acceptance criteria:**
-- [ ] Camera smoothly zooms to 1.5x when entering placement mode on mobile
-- [ ] Ghost tower snaps to nearest valid grid cell with hysteresis (32px threshold)
-- [ ] Snapped cell shows highlighted border (green valid, red invalid)
-- [ ] Camera restores previous zoom on placement confirm/cancel
-- [ ] Pinch-zoom during placement overrides auto-zoom
-- [ ] Pan works during placement
-- [ ] Ghost sprite scaled correctly during auto-zoom
-- [ ] Desktop behavior unchanged
+- [x] Camera smoothly zooms to 1.5x when entering placement mode on mobile
+- [x] Ghost tower snaps to nearest valid grid cell with hysteresis (32px threshold)
+- [x] Snapped cell shows highlighted border (green valid, red invalid)
+- [x] Camera restores previous zoom on placement confirm/cancel
+- [x] Pinch-zoom during placement overrides auto-zoom
+- [x] Pan works during placement
+- [x] Ghost sprite scaled correctly during auto-zoom
+- [x] Desktop behavior unchanged
 
 ---
 
