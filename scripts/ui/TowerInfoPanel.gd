@@ -1,43 +1,22 @@
 extends PanelContainer
 
-## Shows selected tower stats with Upgrade, Sell, Fuse buttons and targeting mode dropdown.
-## Displays tier, element, all combat stats, special ability, upgrade preview,
-## sell value, and synergy info. Element-colored header and border styling.
+## Action-only panel for selected tower: Upgrade, Sell, Fuse, Ascend buttons
+## and targeting mode dropdown. Stats belong in the Codex.
 
 signal fuse_requested(tower: Node)
 
-enum PanelState { DISMISSED, COLLAPSED, EXPANDED }
-
 @onready var name_label: Label = $VBoxContainer/HeaderRow/NameLabel
 @onready var close_button: Button = $VBoxContainer/HeaderRow/CloseButton
-@onready var tier_label: Label = $VBoxContainer/TierLabel
-@onready var element_label: Label = $VBoxContainer/ElementLabel
-@onready var separator_top: HSeparator = $VBoxContainer/SeparatorTop
-@onready var damage_label: Label = $VBoxContainer/DamageLabel
-@onready var speed_label: Label = $VBoxContainer/SpeedLabel
-@onready var range_label: Label = $VBoxContainer/RangeLabel
-@onready var special_label: Label = $VBoxContainer/SpecialLabel
-@onready var synergy_label: Label = $VBoxContainer/SynergyLabel
-@onready var separator_bottom: HSeparator = $VBoxContainer/SeparatorBottom
-@onready var upgrade_cost_label: Label = $VBoxContainer/UpgradeCostLabel
-@onready var sell_value_label: Label = $VBoxContainer/SellValueLabel
-@onready var fusion_cost_label: Label = $VBoxContainer/FusionCostLabel
 @onready var target_mode_dropdown: OptionButton = $VBoxContainer/TargetModeDropdown
 @onready var button_row: HBoxContainer = $VBoxContainer/ButtonRow
 @onready var upgrade_button: Button = $VBoxContainer/ButtonRow/UpgradeButton
 @onready var sell_button: Button = $VBoxContainer/ButtonRow/SellButton
-@onready var ascend_cost_label: Label = $VBoxContainer/AscendCostLabel
 @onready var ascend_button: Button = $VBoxContainer/AscendButton
 @onready var fuse_button: Button = $VBoxContainer/FuseButton
 
 var _tower: Node = null
 var _last_screen_pos: Vector2 = Vector2.ZERO
 var _mobile_mode: bool = false
-var _panel_state: PanelState = PanelState.DISMISSED
-var _chevron_label: Label = null
-var _swipe_start_y: float = -1.0
-
-const SWIPE_THRESHOLD: float = 40.0
 
 const PANEL_MARGIN: float = 8.0   # Minimum distance from screen edge
 const TOWER_OFFSET: float = 40.0  # Offset from tower to avoid overlap
@@ -97,140 +76,11 @@ func _apply_mobile_sizing() -> void:
 	fuse_button.custom_minimum_size.y = min_h
 	target_mode_dropdown.custom_minimum_size.y = min_h
 	close_button.custom_minimum_size = UIManager.MOBILE_BUTTON_MIN
-	# Bump all label font sizes to mobile minimum
+	# Bump name label font size to mobile minimum
 	var body_size: int = UIManager.MOBILE_FONT_SIZE_BODY
-	for label: Label in _get_all_labels():
-		label.add_theme_font_size_override("font_size", body_size)
+	name_label.add_theme_font_size_override("font_size", body_size)
 	# Widen panel for larger text
 	custom_minimum_size.x = maxf(custom_minimum_size.x, 300.0)
-	# Create chevron label for collapsed/expanded indicator
-	if not _chevron_label:
-		_chevron_label = Label.new()
-		_chevron_label.name = "ChevronLabel"
-		_chevron_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		_chevron_label.text = ""
-		_chevron_label.visible = false
-		add_child(_chevron_label)
-	# Set initial state
-	_panel_state = PanelState.DISMISSED
-
-
-func _set_panel_state(new_state: PanelState) -> void:
-	if not _mobile_mode:
-		return
-	_panel_state = new_state
-	match new_state:
-		PanelState.DISMISSED:
-			visible = false
-			if _chevron_label:
-				_chevron_label.visible = false
-		PanelState.COLLAPSED:
-			visible = true
-			_apply_collapsed_layout()
-		PanelState.EXPANDED:
-			visible = true
-			_apply_expanded_layout()
-
-
-func _apply_collapsed_layout() -> void:
-	custom_minimum_size.y = float(UIManager.MOBILE_PANEL_COLLAPSED_HEIGHT)
-	# Hide stat labels and detail controls
-	tier_label.visible = false
-	element_label.visible = false
-	separator_top.visible = false
-	damage_label.visible = false
-	speed_label.visible = false
-	range_label.visible = false
-	special_label.visible = false
-	synergy_label.visible = false
-	separator_bottom.visible = false
-	upgrade_cost_label.visible = false
-	sell_value_label.visible = false
-	fusion_cost_label.visible = false
-	target_mode_dropdown.visible = false
-	ascend_cost_label.visible = false
-	ascend_button.visible = false
-	fuse_button.visible = false
-	# Show essential controls
-	name_label.visible = true
-	upgrade_button.visible = true
-	sell_button.visible = true
-	close_button.visible = true
-	button_row.visible = true
-	# Show upward chevron
-	if _chevron_label:
-		_chevron_label.text = "\u25b2"
-		_chevron_label.visible = true
-
-
-func _apply_expanded_layout() -> void:
-	var max_height: int = int(960 * UIManager.MOBILE_PANEL_MAX_HEIGHT_RATIO)
-	custom_minimum_size.y = float(max_height)
-	# Show all labels and controls
-	name_label.visible = true
-	tier_label.visible = true
-	element_label.visible = true
-	separator_top.visible = true
-	damage_label.visible = true
-	speed_label.visible = true
-	range_label.visible = true
-	special_label.visible = true
-	synergy_label.visible = true
-	separator_bottom.visible = true
-	upgrade_cost_label.visible = true
-	sell_value_label.visible = true
-	target_mode_dropdown.visible = true
-	upgrade_button.visible = true
-	sell_button.visible = true
-	close_button.visible = true
-	button_row.visible = true
-	# Show downward chevron
-	if _chevron_label:
-		_chevron_label.text = "\u25bc"
-		_chevron_label.visible = true
-
-
-func _gui_input(event: InputEvent) -> void:
-	if not _mobile_mode:
-		return
-	if event is InputEventScreenTouch:
-		var touch: InputEventScreenTouch = event as InputEventScreenTouch
-		if touch.pressed:
-			_swipe_start_y = touch.position.y
-		else:
-			if _swipe_start_y >= 0.0:
-				var delta_y: float = touch.position.y - _swipe_start_y
-				if absf(delta_y) >= SWIPE_THRESHOLD:
-					if delta_y < 0.0:
-						# Swipe up
-						if _panel_state == PanelState.COLLAPSED:
-							_set_panel_state(PanelState.EXPANDED)
-					else:
-						# Swipe down
-						if _panel_state == PanelState.EXPANDED:
-							_set_panel_state(PanelState.COLLAPSED)
-						elif _panel_state == PanelState.COLLAPSED:
-							_set_panel_state(PanelState.DISMISSED)
-					accept_event()
-				elif absf(delta_y) < 5.0 and _panel_state == PanelState.COLLAPSED:
-					# Tap (not drag) in collapsed state -- expand
-					_set_panel_state(PanelState.EXPANDED)
-					accept_event()
-			_swipe_start_y = -1.0
-	elif event is InputEventScreenDrag:
-		# Track drag for swipe detection (consumed to prevent camera pan)
-		if _panel_state != PanelState.DISMISSED:
-			accept_event()
-
-
-func _get_all_labels() -> Array[Label]:
-	return [
-		name_label, tier_label, element_label,
-		damage_label, speed_label, range_label,
-		special_label, synergy_label,
-		upgrade_cost_label, sell_value_label,
-		fusion_cost_label, ascend_cost_label,
-	]
 
 
 func _style_close_button() -> void:
@@ -260,11 +110,11 @@ func display_tower(tower: Node) -> void:
 	# Sync dropdown to tower's current target mode
 	if _tower:
 		target_mode_dropdown.selected = _tower.target_mode
-	# On mobile, dismiss build menu and enter collapsed state
+	# On mobile, dismiss build menu
 	if _mobile_mode:
 		if UIManager.build_menu and UIManager.build_menu.has_method("slide_out"):
 			UIManager.build_menu.slide_out()
-		_set_panel_state(PanelState.COLLAPSED)
+	visible = true
 	_refresh()
 	_reposition()
 
@@ -273,57 +123,19 @@ func _refresh() -> void:
 	if not _tower or not is_instance_valid(_tower):
 		return
 	var data: TowerData = _tower.tower_data
-	var next: TowerData = data.upgrade_to
 
 	# Tower name with element color
 	name_label.text = data.tower_name
 	var elem_color: Color = ELEMENT_COLORS.get(data.element, Color.WHITE)
 	name_label.add_theme_color_override("font_color", elem_color)
 
-	# Tier display
-	tier_label.text = _get_tier_text(data)
-	tier_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
-
-	# Element (show fusion elements for tier 2/3)
-	if data.fusion_elements.size() > 1:
-		var elems: PackedStringArray = PackedStringArray()
-		for elem: String in data.fusion_elements:
-			elems.append(elem.capitalize())
-		element_label.text = "Elements: %s" % " + ".join(elems)
-	else:
-		element_label.text = "Element: %s" % data.element.capitalize()
-	element_label.add_theme_color_override("font_color", elem_color.lightened(0.3))
-
-	# Combat stats with upgrade preview arrows
-	damage_label.text = _stat_text("Damage", data.damage, next.damage if next else -1)
-	speed_label.text = _stat_text_f("Speed", data.attack_speed, next.attack_speed if next else -1.0, "/s")
-	range_label.text = _stat_text("Range", data.range_cells, next.range_cells if next else -1, " cells")
-
-	# Special ability description
-	if data.special_description != "":
-		special_label.text = data.special_description
-		if next and next.special_description != "" and next.special_description != data.special_description:
-			special_label.text += "\n  -> %s" % next.special_description
-		special_label.visible = true
-	else:
-		special_label.visible = false
-
-	# Synergy info
-	_update_synergy_label(data)
-
-	# Upgrade cost line
-	_update_upgrade_cost_label(data)
-
-	# Sell value line
-	_update_sell_value_label(data)
-
-	# Upgrade button
+	# Upgrade button with cost in text
 	_update_upgrade_button(data)
 
-	# Sell button
-	_update_sell_button()
+	# Sell button with refund in text
+	_update_sell_button(data)
 
-	# Ascend button visibility
+	# Ascend button visibility and text
 	_update_ascend_button(data)
 
 	# Fuse button visibility and text
@@ -333,99 +145,20 @@ func _refresh() -> void:
 	_apply_panel_style(data.element)
 
 
-func _get_tier_text(data: TowerData) -> String:
-	match data.tier:
-		1:
-			if data.tower_name.ends_with(" Ascended"):
-				return "Ascended"
-			if data.upgrade_to == null:
-				return "Superior"
-			# Check if this tower's upgrade_to also has an upgrade_to (meaning this is base)
-			if data.upgrade_to and data.upgrade_to.upgrade_to != null:
-				return "Tier 1"
-			return "Enhanced"
-		2:
-			return "Fusion"
-		3:
-			return "Legendary"
-	return "Tier %d" % data.tier
-
-
-func _stat_text(label: String, current: int, next_val: int, suffix: String = "") -> String:
-	if next_val > 0 and next_val != current:
-		return "%s: %d  ->  %d%s" % [label, current, next_val, suffix]
-	return "%s: %d%s" % [label, current, suffix]
-
-
-func _stat_text_f(label: String, current: float, next_val: float, suffix: String = "") -> String:
-	if next_val > 0.0 and not is_equal_approx(next_val, current):
-		return "%s: %.1f  ->  %.1f%s" % [label, current, next_val, suffix]
-	return "%s: %.1f%s" % [label, current, suffix]
-
-
-func _update_synergy_label(data: TowerData) -> void:
-	if not _tower or not is_instance_valid(_tower):
-		synergy_label.visible = false
-		return
-	var best_tier: int = ElementSynergy.get_best_synergy_tier(_tower)
-	if best_tier <= 0:
-		synergy_label.visible = false
-		return
-	# Show synergy tier with bonus info
-	var bonus_mult: float = ElementSynergy.get_best_synergy_bonus(_tower)
-	var bonus_pct: int = int((bonus_mult - 1.0) * 100.0)
-	var elements: Array[String] = []
-	if data.fusion_elements.size() > 0:
-		elements = data.fusion_elements.duplicate()
-	else:
-		elements = [data.element]
-	# Find which element gives the best synergy
-	var best_elem: String = ""
-	for elem: String in elements:
-		if ElementSynergy.get_synergy_tier(elem) == best_tier:
-			best_elem = elem
-			break
-	var count: int = ElementSynergy.get_element_count(best_elem)
-	synergy_label.text = "Synergy: %s x%d (+%d%% dmg)" % [best_elem.capitalize(), count, bonus_pct]
-	var synergy_color: Color = ELEMENT_COLORS.get(best_elem, Color.WHITE).lightened(0.4)
-	synergy_label.add_theme_color_override("font_color", synergy_color)
-	synergy_label.visible = true
-
-
-func _update_upgrade_cost_label(data: TowerData) -> void:
-	if data.upgrade_to == null:
-		upgrade_cost_label.text = "Upgrade: Max"
-		upgrade_cost_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	else:
-		var cost: int = data.upgrade_to.cost - data.cost
-		if EconomyManager.can_afford(cost):
-			upgrade_cost_label.text = "Upgrade: %dg" % cost
-			upgrade_cost_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.2))
-		else:
-			upgrade_cost_label.text = "Upgrade: %dg (need %dg)" % [cost, cost - EconomyManager.gold]
-			upgrade_cost_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
-
-
-func _update_sell_value_label(data: TowerData) -> void:
-	var refund_pct: float = 0.75 if GameManager.game_state == GameManager.GameState.BUILD_PHASE else 0.50
-	var refund: int = int(data.cost * refund_pct)
-	var phase_text: String = "75%" if GameManager.game_state == GameManager.GameState.BUILD_PHASE else "50%"
-	sell_value_label.text = "Sell value: %dg (%s)" % [refund, phase_text]
-	sell_value_label.add_theme_color_override("font_color", Color(0.8, 0.8, 0.6))
-
-
 func _update_upgrade_button(data: TowerData) -> void:
 	if data.upgrade_to == null:
 		upgrade_button.text = "Max"
 		upgrade_button.disabled = true
 	else:
 		var cost: int = data.upgrade_to.cost - data.cost
-		upgrade_button.text = "Upgrade"
+		upgrade_button.text = "Upgrade (%dg)" % cost
 		upgrade_button.disabled = not EconomyManager.can_afford(cost)
 
 
-func _update_sell_button() -> void:
-	sell_button.text = "Sell"
+func _update_sell_button(data: TowerData) -> void:
+	var refund_pct: float = 0.75 if GameManager.game_state == GameManager.GameState.BUILD_PHASE else 0.50
+	var refund: int = int(data.cost * refund_pct)
+	sell_button.text = "Sell (%dg)" % refund
 
 
 func _update_fuse_button(data: TowerData) -> void:
@@ -460,96 +193,23 @@ func _update_fuse_button(data: TowerData) -> void:
 	else:
 		fuse_button.visible = false
 
-	_update_fusion_cost_label(data)
 
-
-func _update_ascend_button(_data: TowerData) -> void:
-	if not ascend_button or not ascend_cost_label:
+func _update_ascend_button(data: TowerData) -> void:
+	if not ascend_button:
 		return
 	if not _tower or not is_instance_valid(_tower):
 		ascend_button.visible = false
-		ascend_cost_label.visible = false
 		return
 	var can: bool = TowerSystem.can_ascend(_tower)
-	# Show the button for Superior towers of elements that have ascended paths,
-	# even if the player can't currently afford it or doesn't have enough towers
 	var is_superior: bool = TowerSystem._is_superior(_tower) and not TowerSystem._is_ascended(_tower)
-	var has_path: bool = _tower.tower_data.element in TowerSystem.ASCENDED_PATHS
+	var has_path: bool = data.element in TowerSystem.ASCENDED_PATHS
 	if is_superior and has_path:
 		ascend_button.visible = true
 		var cost: int = TowerSystem.ASCEND_COST
-		var count: int = TowerSystem._count_same_element_towers(_tower.tower_data.element)
-		var need_count: int = TowerSystem.ASCEND_MIN_SAME_ELEMENT
 		ascend_button.text = "Ascend (%dg)" % cost
 		ascend_button.disabled = not can
-		# Cost label with requirement info
-		if count < need_count:
-			ascend_cost_label.text = "Ascend: need %d/%d %s towers" % [count, need_count, _tower.tower_data.element.capitalize()]
-			ascend_cost_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
-		elif not EconomyManager.can_afford(cost):
-			ascend_cost_label.text = "Ascend: %dg (need %dg)" % [cost, cost - EconomyManager.gold]
-			ascend_cost_label.add_theme_color_override("font_color", Color(1.0, 0.4, 0.3))
-		else:
-			ascend_cost_label.text = "Ascend: %dg" % cost
-			ascend_cost_label.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
-		ascend_cost_label.visible = true
 	else:
 		ascend_button.visible = false
-		ascend_cost_label.visible = false
-
-
-func _update_fusion_cost_label(data: TowerData) -> void:
-	if not fuse_button.visible:
-		fusion_cost_label.visible = false
-		return
-
-	var costs: Array[int] = []
-	var can_dual: bool = data.tier == 1 and data.upgrade_to == null
-	var can_legendary: bool = data.tier == 2
-
-	if can_dual:
-		# Collect dual fusion costs
-		var partners: Array[Node] = FusionRegistry.get_fusion_partners(_tower)
-		for partner: Node in partners:
-			var cost: int = FusionRegistry.get_fusion_cost(data.element, partner.tower_data.element)
-			if cost > 0 and cost not in costs:
-				costs.append(cost)
-		# Also check legendary partners where this tower is the superior input
-		var leg_partners: Array[Node] = FusionRegistry.get_legendary_partners(_tower)
-		for partner: Node in leg_partners:
-			if partner.tower_data.tier == 2:
-				var cost: int = FusionRegistry.get_legendary_cost(partner.tower_data.fusion_elements, data.element)
-				if cost > 0 and cost not in costs:
-					costs.append(cost)
-	elif can_legendary:
-		# Collect legendary fusion costs
-		var partners: Array[Node] = FusionRegistry.get_legendary_partners(_tower)
-		for partner: Node in partners:
-			var cost: int = FusionRegistry.get_legendary_cost(data.fusion_elements, partner.tower_data.element)
-			if cost > 0 and cost not in costs:
-				costs.append(cost)
-
-	if costs.is_empty():
-		fusion_cost_label.visible = false
-		return
-
-	costs.sort()
-	var min_cost: int = costs[0]
-	var max_cost: int = costs[costs.size() - 1]
-
-	if min_cost == max_cost:
-		fusion_cost_label.text = "Fuse cost: %dg" % min_cost
-	else:
-		fusion_cost_label.text = "Fuse cost: %d-%dg" % [min_cost, max_cost]
-
-	var affordable_color: Color = Color(1.0, 0.85, 0.2)
-	var unaffordable_color: Color = Color(1.0, 0.4, 0.3)
-	if EconomyManager.can_afford(min_cost):
-		fusion_cost_label.add_theme_color_override("font_color", affordable_color)
-	else:
-		fusion_cost_label.add_theme_color_override("font_color", unaffordable_color)
-
-	fusion_cost_label.visible = true
 
 
 func _apply_panel_style(element: String) -> void:
@@ -683,15 +343,12 @@ func _on_tower_fused(tower: Node) -> void:
 
 func _on_gold_changed(_new_amount: int) -> void:
 	if visible and _tower and is_instance_valid(_tower):
-		_update_upgrade_cost_label(_tower.tower_data)
-		_update_upgrade_button(_tower.tower_data)
-		_update_ascend_button(_tower.tower_data)
-		_update_fuse_button(_tower.tower_data)
+		_refresh()
 
 
 func _on_phase_changed(_new_phase: GameManager.GameState) -> void:
 	if visible and _tower and is_instance_valid(_tower):
-		_update_sell_value_label(_tower.tower_data)
+		_refresh()
 
 
 func _on_fusion_failed(_tower_node: Node, _reason: String) -> void:

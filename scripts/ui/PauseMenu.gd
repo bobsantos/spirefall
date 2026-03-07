@@ -156,14 +156,55 @@ func _on_codex_closed() -> void:
 
 
 func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
 	# Handle Escape/ui_cancel while this overlay is visible and the tree is paused.
 	# Game.gd cannot receive input while paused (it has no PROCESS_MODE_WHEN_PAUSED),
 	# so PauseMenu owns the responsibility of closing itself via keyboard.
-	if visible and event.is_action_pressed("ui_cancel"):
+	if event.is_action_pressed("ui_cancel"):
 		_on_resume_pressed()
-		# get_viewport() is only safe when we are inside the scene tree.
 		if is_inside_tree():
 			get_viewport().set_input_as_handled()
+		return
+
+	# On mobile web, touch events bypass Godot's GUI hit-testing entirely
+	# (emulate_mouse_from_touch is unreliable in HTML5 exports).  Game.gd
+	# normally forwards touches to GUI buttons, but it uses the default
+	# process mode and stops receiving input while the tree is paused.
+	# PauseMenu must handle its own touch-to-button forwarding.
+	if event is InputEventScreenTouch and event.pressed:
+		var hit_btn: Button = _find_hit_button_in(panel_container, event.position)
+		if hit_btn:
+			hit_btn.pressed.emit()
+			if is_inside_tree():
+				get_viewport().set_input_as_handled()
+			return
+		# Tap on dimmer area (outside the panel) dismisses the pause menu
+		if _control_hit_test(self, event.position) and not _control_hit_test(panel_container, event.position):
+			_on_resume_pressed()
+			if is_inside_tree():
+				get_viewport().set_input_as_handled()
+
+
+## Recursively search for the first visible, enabled Button hit by screen_pos.
+func _find_hit_button_in(root: Control, screen_pos: Vector2) -> Button:
+	for child: Node in root.get_children():
+		if child is Button and child.visible and not (child as Button).disabled:
+			if _control_hit_test(child as Control, screen_pos):
+				return child as Button
+		elif child is Control and child.visible:
+			var found: Button = _find_hit_button_in(child as Control, screen_pos)
+			if found:
+				return found
+	return null
+
+
+## Return true if screen_pos falls within the control's visible rect.
+func _control_hit_test(ctrl: Control, screen_pos: Vector2) -> bool:
+	if not ctrl.is_inside_tree() or not ctrl.visible:
+		return false
+	var local_pos: Vector2 = ctrl.get_global_transform_with_canvas().affine_inverse() * screen_pos
+	return Rect2(Vector2.ZERO, ctrl.size).has_point(local_pos)
 
 
 func _on_quit_pressed() -> void:

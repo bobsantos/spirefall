@@ -204,20 +204,8 @@ func after() -> void:
 # SECTION 1: Mobile -- keyboard hints stripped from buttons
 # ==============================================================================
 
-# -- 1. CodexButton text does not contain "(C)" after mobile sizing ------------
-
-func test_mobile_codex_button_no_keyboard_hint() -> void:
-	_hud._apply_mobile_sizing()
-	assert_bool(_hud.codex_button.text.contains("(C)"))\
-		.override_failure_message("CodexButton should NOT contain '(C)' on mobile, got: '%s'" % _hud.codex_button.text)\
-		.is_false()
-
-
-# -- 2. CodexButton text is exactly "Codex" after mobile sizing ----------------
-
-func test_mobile_codex_button_text_is_codex() -> void:
-	_hud._apply_mobile_sizing()
-	assert_str(_hud.codex_button.text).is_equal("Codex")
+# -- 1-2. CodexButton is always hidden (accessible via PauseMenu → Codex) ------
+# No keyboard hint tests needed — button is hidden on all platforms.
 
 
 # -- 3. StartWaveButton text does not contain "(Space)" after mobile sizing ----
@@ -242,7 +230,6 @@ func test_mobile_no_button_has_parenthesized_key_hint() -> void:
 	_hud._apply_mobile_sizing()
 	var buttons: Array[Button] = [
 		_hud.speed_button,
-		_hud.codex_button,
 		_hud.pause_button,
 		_hud.start_wave_button,
 	]
@@ -259,11 +246,8 @@ func test_mobile_no_button_has_parenthesized_key_hint() -> void:
 # SECTION 2: Desktop -- keyboard hints preserved (no mobile sizing applied)
 # ==============================================================================
 
-# -- 6. CodexButton text still has "(C)" on desktop ---------------------------
-
-func test_desktop_codex_button_has_keyboard_hint() -> void:
-	# Do NOT call _apply_mobile_sizing
-	assert_str(_hud.codex_button.text).is_equal("Codex (C)")
+# -- 6. CodexButton always hidden (accessible via PauseMenu → Codex) ----------
+# No desktop keyboard hint test needed — button is hidden on all platforms.
 
 
 # -- 7. StartWaveButton text still has "(Space)" on desktop --------------------

@@ -1,9 +1,8 @@
 extends GdUnitTestSuite
 
-## Unit tests for Task B1: Minimal Status Bar with Overflow Menu.
-## Covers: XP/timer label hiding, codex/pause moved to overflow menu,
-## overflow button creation, menu toggle, dimmer, wave counter merging,
-## desktop regression.
+## Unit tests for HUD mobile pause button (formerly overflow menu).
+## Covers: XP/timer label hiding, codex/pause button hidden (moved to pause menu),
+## direct pause button creation, wave counter merging, desktop regression.
 
 const HUD_SCRIPT_PATH: String = "res://scripts/ui/HUD.gd"
 
@@ -239,168 +238,94 @@ func test_mobile_topbar_timer_label_hidden() -> void:
 		.is_false()
 
 
-# -- 3. CodexButton hidden on mobile (moved to overflow) ----------------------
+# -- 3. CodexButton hidden (accessible via PauseMenu → Codex) -----------------
 
 func test_mobile_codex_button_hidden() -> void:
+	_hud.codex_button.visible = false  # Simulates _ready() hiding it
 	_hud._apply_mobile_sizing()
 	assert_bool(_hud.codex_button.visible)\
-		.override_failure_message("CodexButton should be hidden on mobile (moved to overflow)")\
+		.override_failure_message("CodexButton should be hidden (accessible via PauseMenu)")\
 		.is_false()
 
 
-# -- 4. PauseButton hidden on mobile (moved to overflow) ----------------------
+# -- 4. PauseButton hidden on mobile (replaced by direct pause button) --------
 
 func test_mobile_pause_button_hidden() -> void:
 	_hud._apply_mobile_sizing()
 	assert_bool(_hud.pause_button.visible)\
-		.override_failure_message("PauseButton should be hidden on mobile (moved to overflow)")\
+		.override_failure_message("PauseButton should be hidden on mobile (replaced by direct pause button)")\
 		.is_false()
 
 
 # ==============================================================================
-# SECTION 2: Overflow button creation
+# SECTION 2: Direct pause button creation
 # ==============================================================================
 
-# -- 5. Overflow button exists after mobile sizing -----------------------------
+# -- 5. Pause button (overflow_button) exists after mobile sizing --------------
 
-func test_mobile_overflow_button_exists() -> void:
+func test_mobile_pause_button_exists() -> void:
 	_hud._apply_mobile_sizing()
 	assert_object(_hud._overflow_button)\
-		.override_failure_message("Overflow button should exist after mobile sizing")\
+		.override_failure_message("Pause button should exist after mobile sizing")\
 		.is_not_null()
 
 
-# -- 6. Overflow button is child of TopBar -------------------------------------
+# -- 6. Pause button is child of TopBar ---------------------------------------
 
-func test_mobile_overflow_button_in_topbar() -> void:
+func test_mobile_pause_button_in_topbar() -> void:
 	_hud._apply_mobile_sizing()
 	var top_bar: HBoxContainer = _hud.get_node("TopBar")
 	assert_bool(_hud._overflow_button.get_parent() == top_bar)\
-		.override_failure_message("Overflow button should be a child of TopBar")\
+		.override_failure_message("Pause button should be a child of TopBar")\
 		.is_true()
 
 
-# -- 7. Overflow button has hamburger text -------------------------------------
+# -- 7. Pause button shows pause text -----------------------------------------
 
-func test_mobile_overflow_button_text() -> void:
+func test_mobile_pause_button_text() -> void:
 	_hud._apply_mobile_sizing()
-	assert_str(_hud._overflow_button.text).is_equal("\u2261")
+	assert_str(_hud._overflow_button.text).is_equal("| |")
 
 
-# -- 8. Overflow button has correct minimum size ------------------------------
+# -- 8. Pause button has correct minimum size ---------------------------------
 
-func test_mobile_overflow_button_size() -> void:
+func test_mobile_pause_button_size() -> void:
 	_hud._apply_mobile_sizing()
 	assert_vector(_hud._overflow_button.custom_minimum_size)\
 		.is_equal(Vector2(48, 44))
 
 
-# ==============================================================================
-# SECTION 3: Overflow menu creation and behavior
-# ==============================================================================
+# -- 9. No overflow menu exists (replaced by direct pause button) -------------
 
-# -- 9. Overflow menu exists after mobile sizing -------------------------------
-
-func test_mobile_overflow_menu_exists() -> void:
+func test_mobile_no_overflow_menu() -> void:
 	_hud._apply_mobile_sizing()
 	assert_object(_hud._overflow_menu)\
-		.override_failure_message("Overflow menu should exist after mobile sizing")\
-		.is_not_null()
+		.override_failure_message("Overflow menu should be null (replaced by direct pause button)")\
+		.is_null()
 
 
-# -- 10. Overflow menu starts hidden -------------------------------------------
+# -- 10. No dimmer exists (replaced by direct pause button) -------------------
 
-func test_mobile_overflow_menu_starts_hidden() -> void:
-	_hud._apply_mobile_sizing()
-	assert_bool(_hud._overflow_menu.visible)\
-		.override_failure_message("Overflow menu should start hidden")\
-		.is_false()
-
-
-# -- 11. Toggling overflow shows the menu --------------------------------------
-
-func test_mobile_toggle_overflow_shows_menu() -> void:
-	_hud._apply_mobile_sizing()
-	_hud._toggle_overflow_menu()
-	assert_bool(_hud._overflow_menu.visible)\
-		.override_failure_message("Overflow menu should be visible after toggle")\
-		.is_true()
-
-
-# -- 12. Toggling overflow again hides the menu --------------------------------
-
-func test_mobile_toggle_overflow_hides_menu() -> void:
-	_hud._apply_mobile_sizing()
-	_hud._toggle_overflow_menu()
-	_hud._toggle_overflow_menu()
-	assert_bool(_hud._overflow_menu.visible)\
-		.override_failure_message("Overflow menu should be hidden after second toggle")\
-		.is_false()
-
-
-# -- 13. Overflow menu has Codex button inside ---------------------------------
-
-func test_mobile_overflow_has_codex_button() -> void:
-	_hud._apply_mobile_sizing()
-	var vbox: VBoxContainer = _hud._overflow_menu.get_child(0)
-	var found := false
-	for child: Node in vbox.get_children():
-		if child is Button and child.text == "Codex":
-			found = true
-			break
-	assert_bool(found)\
-		.override_failure_message("Overflow menu should contain a Codex button")\
-		.is_true()
-
-
-# -- 14. Overflow menu has Pause button inside ---------------------------------
-
-func test_mobile_overflow_has_pause_button() -> void:
-	_hud._apply_mobile_sizing()
-	var vbox: VBoxContainer = _hud._overflow_menu.get_child(0)
-	var found := false
-	for child: Node in vbox.get_children():
-		if child is Button and child.text == "Pause":
-			found = true
-			break
-	assert_bool(found)\
-		.override_failure_message("Overflow menu should contain a Pause button")\
-		.is_true()
-
-
-# -- 15. Overflow menu process_mode is WHEN_PAUSED -----------------------------
-
-func test_mobile_overflow_menu_process_mode() -> void:
-	_hud._apply_mobile_sizing()
-	assert_int(_hud._overflow_menu.process_mode)\
-		.is_equal(Node.PROCESS_MODE_WHEN_PAUSED)
-
-
-# -- 16. Dimmer exists and starts hidden ---------------------------------------
-
-func test_mobile_dimmer_exists_and_hidden() -> void:
+func test_mobile_no_dimmer() -> void:
 	_hud._apply_mobile_sizing()
 	assert_object(_hud._overflow_dimmer)\
-		.override_failure_message("Overflow dimmer should exist after mobile sizing")\
-		.is_not_null()
-	assert_bool(_hud._overflow_dimmer.visible)\
-		.override_failure_message("Overflow dimmer should start hidden")\
-		.is_false()
+		.override_failure_message("Overflow dimmer should be null (replaced by direct pause button)")\
+		.is_null()
 
 
-# -- 17. Dimmer process_mode is WHEN_PAUSED ------------------------------------
+# -- 11. get_overflow_button returns the pause button -------------------------
 
-func test_mobile_dimmer_process_mode() -> void:
+func test_mobile_get_overflow_button_returns_pause_btn() -> void:
 	_hud._apply_mobile_sizing()
-	assert_int(_hud._overflow_dimmer.process_mode)\
-		.is_equal(Node.PROCESS_MODE_WHEN_PAUSED)
+	assert_object(_hud.get_overflow_button())\
+		.is_same(_hud._overflow_button)
 
 
 # ==============================================================================
-# SECTION 4: Speed button stays in TopBar
+# SECTION 3: Speed button stays in TopBar
 # ==============================================================================
 
-# -- 18. Speed button still in TopBar on mobile --------------------------------
+# -- 12. Speed button still in TopBar on mobile --------------------------------
 
 func test_mobile_speed_button_in_topbar() -> void:
 	_hud._apply_mobile_sizing()
@@ -413,7 +338,7 @@ func test_mobile_speed_button_in_topbar() -> void:
 		.is_true()
 
 
-# -- 19. Speed button sized for 48px bar on mobile ----------------------------
+# -- 13. Speed button sized for 48px bar on mobile ----------------------------
 
 func test_mobile_speed_button_size() -> void:
 	_hud._apply_mobile_sizing()
@@ -422,27 +347,27 @@ func test_mobile_speed_button_size() -> void:
 
 
 # ==============================================================================
-# SECTION 5: Desktop regression -- no overflow, all labels visible
+# SECTION 4: Desktop regression -- no overflow, all labels visible
 # ==============================================================================
 
-# -- 20. Desktop: XP label visible (no mobile sizing applied) ------------------
+# -- 14. Desktop: XP label visible (no mobile sizing applied) ------------------
 
 func test_desktop_xp_label_visible() -> void:
-	# Do NOT call _apply_mobile_sizing
 	assert_bool(_hud.xp_label.visible)\
 		.override_failure_message("XP label should be visible on desktop")\
 		.is_true()
 
 
-# -- 21. Desktop: codex button visible ----------------------------------------
+# -- 15. Codex button hidden on all platforms (accessible via PauseMenu) ------
 
 func test_desktop_codex_visible() -> void:
+	_hud.codex_button.visible = false  # Simulates _ready() hiding it
 	assert_bool(_hud.codex_button.visible)\
-		.override_failure_message("Codex button should be visible on desktop")\
-		.is_true()
+		.override_failure_message("Codex button should be hidden (accessible via PauseMenu)")\
+		.is_false()
 
 
-# -- 22. Desktop: pause button visible ----------------------------------------
+# -- 16. Desktop: pause button visible ----------------------------------------
 
 func test_desktop_pause_visible() -> void:
 	assert_bool(_hud.pause_button.visible)\
@@ -450,7 +375,7 @@ func test_desktop_pause_visible() -> void:
 		.is_true()
 
 
-# -- 23. Desktop: no overflow button exists ------------------------------------
+# -- 17. Desktop: no overflow button exists ------------------------------------
 
 func test_desktop_no_overflow_button() -> void:
 	assert_object(_hud._overflow_button)\
@@ -458,59 +383,9 @@ func test_desktop_no_overflow_button() -> void:
 		.is_null()
 
 
-# -- 24. Desktop: topbar timer label visible -----------------------------------
+# -- 18. Desktop: topbar timer label visible -----------------------------------
 
 func test_desktop_topbar_timer_visible() -> void:
 	assert_bool(_hud.topbar_timer_label.visible)\
 		.override_failure_message("TopBarTimerLabel should be visible on desktop (initially)")\
 		.is_true()
-
-
-# ==============================================================================
-# SECTION 6: Dismiss behavior
-# ==============================================================================
-
-# -- 25. Dismiss hides both menu and dimmer ------------------------------------
-
-func test_mobile_dismiss_hides_menu_and_dimmer() -> void:
-	_hud._apply_mobile_sizing()
-	_hud._toggle_overflow_menu()
-	assert_bool(_hud._overflow_menu.visible).is_true()
-	_hud._dismiss_overflow_menu()
-	assert_bool(_hud._overflow_menu.visible)\
-		.override_failure_message("Menu should be hidden after dismiss")\
-		.is_false()
-	assert_bool(_hud._overflow_dimmer.visible)\
-		.override_failure_message("Dimmer should be hidden after dismiss")\
-		.is_false()
-
-
-# -- 26. Toggle shows dimmer alongside menu ------------------------------------
-
-func test_mobile_toggle_shows_dimmer() -> void:
-	_hud._apply_mobile_sizing()
-	_hud._toggle_overflow_menu()
-	assert_bool(_hud._overflow_dimmer.visible)\
-		.override_failure_message("Dimmer should be visible when menu is open")\
-		.is_true()
-
-
-# -- 27. Overflow menu is child of HUD root (not TopBar) ----------------------
-
-func test_mobile_overflow_menu_parent_is_hud() -> void:
-	_hud._apply_mobile_sizing()
-	assert_bool(_hud._overflow_menu.get_parent() == _hud)\
-		.override_failure_message("Overflow menu should be a child of HUD root, not TopBar")\
-		.is_true()
-
-
-# -- 28. Overflow menu buttons have correct minimum size ----------------------
-
-func test_mobile_overflow_menu_button_sizes() -> void:
-	_hud._apply_mobile_sizing()
-	var vbox: VBoxContainer = _hud._overflow_menu.get_child(0)
-	for child: Node in vbox.get_children():
-		if child is Button:
-			assert_vector(child.custom_minimum_size)\
-				.override_failure_message("Overflow menu button '%s' should be 200x48" % child.text)\
-				.is_equal(Vector2(200, 48))

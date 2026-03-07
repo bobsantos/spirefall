@@ -1,8 +1,9 @@
 extends GdUnitTestSuite
 
-## Unit tests for Task B3: TowerInfoPanel two-tier bottom sheet.
-## Covers: PanelState enum, state machine transitions, collapsed/expanded layouts,
-## swipe gesture input, mutual exclusion with BuildMenu, desktop unaffected.
+## Unit tests for TowerInfoPanel action-only behavior.
+## Covers: display_tower shows panel, mobile build menu dismissal,
+## upgrade button text with cost, sell button text with refund,
+## desktop mode unaffected.
 
 const PANEL_SCRIPT_PATH: String = "res://scripts/ui/TowerInfoPanel.gd"
 
@@ -90,65 +91,6 @@ func _build_panel() -> PanelContainer:
 	close_button.text = "X"
 	header_row.add_child(close_button)
 
-	var tier_label := Label.new()
-	tier_label.name = "TierLabel"
-	tier_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(tier_label)
-
-	var element_label := Label.new()
-	element_label.name = "ElementLabel"
-	element_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(element_label)
-
-	var sep_top := HSeparator.new()
-	sep_top.name = "SeparatorTop"
-	vbox.add_child(sep_top)
-
-	var damage_label := Label.new()
-	damage_label.name = "DamageLabel"
-	damage_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(damage_label)
-
-	var speed_label := Label.new()
-	speed_label.name = "SpeedLabel"
-	speed_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(speed_label)
-
-	var range_label := Label.new()
-	range_label.name = "RangeLabel"
-	range_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(range_label)
-
-	var special_label := Label.new()
-	special_label.name = "SpecialLabel"
-	special_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(special_label)
-
-	var synergy_label := Label.new()
-	synergy_label.name = "SynergyLabel"
-	synergy_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(synergy_label)
-
-	var sep_bottom := HSeparator.new()
-	sep_bottom.name = "SeparatorBottom"
-	vbox.add_child(sep_bottom)
-
-	var upgrade_cost_label := Label.new()
-	upgrade_cost_label.name = "UpgradeCostLabel"
-	upgrade_cost_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(upgrade_cost_label)
-
-	var sell_value_label := Label.new()
-	sell_value_label.name = "SellValueLabel"
-	sell_value_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(sell_value_label)
-
-	var fusion_cost_label := Label.new()
-	fusion_cost_label.name = "FusionCostLabel"
-	fusion_cost_label.add_theme_font_size_override("font_size", 11)
-	fusion_cost_label.visible = false
-	vbox.add_child(fusion_cost_label)
-
 	var target_mode_dropdown := OptionButton.new()
 	target_mode_dropdown.name = "TargetModeDropdown"
 	vbox.add_child(target_mode_dropdown)
@@ -164,12 +106,6 @@ func _build_panel() -> PanelContainer:
 	var sell_button := Button.new()
 	sell_button.name = "SellButton"
 	button_row.add_child(sell_button)
-
-	var ascend_cost_label := Label.new()
-	ascend_cost_label.name = "AscendCostLabel"
-	ascend_cost_label.add_theme_font_size_override("font_size", 11)
-	ascend_cost_label.visible = false
-	vbox.add_child(ascend_cost_label)
 
 	var ascend_button := Button.new()
 	ascend_button.name = "AscendButton"
@@ -191,23 +127,10 @@ func _apply_script(panel: PanelContainer) -> void:
 	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
 	panel.name_label = header_row.get_node("NameLabel")
 	panel.close_button = header_row.get_node("CloseButton")
-	panel.tier_label = vbox.get_node("TierLabel")
-	panel.element_label = vbox.get_node("ElementLabel")
-	panel.separator_top = vbox.get_node("SeparatorTop")
-	panel.damage_label = vbox.get_node("DamageLabel")
-	panel.speed_label = vbox.get_node("SpeedLabel")
-	panel.range_label = vbox.get_node("RangeLabel")
-	panel.special_label = vbox.get_node("SpecialLabel")
-	panel.synergy_label = vbox.get_node("SynergyLabel")
-	panel.separator_bottom = vbox.get_node("SeparatorBottom")
-	panel.upgrade_cost_label = vbox.get_node("UpgradeCostLabel")
-	panel.sell_value_label = vbox.get_node("SellValueLabel")
-	panel.fusion_cost_label = vbox.get_node("FusionCostLabel")
 	panel.target_mode_dropdown = vbox.get_node("TargetModeDropdown")
 	panel.button_row = vbox.get_node("ButtonRow")
 	panel.upgrade_button = vbox.get_node("ButtonRow/UpgradeButton")
 	panel.sell_button = vbox.get_node("ButtonRow/SellButton")
-	panel.ascend_cost_label = vbox.get_node("AscendCostLabel")
 	panel.ascend_button = vbox.get_node("AscendButton")
 	panel.fuse_button = vbox.get_node("FuseButton")
 	panel.close_button.pressed.connect(panel._on_close_pressed)
@@ -265,173 +188,69 @@ func after() -> void:
 
 
 # ==============================================================================
-# SECTION 1: PanelState enum and default state
+# SECTION 1: display_tower shows panel
 # ==============================================================================
 
-func test_panel_state_is_dismissed_by_default() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	assert_int(_panel._panel_state).is_equal(_panel.PanelState.DISMISSED)
-
-
-func test_panel_state_enum_has_dismissed_collapsed_expanded() -> void:
-	# Verify all three enum values exist
-	assert_int(_panel.PanelState.DISMISSED).is_equal(0)
-	assert_int(_panel.PanelState.COLLAPSED).is_equal(1)
-	assert_int(_panel.PanelState.EXPANDED).is_equal(2)
-
-
-# ==============================================================================
-# SECTION 2: _set_panel_state method exists
-# ==============================================================================
-
-func test_set_panel_state_method_exists() -> void:
-	assert_bool(_panel.has_method("_set_panel_state")).is_true()
-
-
-# ==============================================================================
-# SECTION 3: Mobile mode flag
-# ==============================================================================
-
-func test_mobile_mode_true_after_mobile_sizing() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	assert_bool(_panel._mobile_mode).is_true()
-
-
-# ==============================================================================
-# SECTION 4: COLLAPSED state shows panel
-# ==============================================================================
-
-func test_collapsed_state_shows_panel() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
+func test_display_tower_makes_panel_visible() -> void:
 	_panel.visible = false
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
+	var data: TowerData = _make_tower_data()
+	var tower: Node2D = auto_free(_make_tower_stub(data))
+	_panel.display_tower(tower)
 	assert_bool(_panel.visible).is_true()
 
 
-func test_collapsed_state_panel_height_is_160() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	# Panel custom_minimum_size.y should be the collapsed height
-	assert_int(int(_panel.custom_minimum_size.y)).is_equal(UIManager.MOBILE_PANEL_COLLAPSED_HEIGHT)
+func test_display_tower_sets_name_label() -> void:
+	var data: TowerData = _make_tower_data("Flame Tower", "fire")
+	var tower: Node2D = auto_free(_make_tower_stub(data))
+	_panel.display_tower(tower)
+	assert_str(_panel.name_label.text).is_equal("Flame Tower")
 
 
 # ==============================================================================
-# SECTION 5: COLLAPSED state hides stat labels
+# SECTION 2: Upgrade button text includes cost
 # ==============================================================================
 
-func test_collapsed_state_hides_damage_label() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.damage_label.visible).is_false()
+func test_upgrade_button_shows_cost_when_upgradeable() -> void:
+	var next_data: TowerData = _make_tower_data("Enhanced", "fire", 60, 1)
+	var data: TowerData = _make_tower_data("Base", "fire", 30, 1, next_data)
+	var tower: Node2D = auto_free(_make_tower_stub(data))
+	_panel.display_tower(tower)
+	# Cost = 60 - 30 = 30
+	assert_str(_panel.upgrade_button.text).is_equal("Upgrade (30g)")
 
 
-func test_collapsed_state_hides_speed_label() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.speed_label.visible).is_false()
-
-
-func test_collapsed_state_hides_range_label() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.range_label.visible).is_false()
+func test_upgrade_button_shows_max_when_no_upgrade() -> void:
+	var data: TowerData = _make_tower_data("Superior", "fire", 60, 1)
+	var tower: Node2D = auto_free(_make_tower_stub(data))
+	_panel.display_tower(tower)
+	assert_str(_panel.upgrade_button.text).is_equal("Max")
+	assert_bool(_panel.upgrade_button.disabled).is_true()
 
 
 # ==============================================================================
-# SECTION 6: COLLAPSED state shows essential controls
+# SECTION 3: Sell button text includes refund
 # ==============================================================================
 
-func test_collapsed_state_shows_name_label() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.name_label.visible).is_true()
+func test_sell_button_shows_refund_build_phase() -> void:
+	GameManager.game_state = GameManager.GameState.BUILD_PHASE
+	var data: TowerData = _make_tower_data("Tower", "fire", 40, 1)
+	var tower: Node2D = auto_free(_make_tower_stub(data))
+	_panel.display_tower(tower)
+	# Refund = int(40 * 0.75) = 30
+	assert_str(_panel.sell_button.text).is_equal("Sell (30g)")
 
 
-func test_collapsed_state_shows_upgrade_button() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.upgrade_button.visible).is_true()
-
-
-func test_collapsed_state_shows_sell_button() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.sell_button.visible).is_true()
-
-
-func test_collapsed_state_shows_close_button() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.close_button.visible).is_true()
+func test_sell_button_shows_refund_combat_phase() -> void:
+	GameManager.game_state = GameManager.GameState.COMBAT_PHASE
+	var data: TowerData = _make_tower_data("Tower", "fire", 40, 1)
+	var tower: Node2D = auto_free(_make_tower_stub(data))
+	_panel.display_tower(tower)
+	# Refund = int(40 * 0.50) = 20
+	assert_str(_panel.sell_button.text).is_equal("Sell (20g)")
 
 
 # ==============================================================================
-# SECTION 7: EXPANDED state shows stat labels
-# ==============================================================================
-
-func test_expanded_state_shows_damage_label() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.EXPANDED)
-	assert_bool(_panel.damage_label.visible).is_true()
-
-
-func test_expanded_state_shows_speed_label() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.EXPANDED)
-	assert_bool(_panel.speed_label.visible).is_true()
-
-
-func test_expanded_state_shows_range_label() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.EXPANDED)
-	assert_bool(_panel.range_label.visible).is_true()
-
-
-func test_expanded_state_max_height_within_limit() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.EXPANDED)
-	var max_height: int = int(960 * UIManager.MOBILE_PANEL_MAX_HEIGHT_RATIO)
-	assert_bool(int(_panel.custom_minimum_size.y) <= max_height).is_true()
-
-
-# ==============================================================================
-# SECTION 8: DISMISSED state hides panel
-# ==============================================================================
-
-func test_dismissed_state_hides_panel() -> void:
-	_panel._mobile_mode = true
-	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	assert_bool(_panel.visible).is_true()
-	_panel._set_panel_state(_panel.PanelState.DISMISSED)
-	assert_bool(_panel.visible).is_false()
-
-
-# ==============================================================================
-# SECTION 9: _gui_input method exists (for swipe detection)
-# ==============================================================================
-
-func test_gui_input_method_exists() -> void:
-	assert_bool(_panel.has_method("_gui_input")).is_true()
-
-
-# ==============================================================================
-# SECTION 10: BuildMenu mutual exclusion
+# SECTION 4: BuildMenu mutual exclusion on mobile
 # ==============================================================================
 
 func test_display_tower_calls_slide_out_on_build_menu() -> void:
@@ -462,26 +281,16 @@ func slide_out() -> void:
 
 
 # ==============================================================================
-# SECTION 11: Desktop mode unaffected
+# SECTION 5: Desktop mode unaffected
 # ==============================================================================
 
-func test_desktop_mode_does_not_use_panel_state() -> void:
-	# Desktop mode: _mobile_mode is false by default, _panel_state should stay DISMISSED
-	# and not affect normal panel behavior
+func test_desktop_mode_panel_stays_visible() -> void:
 	_panel._mobile_mode = false
 	_panel.visible = true
-	# Panel should remain visible -- desktop doesn't use state machine for visibility
 	assert_bool(_panel.visible).is_true()
 
 
-# ==============================================================================
-# SECTION 12: Chevron indicator in collapsed state
-# ==============================================================================
-
-func test_chevron_indicator_exists_in_collapsed_state() -> void:
+func test_mobile_mode_flag() -> void:
 	_panel._mobile_mode = true
 	_panel._apply_mobile_sizing()
-	_panel._set_panel_state(_panel.PanelState.COLLAPSED)
-	# Should have a chevron label somewhere in the panel
-	assert_bool(_panel._chevron_label != null).is_true()
-	assert_str(_panel._chevron_label.text).contains("▲")
+	assert_bool(_panel._mobile_mode).is_true()

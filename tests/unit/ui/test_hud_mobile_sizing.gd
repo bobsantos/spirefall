@@ -308,12 +308,13 @@ func test_mobile_speed_button_size() -> void:
 		.is_equal(Vector2(80, 44))
 
 
-# -- 9. CodexButton hidden on mobile (moved to overflow menu in B1) -----------
+# -- 9. CodexButton hidden (accessible via PauseMenu → Codex) -----------------
 
 func test_mobile_codex_button_size() -> void:
+	_hud.codex_button.visible = false  # Simulates _ready() hiding it
 	_hud._apply_mobile_sizing()
 	assert_bool(_hud.codex_button.visible)\
-		.override_failure_message("CodexButton should be hidden on mobile (moved to overflow)")\
+		.override_failure_message("CodexButton should be hidden (accessible via PauseMenu)")\
 		.is_false()
 
 

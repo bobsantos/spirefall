@@ -39,11 +39,20 @@ const MOBILE_PANEL_COLLAPSED_HEIGHT: int = 160
 const MOBILE_OVERFLOW_BUTTON_SIZE: Vector2 = Vector2(96, 48)
 
 var selected_tower: Node = null
+var _emulate_mouse_set: bool = false
 var hud: Control = null
 var build_menu: Control = null
 var tower_info_panel: Control = null
 var wave_preview_panel: Control = null
 var codex_panel: Control = null
+
+
+func _ready() -> void:
+	# Ensure touch events generate mouse events so GUI Controls (Buttons) work on mobile.
+	# This is critical for mobile web where the project setting may not take effect.
+	if not _emulate_mouse_set:
+		Input.emulate_mouse_from_touch = true
+		_emulate_mouse_set = true
 
 
 func register_hud(hud_node: Control) -> void:

@@ -307,15 +307,28 @@ func _create_cancel_button() -> void:
 
 func _apply_mobile_sizing() -> void:
 	## Increase all build menu element sizes for mobile touch targets.
+	# Hide immediately to prevent desktop layout flash on first frame
+	visible = false
+
 	# Panel height
 	custom_minimum_size.y = UIManager.MOBILE_BUILD_MENU_HEIGHT
-	offset_top = -float(UIManager.MOBILE_BUILD_MENU_HEIGHT)
 
 	# Enable bottom sheet mode
 	_sheet_mode = true
-	anchors_preset = 0  # Use absolute positioning for slide animation
+	# Reset anchors to top-left (full width) so position.y works as absolute
+	# coordinates for the slide tween. Setting anchors_preset = 0 only changes
+	# the preset enum without resetting the individual anchor values, so the
+	# scene-default PRESET_BOTTOM_WIDE anchors (top=1, bottom=1) would persist
+	# and cause anchor-based layout to override position.y assignments/tweens.
+	anchor_left = 0.0
+	anchor_top = 0.0
+	anchor_right = 1.0  # Keep full width
+	anchor_bottom = 0.0
+	# Set size first, then position (position setter preserves size)
+	size.y = float(UIManager.MOBILE_BUILD_MENU_HEIGHT)
 	position.y = 960.0  # Start below viewport bottom
 	_is_sheet_visible = false
+	visible = false  # Hidden until slide_in() is called
 
 	# Add drag handle at the top of the panel
 	var drag_handle := ColorRect.new()

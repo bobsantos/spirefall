@@ -135,22 +135,24 @@ func test_on_build_requested_checks_is_mobile() -> void:
 		.is_true()
 
 
-func test_on_build_requested_references_mobile_placement_zoom() -> void:
+func test_on_build_requested_does_not_auto_zoom_on_mobile() -> void:
+	## Mobile should NOT auto-zoom when entering placement mode.
+	## The MOBILE_PLACEMENT_ZOOM constant should NOT appear in _on_build_requested.
 	var src: String = load(GAME_SCRIPT_PATH).source_code
 	var idx: int = src.find("func _on_build_requested")
 	var body: String = src.substr(idx, 600)
 	assert_bool(body.contains("MOBILE_PLACEMENT_ZOOM")) \
-		.override_failure_message("_on_build_requested should reference MOBILE_PLACEMENT_ZOOM") \
-		.is_true()
+		.override_failure_message("_on_build_requested should NOT reference MOBILE_PLACEMENT_ZOOM (auto-zoom disabled)") \
+		.is_false()
 
 
-func test_on_build_requested_sets_ghost_scale_1_on_mobile() -> void:
-	## On mobile, ghost scale should be set to 1.0 (not 1.5) during auto-zoom.
+func test_on_build_requested_sets_auto_zoom_false_on_mobile() -> void:
+	## On mobile, _on_build_requested should explicitly set _auto_zoom_active = false.
 	var src: String = load(GAME_SCRIPT_PATH).source_code
 	var idx: int = src.find("func _on_build_requested")
-	var body: String = src.substr(idx, 1000)
-	assert_bool(body.contains("Vector2(1.0, 1.0)")) \
-		.override_failure_message("_on_build_requested should set ghost scale to Vector2(1.0, 1.0) on mobile") \
+	var body: String = src.substr(idx, 600)
+	assert_bool(body.contains("_auto_zoom_active = false")) \
+		.override_failure_message("_on_build_requested should set _auto_zoom_active = false on mobile") \
 		.is_true()
 
 

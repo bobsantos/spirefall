@@ -1,6 +1,6 @@
 extends GdUnitTestSuite
 
-## Unit tests for Task B1: TowerInfoPanel close button and mobile bottom-docking.
+## Unit tests for TowerInfoPanel close button and mobile bottom-docking.
 ## Covers: close button existence, press calls deselect_tower, mobile min size,
 ## mobile bottom-dock positioning, close button styling distinct from action buttons.
 
@@ -68,14 +68,12 @@ func _make_tower_stub(data: TowerData, pos: Vector2 = Vector2.ZERO) -> Node2D:
 
 
 ## Build the TowerInfoPanel node tree manually (matching the .tscn structure).
-## Includes the new HeaderRow with NameLabel and CloseButton.
 func _build_panel() -> PanelContainer:
 	var root := PanelContainer.new()
 	var vbox := VBoxContainer.new()
 	vbox.name = "VBoxContainer"
 	root.add_child(vbox)
 
-	# Header row: name label + close button
 	var header_row := HBoxContainer.new()
 	header_row.name = "HeaderRow"
 	vbox.add_child(header_row)
@@ -89,55 +87,6 @@ func _build_panel() -> PanelContainer:
 	close_button.name = "CloseButton"
 	close_button.text = "X"
 	header_row.add_child(close_button)
-
-	var tier_label := Label.new()
-	tier_label.name = "TierLabel"
-	vbox.add_child(tier_label)
-
-	var element_label := Label.new()
-	element_label.name = "ElementLabel"
-	vbox.add_child(element_label)
-
-	var sep_top := HSeparator.new()
-	sep_top.name = "SeparatorTop"
-	vbox.add_child(sep_top)
-
-	var damage_label := Label.new()
-	damage_label.name = "DamageLabel"
-	vbox.add_child(damage_label)
-
-	var speed_label := Label.new()
-	speed_label.name = "SpeedLabel"
-	vbox.add_child(speed_label)
-
-	var range_label := Label.new()
-	range_label.name = "RangeLabel"
-	vbox.add_child(range_label)
-
-	var special_label := Label.new()
-	special_label.name = "SpecialLabel"
-	vbox.add_child(special_label)
-
-	var synergy_label := Label.new()
-	synergy_label.name = "SynergyLabel"
-	vbox.add_child(synergy_label)
-
-	var sep_bottom := HSeparator.new()
-	sep_bottom.name = "SeparatorBottom"
-	vbox.add_child(sep_bottom)
-
-	var upgrade_cost_label := Label.new()
-	upgrade_cost_label.name = "UpgradeCostLabel"
-	vbox.add_child(upgrade_cost_label)
-
-	var sell_value_label := Label.new()
-	sell_value_label.name = "SellValueLabel"
-	vbox.add_child(sell_value_label)
-
-	var fusion_cost_label := Label.new()
-	fusion_cost_label.name = "FusionCostLabel"
-	fusion_cost_label.visible = false
-	vbox.add_child(fusion_cost_label)
 
 	var target_mode_dropdown := OptionButton.new()
 	target_mode_dropdown.name = "TargetModeDropdown"
@@ -155,11 +104,6 @@ func _build_panel() -> PanelContainer:
 	sell_button.name = "SellButton"
 	button_row.add_child(sell_button)
 
-	var ascend_cost_label := Label.new()
-	ascend_cost_label.name = "AscendCostLabel"
-	ascend_cost_label.visible = false
-	vbox.add_child(ascend_cost_label)
-
 	var ascend_button := Button.new()
 	ascend_button.name = "AscendButton"
 	ascend_button.visible = false
@@ -176,33 +120,17 @@ func _build_panel() -> PanelContainer:
 func _apply_script(panel: PanelContainer) -> void:
 	var script: GDScript = load(PANEL_SCRIPT_PATH)
 	panel.set_script(script)
-	# Wire @onready refs manually since node is not in the scene tree
 	var vbox: VBoxContainer = panel.get_node("VBoxContainer")
 	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
 	panel.name_label = header_row.get_node("NameLabel")
 	panel.close_button = header_row.get_node("CloseButton")
-	panel.tier_label = vbox.get_node("TierLabel")
-	panel.element_label = vbox.get_node("ElementLabel")
-	panel.separator_top = vbox.get_node("SeparatorTop")
-	panel.damage_label = vbox.get_node("DamageLabel")
-	panel.speed_label = vbox.get_node("SpeedLabel")
-	panel.range_label = vbox.get_node("RangeLabel")
-	panel.special_label = vbox.get_node("SpecialLabel")
-	panel.synergy_label = vbox.get_node("SynergyLabel")
-	panel.separator_bottom = vbox.get_node("SeparatorBottom")
-	panel.upgrade_cost_label = vbox.get_node("UpgradeCostLabel")
-	panel.sell_value_label = vbox.get_node("SellValueLabel")
-	panel.fusion_cost_label = vbox.get_node("FusionCostLabel")
 	panel.target_mode_dropdown = vbox.get_node("TargetModeDropdown")
 	panel.button_row = vbox.get_node("ButtonRow")
 	panel.upgrade_button = vbox.get_node("ButtonRow/UpgradeButton")
 	panel.sell_button = vbox.get_node("ButtonRow/SellButton")
-	panel.ascend_cost_label = vbox.get_node("AscendCostLabel")
 	panel.ascend_button = vbox.get_node("AscendButton")
 	panel.fuse_button = vbox.get_node("FuseButton")
-	# Manually connect close button since _ready() won't fire outside the tree
 	panel.close_button.pressed.connect(panel._on_close_pressed)
-	# Apply close button styling (normally done in _ready)
 	panel._style_close_button()
 
 
@@ -220,12 +148,10 @@ func before_test() -> void:
 	GameManager.game_state = GameManager.GameState.BUILD_PHASE
 	GameManager._game_running = false
 	EconomyManager.gold = 500
-	# Clear active towers
 	for tower: Node in TowerSystem._active_towers:
 		if is_instance_valid(tower) and not tower.is_queued_for_deletion():
 			tower.free()
 	TowerSystem._active_towers.clear()
-	# Build panel
 	_panel = auto_free(_build_panel())
 	_apply_script(_panel)
 	_panel.visible = true
@@ -273,7 +199,6 @@ func test_name_label_is_in_header_row() -> void:
 	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
 	var name_label: Label = header_row.get_node("NameLabel")
 	assert_that(name_label).is_not_null()
-	# Name label should expand to fill available space
 	assert_bool(name_label.size_flags_horizontal & Control.SIZE_EXPAND_FILL != 0).is_true()
 
 
@@ -288,14 +213,11 @@ func test_close_button_has_text_x() -> void:
 func test_close_button_press_calls_deselect_tower() -> void:
 	var data: TowerData = _make_tower_data()
 	var tower: Node2D = auto_free(_make_tower_stub(data))
-	# Set up UIManager state so deselect_tower has something to clear
 	UIManager.selected_tower = tower
 	UIManager.tower_info_panel = _panel
 	_panel._tower = tower
 	_panel.visible = true
-	# Press the close button
 	_panel.close_button.pressed.emit()
-	# UIManager.deselect_tower() should have cleared the selection and hidden the panel
 	assert_that(UIManager.selected_tower).is_null()
 
 
@@ -330,18 +252,14 @@ func test_close_button_emits_tower_deselected_signal() -> void:
 # ==============================================================================
 
 func test_close_button_desktop_size() -> void:
-	# On desktop (non-mobile), close button should have small minimum size
 	var close_btn: Button = _panel.close_button
-	# Desktop: custom_minimum_size should be 28x28
 	assert_float(close_btn.custom_minimum_size.x).is_equal_approx(28.0, 1.0)
 	assert_float(close_btn.custom_minimum_size.y).is_equal_approx(28.0, 1.0)
 
 
 func test_apply_mobile_sizing_sets_close_button_min_size() -> void:
-	# Simulate calling mobile sizing
 	_panel._apply_mobile_sizing()
 	var close_btn: Button = _panel.close_button
-	# Mobile: close button should be at least MOBILE_BUTTON_MIN (64x64)
 	assert_bool(close_btn.custom_minimum_size.x >= 64.0).is_true()
 	assert_bool(close_btn.custom_minimum_size.y >= 64.0).is_true()
 
@@ -355,10 +273,7 @@ func test_mobile_reposition_docks_at_bottom() -> void:
 	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
 	_panel._tower = tower
 	_panel.visible = true
-	# Call mobile reposition
 	_panel._reposition_mobile()
-	# Panel should be near the bottom of the viewport (960 height)
-	# y should be viewport_height - panel_height - margin
 	var expected_y: float = 960.0 - _panel.size.y - _panel.PANEL_MARGIN
 	assert_float(_panel.position.y).is_equal_approx(expected_y, 2.0)
 
@@ -369,24 +284,17 @@ func test_mobile_reposition_centers_horizontally() -> void:
 	_panel._tower = tower
 	_panel.visible = true
 	_panel._reposition_mobile()
-	# Panel should be centered horizontally: x = (viewport_width - panel_width) / 2
 	var expected_x: float = (1280.0 - _panel.size.x) / 2.0
 	assert_float(_panel.position.x).is_equal_approx(expected_x, 2.0)
 
 
 func test_reposition_uses_mobile_path_when_mobile() -> void:
-	# Verify that _reposition() delegates to _reposition_mobile() on mobile.
-	# We test this indirectly: call _reposition_at and verify bottom-dock behavior
-	# by checking _reposition_mobile directly (already tested above).
-	# This test verifies the _is_mobile flag integration path.
 	var data: TowerData = _make_tower_data()
 	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(400, 300)))
 	_panel._tower = tower
 	_panel.visible = true
-	# Force mobile mode on the panel
 	_panel._mobile_mode = true
 	_panel._reposition()
-	# Should be bottom-docked, not beside-tower
 	var expected_y: float = 960.0 - _panel.size.y - _panel.PANEL_MARGIN
 	assert_float(_panel.position.y).is_equal_approx(expected_y, 2.0)
 
@@ -396,36 +304,27 @@ func test_reposition_uses_mobile_path_when_mobile() -> void:
 # ==============================================================================
 
 func test_close_button_has_neutral_style() -> void:
-	# Close button should have a StyleBoxFlat override (neutral, not element-colored)
 	var close_btn: Button = _panel.close_button
 	assert_bool(close_btn.has_theme_stylebox_override("normal")).is_true()
 	var style: StyleBox = close_btn.get_theme_stylebox("normal")
 	assert_that(style).is_not_null()
-	# The style should be a StyleBoxFlat with a dark gray bg
 	assert_bool(style is StyleBoxFlat).is_true()
 
 
 func test_close_button_style_differs_from_upgrade_button() -> void:
-	# Close button styling should be visually distinct from action buttons
 	var close_btn: Button = _panel.close_button
-	var upgrade_btn: Button = _panel.upgrade_button
-	# Close button has a neutral stylebox override; action buttons use default theme
 	assert_bool(close_btn.has_theme_stylebox_override("normal")).is_true()
-	# Upgrade button should NOT have the same override
-	# (it uses element-colored styling or theme default)
 	var close_style: StyleBoxFlat = close_btn.get_theme_stylebox("normal") as StyleBoxFlat
 	assert_that(close_style).is_not_null()
-	# Neutral bg should be dark gray (low saturation)
 	assert_bool(close_style.bg_color.r < 0.5 and close_style.bg_color.g < 0.5 and close_style.bg_color.b < 0.5).is_true()
 
 
 func test_close_button_focus_mode_is_none() -> void:
-	# Close button should not steal keyboard focus
 	assert_int(_panel.close_button.focus_mode).is_equal(Control.FOCUS_NONE)
 
 
 # ==============================================================================
-# SECTION 6: Display tower still works with new header layout
+# SECTION 6: Display tower still works with header layout
 # ==============================================================================
 
 func test_display_tower_sets_name_in_header() -> void:
@@ -440,5 +339,4 @@ func test_display_tower_positions_panel() -> void:
 	var tower: Node2D = auto_free(_make_tower_stub(data, Vector2(500, 400)))
 	_panel.position = Vector2.ZERO
 	_panel.display_tower(tower)
-	# Panel should have been repositioned (not at origin)
 	assert_bool(_panel._last_screen_pos != Vector2.ZERO).is_true()

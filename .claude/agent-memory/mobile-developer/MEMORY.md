@@ -20,6 +20,29 @@
 - Two-finger drag: camera pan with zoom-adjusted delta
 - Ghost tower tracks `_last_touch_screen_pos` during placement
 - Placement cooldown: 2 frames after placing to prevent auto-select
+- **GUI touch forwarding**: `_try_forward_touch_to_gui()` hit-tests known UI controls
+  and injects synthetic mouse clicks on web (where emulate_mouse_from_touch is broken)
+- On native mobile, forwarding returns true (suppresses grid click) but skips injection
+  (emulate_mouse_from_touch works correctly on native)
+
+## CRITICAL: Web Touch-to-GUI Bug (FIXED)
+- Godot 4.x GUI system only processes InputEventMouseButton, NOT InputEventScreenTouch
+- On web with `touch-action:none`, browser suppresses synthesized mouse events
+- Godot's `emulate_mouse_from_touch` is unreliable on HTML5 web exports
+- Result: GUI Buttons (Build FAB, overflow, speed, start-wave) never fire on mobile web
+- Fix: `_try_forward_touch_to_gui()` in Game.gd manually hit-tests UI controls and
+  injects synthetic InputEventMouseButton via `Input.parse_input_event()`
+- `_synthetic_click_pending` flag prevents the injected event from also triggering grid clicks
+- `gui_input` touch handlers on buttons are USELESS (removed) -- GUI never routes touch events
+- `Input.parse_input_event()` is SYNCHRONOUS in Godot 4.x -- flag works inline
+
+## CRITICAL: Mobile Web Detection is Broken
+- `OS.has_feature("web_android")` and `OS.has_feature("web_ios")` DO NOT EXIST in Godot 4.x
+- `OS.has_feature("mobile")` is false for web exports (only true for native APK/IPA)
+- Result: `is_mobile()` returns false on Android Chrome -> ALL mobile adaptations are skipped
+- Fix: Use `JavaScriptBridge.eval()` with `pointer: coarse` + `maxTouchPoints` + screen size
+- `JavaScriptBridge` is the Godot 4.3+ name (was `JavaScript` in 4.0-4.2)
+- `canvas_resize_policy=2` (Project) in export_presets.cfg may clip bottom on mobile browsers
 
 ## Key Mobile Issues Identified (2026-03-07)
 1. Grid cells (64px = 24dp) are below 48dp minimum - placement unreliable
@@ -30,6 +53,7 @@
 6. Keyboard hints shown on mobile ("Space", "C")
 7. Floating gold text at 16px (6dp) is unreadable
 8. No drag-to-place pattern for tower building
+9. BuildMenu may be clipped off-screen on mobile browsers (90px bottom strip + browser chrome)
 
 ## File Locations
 - UIManager: `scripts/autoload/UIManager.gd`

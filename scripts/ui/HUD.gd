@@ -47,7 +47,7 @@ func _ready() -> void:
 	EnemySystem.wave_cleared.connect(_on_boss_wave_cleared)
 	GameManager.wave_started.connect(_on_boss_wave_started)
 	GameManager.wave_completed.connect(_on_xp_wave_completed)
-	codex_button.pressed.connect(_on_codex_pressed)
+	codex_button.visible = false
 	pause_button.pressed.connect(_on_pause_pressed)
 	speed_button.pressed.connect(_on_speed_pressed)
 	start_wave_button.pressed.connect(_on_start_wave_pressed)
@@ -72,7 +72,6 @@ func _apply_mobile_sizing() -> void:
 	# Hide labels that move to overflow or merge into wave counter on mobile
 	xp_label.visible = false
 	topbar_timer_label.visible = false
-	codex_button.visible = false
 	pause_button.visible = false
 
 	# Speed button stays in bar, sized to fit 48px bar height
@@ -88,7 +87,6 @@ func _apply_mobile_sizing() -> void:
 
 	# Buttons should NOT expand (fixed width)
 	speed_button.size_flags_horizontal = 0
-	codex_button.size_flags_horizontal = 0
 	pause_button.size_flags_horizontal = 0
 
 	# WaveControls area: proportional height increase
@@ -105,80 +103,30 @@ func _apply_mobile_sizing() -> void:
 	overtime_label.add_theme_font_size_override("font_size", maxi(28, body_size))
 
 	# Strip keyboard hints -- not useful on mobile
-	codex_button.text = "Codex"
 	start_wave_button.text = "Start Wave"
 
-	# Create overflow menu for codex/pause access
-	_create_overflow_menu()
+	# Create a direct pause button (replaces old overflow menu)
+	_create_pause_button()
 
 
-func _create_overflow_menu() -> void:
+func _create_pause_button() -> void:
+	## Create a direct pause button in the TopBar (replaces overflow dropdown menu).
+	## Codex is accessible via Pause -> Codex, so no separate codex button needed.
 	var top_bar: HBoxContainer = $TopBar
 
-	# Overflow icon button in the TopBar
 	_overflow_button = Button.new()
-	_overflow_button.text = "\u2261"
+	_overflow_button.name = "MobilePauseButton"
+	_overflow_button.text = "| |"
 	_overflow_button.custom_minimum_size = Vector2(48, 44)
-	_overflow_button.pressed.connect(_toggle_overflow_menu)
+	_overflow_button.focus_mode = Control.FOCUS_NONE
+	_overflow_button.pressed.connect(_on_pause_pressed)
 	top_bar.add_child(_overflow_button)
 
-	# Invisible full-screen dimmer for click-outside-dismiss
-	_overflow_dimmer = ColorRect.new()
-	_overflow_dimmer.color = Color(0, 0, 0, 0)
-	_overflow_dimmer.set_anchors_preset(Control.PRESET_FULL_RECT)
-	_overflow_dimmer.visible = false
-	_overflow_dimmer.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-	_overflow_dimmer.gui_input.connect(_on_dimmer_input)
-	add_child(_overflow_dimmer)
-
-	# Overflow menu panel (child of HUD, not TopBar)
-	_overflow_menu = PanelContainer.new()
-	_overflow_menu.visible = false
-	_overflow_menu.process_mode = Node.PROCESS_MODE_WHEN_PAUSED
-	_overflow_menu.position = Vector2(size.x - 200, UIManager.MOBILE_TOPBAR_HEIGHT)
-
-	var vbox := VBoxContainer.new()
-	_overflow_menu.add_child(vbox)
-
-	var menu_codex := Button.new()
-	menu_codex.text = "Codex"
-	menu_codex.custom_minimum_size = Vector2(200, 48)
-	menu_codex.pressed.connect(func() -> void:
-		_dismiss_overflow_menu()
-		_on_codex_pressed()
-	)
-	vbox.add_child(menu_codex)
-
-	var menu_pause := Button.new()
-	menu_pause.text = "Pause"
-	menu_pause.custom_minimum_size = Vector2(200, 48)
-	menu_pause.pressed.connect(func() -> void:
-		_dismiss_overflow_menu()
-		_on_pause_pressed()
-	)
-	vbox.add_child(menu_pause)
-
-	add_child(_overflow_menu)
+	# No dimmer or dropdown menu needed -- button triggers pause directly
 
 
-func _toggle_overflow_menu() -> void:
-	if _overflow_menu == null:
-		return
-	var show := not _overflow_menu.visible
-	_overflow_menu.visible = show
-	_overflow_dimmer.visible = show
-
-
-func _dismiss_overflow_menu() -> void:
-	if _overflow_menu:
-		_overflow_menu.visible = false
-	if _overflow_dimmer:
-		_overflow_dimmer.visible = false
-
-
-func _on_dimmer_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed:
-		_dismiss_overflow_menu()
+func get_overflow_button() -> Button:
+	return _overflow_button
 
 
 func update_display() -> void:
@@ -344,10 +292,6 @@ func _on_early_wave_bonus(amount: int) -> void:
 
 func _on_pause_pressed() -> void:
 	GameManager.toggle_pause()
-
-
-func _on_codex_pressed() -> void:
-	UIManager.toggle_codex()
 
 
 func _on_start_wave_pressed() -> void:

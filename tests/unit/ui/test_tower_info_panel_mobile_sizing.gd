@@ -1,7 +1,7 @@
 extends GdUnitTestSuite
 
-## Unit tests for Task D2: TowerInfoPanel mobile sizing.
-## Covers: action button heights, dropdown height, label font sizes,
+## Unit tests for TowerInfoPanel mobile sizing (action-only panel).
+## Covers: action button heights, dropdown height, name label font size,
 ## panel min width, and full-width bottom-dock layout on mobile.
 
 const PANEL_SCRIPT_PATH: String = "res://scripts/ui/TowerInfoPanel.gd"
@@ -89,65 +89,6 @@ func _build_panel() -> PanelContainer:
 	close_button.text = "X"
 	header_row.add_child(close_button)
 
-	var tier_label := Label.new()
-	tier_label.name = "TierLabel"
-	tier_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(tier_label)
-
-	var element_label := Label.new()
-	element_label.name = "ElementLabel"
-	element_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(element_label)
-
-	var sep_top := HSeparator.new()
-	sep_top.name = "SeparatorTop"
-	vbox.add_child(sep_top)
-
-	var damage_label := Label.new()
-	damage_label.name = "DamageLabel"
-	damage_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(damage_label)
-
-	var speed_label := Label.new()
-	speed_label.name = "SpeedLabel"
-	speed_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(speed_label)
-
-	var range_label := Label.new()
-	range_label.name = "RangeLabel"
-	range_label.add_theme_font_size_override("font_size", 12)
-	vbox.add_child(range_label)
-
-	var special_label := Label.new()
-	special_label.name = "SpecialLabel"
-	special_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(special_label)
-
-	var synergy_label := Label.new()
-	synergy_label.name = "SynergyLabel"
-	synergy_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(synergy_label)
-
-	var sep_bottom := HSeparator.new()
-	sep_bottom.name = "SeparatorBottom"
-	vbox.add_child(sep_bottom)
-
-	var upgrade_cost_label := Label.new()
-	upgrade_cost_label.name = "UpgradeCostLabel"
-	upgrade_cost_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(upgrade_cost_label)
-
-	var sell_value_label := Label.new()
-	sell_value_label.name = "SellValueLabel"
-	sell_value_label.add_theme_font_size_override("font_size", 11)
-	vbox.add_child(sell_value_label)
-
-	var fusion_cost_label := Label.new()
-	fusion_cost_label.name = "FusionCostLabel"
-	fusion_cost_label.add_theme_font_size_override("font_size", 11)
-	fusion_cost_label.visible = false
-	vbox.add_child(fusion_cost_label)
-
 	var target_mode_dropdown := OptionButton.new()
 	target_mode_dropdown.name = "TargetModeDropdown"
 	vbox.add_child(target_mode_dropdown)
@@ -163,12 +104,6 @@ func _build_panel() -> PanelContainer:
 	var sell_button := Button.new()
 	sell_button.name = "SellButton"
 	button_row.add_child(sell_button)
-
-	var ascend_cost_label := Label.new()
-	ascend_cost_label.name = "AscendCostLabel"
-	ascend_cost_label.add_theme_font_size_override("font_size", 11)
-	ascend_cost_label.visible = false
-	vbox.add_child(ascend_cost_label)
 
 	var ascend_button := Button.new()
 	ascend_button.name = "AscendButton"
@@ -190,23 +125,10 @@ func _apply_script(panel: PanelContainer) -> void:
 	var header_row: HBoxContainer = vbox.get_node("HeaderRow")
 	panel.name_label = header_row.get_node("NameLabel")
 	panel.close_button = header_row.get_node("CloseButton")
-	panel.tier_label = vbox.get_node("TierLabel")
-	panel.element_label = vbox.get_node("ElementLabel")
-	panel.separator_top = vbox.get_node("SeparatorTop")
-	panel.damage_label = vbox.get_node("DamageLabel")
-	panel.speed_label = vbox.get_node("SpeedLabel")
-	panel.range_label = vbox.get_node("RangeLabel")
-	panel.special_label = vbox.get_node("SpecialLabel")
-	panel.synergy_label = vbox.get_node("SynergyLabel")
-	panel.separator_bottom = vbox.get_node("SeparatorBottom")
-	panel.upgrade_cost_label = vbox.get_node("UpgradeCostLabel")
-	panel.sell_value_label = vbox.get_node("SellValueLabel")
-	panel.fusion_cost_label = vbox.get_node("FusionCostLabel")
 	panel.target_mode_dropdown = vbox.get_node("TargetModeDropdown")
 	panel.button_row = vbox.get_node("ButtonRow")
 	panel.upgrade_button = vbox.get_node("ButtonRow/UpgradeButton")
 	panel.sell_button = vbox.get_node("ButtonRow/SellButton")
-	panel.ascend_cost_label = vbox.get_node("AscendCostLabel")
 	panel.ascend_button = vbox.get_node("AscendButton")
 	panel.fuse_button = vbox.get_node("FuseButton")
 	panel.close_button.pressed.connect(panel._on_close_pressed)
@@ -294,77 +216,10 @@ func test_target_dropdown_height_at_least_56_after_mobile_sizing() -> void:
 
 
 # ==============================================================================
-# SECTION 3: All label font sizes >= 16 on mobile
+# SECTION 3: Name label font size >= 16 on mobile
 # ==============================================================================
 
-func test_tier_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.tier_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_element_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.element_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_damage_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.damage_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_speed_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.speed_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_range_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.range_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_special_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.special_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_synergy_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.synergy_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_upgrade_cost_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.upgrade_cost_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_sell_value_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.sell_value_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_fusion_cost_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.fusion_cost_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
-func test_ascend_cost_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	_panel._apply_mobile_sizing()
-	var font_size: int = _panel.ascend_cost_label.get_theme_font_size("font_size")
-	assert_bool(font_size >= 16).is_true()
-
-
 func test_name_label_font_size_at_least_16_after_mobile_sizing() -> void:
-	# NameLabel is already 16 in the .tscn but verify it is not reduced
 	_panel._apply_mobile_sizing()
 	var font_size: int = _panel.name_label.get_theme_font_size("font_size")
 	assert_bool(font_size >= 16).is_true()
@@ -421,12 +276,6 @@ func test_desktop_buttons_retain_original_min_height() -> void:
 	# Without _apply_mobile_sizing, buttons should have their default min height
 	assert_float(_panel.upgrade_button.custom_minimum_size.y).is_less(56.0)
 	assert_float(_panel.sell_button.custom_minimum_size.y).is_less(56.0)
-
-
-func test_desktop_labels_retain_original_font_sizes() -> void:
-	# Without _apply_mobile_sizing, labels should keep their .tscn font sizes (11 or 12)
-	var font_size: int = _panel.tier_label.get_theme_font_size("font_size")
-	assert_int(font_size).is_equal(11)
 
 
 func test_desktop_panel_min_width_is_240() -> void:
