@@ -119,6 +119,7 @@ func _create_pause_button() -> void:
 	_overflow_button.text = "| |"
 	_overflow_button.custom_minimum_size = Vector2(48, 44)
 	_overflow_button.focus_mode = Control.FOCUS_NONE
+	_overflow_button.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overflow_button.pressed.connect(_on_pause_pressed)
 	top_bar.add_child(_overflow_button)
 
@@ -156,9 +157,10 @@ func _process(_delta: float) -> void:
 			var t: float = GameManager._build_timer
 			timer_label.text = "Next wave in: %ds" % ceili(t)
 			timer_label.visible = true
-			# Persistent topbar timer
-			topbar_timer_label.text = "Next: %ds" % ceili(t)
-			topbar_timer_label.visible = true
+			# Persistent topbar timer (hidden on mobile to save TopBar space)
+			if not _is_mobile:
+				topbar_timer_label.text = "Next: %ds" % ceili(t)
+				topbar_timer_label.visible = true
 			# Prominent centered countdown for last 5 seconds
 			if t <= 5.0 and t > 0.0:
 				countdown_label.text = "%d" % ceili(t)
@@ -184,10 +186,11 @@ func _process(_delta: float) -> void:
 		if GameManager._overtime_active:
 			# Overtime: show elapsed overtime time and pulsing warning
 			var ot: float = GameManager._overtime_elapsed
-			topbar_timer_label.text = "OVERTIME: %ds" % ceili(ot)
-			topbar_timer_label.visible = true
-			topbar_timer_label.add_theme_color_override("font_color",
-				Color(1.0, 0.2, 0.15, 1.0))
+			if not _is_mobile:
+				topbar_timer_label.text = "OVERTIME: %ds" % ceili(ot)
+				topbar_timer_label.visible = true
+				topbar_timer_label.add_theme_color_override("font_color",
+					Color(1.0, 0.2, 0.15, 1.0))
 			# Pulse the overtime label
 			if overtime_label:
 				overtime_label.visible = true
@@ -196,11 +199,12 @@ func _process(_delta: float) -> void:
 			countdown_label.visible = false
 			countdown_label.scale = Vector2.ONE
 		else:
-			# Normal combat: persistent topbar timer
+			# Normal combat: persistent topbar timer (hidden on mobile)
 			var t: float = GameManager._combat_timer
-			topbar_timer_label.text = "Time: %ds" % ceili(t)
-			topbar_timer_label.visible = true
-			topbar_timer_label.remove_theme_color_override("font_color")
+			if not _is_mobile:
+				topbar_timer_label.text = "Time: %ds" % ceili(t)
+				topbar_timer_label.visible = true
+				topbar_timer_label.remove_theme_color_override("font_color")
 			if overtime_label:
 				overtime_label.visible = false
 			# Prominent countdown for last 10 seconds of combat

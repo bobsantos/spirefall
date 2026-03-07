@@ -483,14 +483,24 @@ func _try_forward_touch_to_gui(screen_pos: Vector2) -> bool:
 		if _control_hit_test(UIManager.build_menu, screen_pos):
 			return true
 
-	# --- Tower info panel buttons (sell, upgrade, fuse) ---
+	# --- Tower action ring buttons (sell, upgrade, fuse, ascend) ---
 	if UIManager.tower_info_panel and UIManager.tower_info_panel.visible:
-		var hit_btn: Button = _find_hit_button(UIManager.tower_info_panel, screen_pos)
-		if hit_btn:
-			hit_btn.pressed.emit()
-			return true
-		if _control_hit_test(UIManager.tower_info_panel, screen_pos):
-			return true
+		if UIManager.tower_info_panel.has_method("try_invoke_ring_button"):
+			if UIManager.tower_info_panel.try_invoke_ring_button(screen_pos):
+				return true
+			# Check if tap landed in the ring area (near the tower) to prevent
+			# it from registering as a grid click
+			if UIManager.tower_info_panel.has_method("hit_test_ring"):
+				if UIManager.tower_info_panel.hit_test_ring(screen_pos):
+					return true
+		else:
+			# Fallback for legacy panel
+			var hit_btn: Button = _find_hit_button(UIManager.tower_info_panel, screen_pos)
+			if hit_btn:
+				hit_btn.pressed.emit()
+				return true
+			if _control_hit_test(UIManager.tower_info_panel, screen_pos):
+				return true
 
 	return false
 
@@ -890,7 +900,7 @@ var _fuse_signal_connected: bool = false
 
 
 func _connect_tower_info_fuse_signal() -> void:
-	## Connect the TowerInfoPanel's fuse_requested signal exactly once.
+	## Connect the TowerActionRing's fuse_requested signal exactly once.
 	if _fuse_signal_connected:
 		return
 	if UIManager.tower_info_panel and UIManager.tower_info_panel.has_signal("fuse_requested"):

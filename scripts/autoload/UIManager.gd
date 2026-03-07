@@ -86,7 +86,6 @@ func select_tower(tower: Node) -> void:
 	if wave_preview_panel:
 		wave_preview_panel.hide()
 	if tower_info_panel:
-		tower_info_panel.show()
 		tower_info_panel.display_tower(tower)
 
 
@@ -94,7 +93,10 @@ func deselect_tower() -> void:
 	selected_tower = null
 	tower_deselected.emit()
 	if tower_info_panel:
-		tower_info_panel.hide()
+		if tower_info_panel.has_method("hide_ring"):
+			tower_info_panel.hide_ring()
+		else:
+			tower_info_panel.hide()
 
 
 func request_build(tower_data: TowerData) -> void:
